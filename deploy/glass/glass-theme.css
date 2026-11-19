@@ -160,3 +160,46 @@ kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidena
   filter: none !important;
 }
 
+/* Header toolbar icons — white / default */
+.kd-primary-toolbar .mat-icon,
+.kd-primary-toolbar .material-icons,
+.kd-primary-toolbar .mat-icon-button,
+.kd-primary-toolbar .mat-button,
+.kd-primary-toolbar .mat-icon-button .mat-icon,
+.kd-primary-toolbar .kd-toolbar-action,
+.kd-primary-toolbar .kd-toolbar-action *,
+.kd-primary-toolbar .kd-primary-toolbar-icon,
+.kd-primary-toolbar button,
+.kd-primary-toolbar button *,
+.mat-toolbar.mat-primary .mat-icon,
+.mat-toolbar.mat-primary .material-icons,
+.mat-toolbar.mat-primary .mat-icon-button,
+.mat-toolbar.mat-primary .mat-icon-button .mat-icon,
+.mat-toolbar .kd-toolbar-action,
+.mat-toolbar .kd-toolbar-action .mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Prevent accent/primary blue from painting header icons as solid blue blobs */
+.kd-primary-toolbar .kd-primary,
+.kd-primary-toolbar .kd-accent,
+.mat-toolbar.mat-primary .kd-primary,
+.mat-toolbar.mat-primary .kd-accent,
+.kd-primary-toolbar .mat-button.mat-primary,
+.kd-primary-toolbar .mat-icon-button.mat-primary {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Material ripple / focus circle behind icons should not show as blue discs */
+.kd-primary-toolbar .mat-button-focus-overlay,
+.kd-primary-toolbar .mat-ripple-element,
+.mat-toolbar.mat-primary .mat-button-focus-overlay {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
