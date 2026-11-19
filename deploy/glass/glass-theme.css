@@ -500,16 +500,35 @@ kd-namespace-selector .mat-select-arrow {
   opacity: 0.9 !important;
 }
 
+/*
+  Nav clip root cause: stock button width:100% + our horizontal margins overflow
+  the nav scroller (right padding is only ~3px). Use width:calc instead of 100%.
+*/
+.kd-nav-items,
+.kd-nav .kd-nav-items,
+kd-nav .kd-nav-items,
+.kd-nav-container .kd-nav-items {
+  padding-right: 12px !important;
+  box-sizing: border-box !important;
+  overflow-x: visible !important;
+}
+
+.kd-nav,
+.kd-nav-container .kd-nav {
+  overflow-x: hidden !important;
+}
+
 .kd-nav-item-button,
 .kd-nav .mat-list-item,
 .kd-nav a.kd-nav-item-button {
   border-radius: 12px !important;
-  margin: 2px 12px !important;
+  margin: 2px 0 2px 0 !important;
   padding-left: 12px !important;
   padding-right: 12px !important;
   box-sizing: border-box !important;
-  max-width: calc(100% - 24px) !important;
-  width: auto !important;
+  width: calc(100% - 8px) !important;
+  max-width: none !important;
+  display: block !important;
   color: var(--text-secondary) !important;
   transition:
     background-color var(--ease-glass),
@@ -518,13 +537,18 @@ kd-namespace-selector .mat-select-arrow {
     box-shadow var(--ease-glass) !important;
 }
 
+.kd-nav-item .kd-nav-item-button,
+.kd-nav-item a.kd-nav-item-button {
+  width: calc(100% - 4px) !important;
+}
+
 .kd-nav-item-button:hover,
 .kd-nav .mat-list-item:hover {
   background: var(--glass-surface-hover) !important;
   color: var(--text-primary) !important;
 }
 
-/* Active nav chip fully inset — both rounded corners visible */
+/* Active nav chip — full rounded corners, no parent clip */
 .kd-nav-item-button-active,
 .kd-nav a.kd-nav-item-button-active {
   background: linear-gradient(
@@ -535,13 +559,14 @@ kd-namespace-selector .mat-select-arrow {
   color: #ffffff !important;
   border: 1px solid rgba(180, 215, 255, 0.36) !important;
   border-radius: 12px !important;
-  margin: 2px 12px !important;
-  max-width: calc(100% - 24px) !important;
+  margin: 2px 0 !important;
+  width: calc(100% - 8px) !important;
+  max-width: none !important;
   box-sizing: border-box !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.20),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 /* ---------- Cards / elevated glass ---------- */
@@ -792,7 +817,33 @@ input.mat-input-element {
 }
 
 .kd-notifications-panel {
-  background: rgba(16, 24, 38, 0.86) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(190, 215, 255, 0.14) 0%,
+    rgba(18, 28, 44, 0.78) 42%,
+    rgba(14, 24, 38, 0.82) 100%
+  ) !important;
+  border: 1px solid rgba(225, 240, 255, 0.20) !important;
+  box-shadow: var(--glass-shadow-elevated) !important;
+}
+
+/* Compact empty notification state (keep tall when items exist) */
+.kd-notifications-panel:has(.kd-notifications-zero-state) {
+  height: auto !important;
+  min-height: 132px !important;
+  max-height: 168px !important;
+}
+
+.kd-notifications-panel:has(.kd-notifications-zero-state) .kd-notifications-content {
+  height: auto !important;
+  min-height: 120px !important;
+}
+
+.kd-notifications-zero-state {
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
+  letter-spacing: 0.01em !important;
+  padding: 24px 16px !important;
 }
 
 .mat-option {
@@ -812,7 +863,108 @@ input.mat-input-element {
 
 .mat-select-panel .mat-form-field-flex,
 .cdk-overlay-pane .mat-form-field-flex {
-  background: var(--glass-surface-recessed) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Namespace dropdown search — kill stock #2d2d2d grey strip */
+.cdk-overlay-pane .kd-namespace-select-input,
+.mat-select-panel .kd-namespace-select-input {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  box-shadow: none !important;
+}
+
+.cdk-overlay-pane .kd-namespace-select-input-border,
+.mat-select-panel .kd-namespace-select-input-border,
+.kd-namespace-select-input-border {
+  background: rgba(10, 18, 32, 0.35) !important;
+  border: 1px solid rgba(225, 240, 255, 0.14) !important;
+  border-radius: 8px !important;
+  margin: 8px !important;
+  padding: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.cdk-overlay-pane .kd-namespace-select-input::placeholder,
+.mat-select-panel .kd-namespace-select-input::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
+}
+
+/* ---------- Pagination — continue table glass (not opaque grey) ---------- */
+body .mat-paginator,
+body.kd-dark-theme .mat-paginator,
+body .kd-dark-theme .mat-paginator,
+.kd-dark-theme mat-paginator.mat-paginator,
+mat-card .mat-paginator,
+.mat-card mat-paginator {
+  background: rgba(175, 200, 235, 0.04) !important;
+  background-color: rgba(175, 200, 235, 0.04) !important;
+  background-image: none !important;
+  color: var(--text-secondary) !important;
+  border-top: 1px solid rgba(225, 240, 255, 0.12) !important;
+  border-radius: 0 0 var(--glass-radius) var(--glass-radius) !important;
+  box-shadow: none !important;
+}
+
+body .mat-paginator-container,
+body.kd-dark-theme .mat-paginator-container,
+.kd-dark-theme .mat-paginator .mat-paginator-container {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+  min-height: 44px !important;
+  padding: 0 8px !important;
+}
+
+.mat-paginator-page-size .mat-select-trigger,
+.mat-paginator .mat-select-value,
+.mat-paginator-range-label {
+  color: var(--text-secondary) !important;
+}
+
+.mat-paginator .mat-form-field-flex {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(225, 240, 255, 0.14) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  padding: 0 8px !important;
+  min-height: 32px !important;
+}
+
+.mat-paginator .mat-icon-button {
+  color: var(--text-primary) !important;
+  background: transparent !important;
+  border-radius: 999px !important;
+  transition: background-color var(--ease-glass) !important;
+}
+
+.mat-paginator .mat-icon-button:hover:not([disabled]) {
+  background: rgba(200, 220, 255, 0.10) !important;
+}
+
+.mat-paginator .mat-icon-button[disabled],
+.mat-paginator .mat-icon-button.mat-button-disabled {
+  opacity: 0.35 !important;
+}
+
+.mat-paginator-decrement,
+.mat-paginator-increment,
+.mat-paginator-first,
+.mat-paginator-last {
+  border-color: rgba(240, 245, 252, 0.75) !important;
+}
+
+.mat-icon-button[disabled] .mat-paginator-decrement,
+.mat-icon-button[disabled] .mat-paginator-increment,
+.mat-icon-button[disabled] .mat-paginator-first,
+.mat-icon-button[disabled] .mat-paginator-last {
+  border-color: rgba(240, 245, 252, 0.28) !important;
 }
 
 /* ---------- Status / charts cosmetic ---------- */
@@ -877,11 +1029,19 @@ input.mat-input-element {
 }
 
 .mat-tab-label.mat-tab-label-active,
-.mat-tab-link.mat-tab-label-active,
-.mat-tab-label-active .mat-tab-label-content {
+.mat-tab-link.mat-tab-label-active {
   color: #F4F8FF !important;
   opacity: 1 !important;
   background: rgba(141, 196, 255, 0.10) !important;
+}
+
+/* Kill nested rectangular paint behind tab text only */
+.mat-tab-label .mat-tab-label-content,
+.mat-tab-label-active .mat-tab-label-content,
+.mat-tab-label .mat-ripple,
+.mat-tab-label .mat-focus-indicator {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .mat-tab-group.mat-primary .mat-ink-bar,
@@ -892,11 +1052,17 @@ input.mat-input-element {
   border-radius: 2px 2px 0 0 !important;
 }
 
-/* ---------- Create / Settings form alignment ---------- */
+/*
+  Form alignment: pad ONLY .mat-form-field-flex.
+  Labels live inside infix — do not also set label left:14px (causes misalignment).
+*/
 kd-create-from-form .mat-form-field-flex,
 kd-create-from-file .mat-form-field-flex,
 kd-upload-file .mat-form-field-flex,
-kd-create .mat-form-field-flex {
+kd-create .mat-form-field-flex,
+kd-settings .mat-form-field-flex,
+.kd-settings .mat-form-field-flex,
+kd-settings-global .mat-form-field-flex {
   padding: 0 14px !important;
   min-height: 42px !important;
   align-items: center !important;
@@ -906,79 +1072,88 @@ kd-create .mat-form-field-flex {
 kd-create-from-form .mat-form-field-infix,
 kd-create-from-file .mat-form-field-infix,
 kd-upload-file .mat-form-field-infix,
-kd-create .mat-form-field-infix {
+kd-create .mat-form-field-infix,
+kd-settings .mat-form-field-infix,
+.kd-settings .mat-form-field-infix {
   padding-left: 0 !important;
   padding-right: 0 !important;
-  border-top-width: 0.75em !important;
+  border-top-width: 0.84375em !important;
+  width: 100% !important;
 }
 
 kd-create-from-form .mat-input-element,
 kd-create-from-file .mat-input-element,
 kd-upload-file .mat-input-element,
 kd-create .mat-input-element,
+kd-settings .mat-input-element,
 kd-create-from-form .mat-select-value,
-kd-create .mat-select-value {
+kd-create .mat-select-value,
+kd-settings .mat-select-value {
   padding-left: 0 !important;
+  padding-right: 0 !important;
   margin-left: 0 !important;
+  text-indent: 0 !important;
   color: var(--text-primary) !important;
 }
 
 kd-create-from-form .mat-form-field-label,
 kd-create-from-file .mat-form-field-label,
 kd-upload-file .mat-form-field-label,
-kd-create .mat-form-field-label {
-  left: 14px !important;
-}
-
-kd-create-from-form .mat-form-field.mat-form-field-should-float .mat-form-field-label,
-kd-create-from-form .mat-form-field.mat-focused .mat-form-field-label,
-kd-create .mat-form-field.mat-form-field-should-float .mat-form-field-label {
-  left: 14px !important;
+kd-create .mat-form-field-label,
+kd-settings .mat-form-field-label,
+.kd-settings .mat-form-field-label {
+  left: 0 !important;
+  margin-left: 0 !important;
 }
 
 kd-create-from-form .mat-form-field-subscript-wrapper,
-kd-create .mat-form-field-subscript-wrapper {
-  margin-left: 2px !important;
-  padding: 0 12px !important;
+kd-create .mat-form-field-subscript-wrapper,
+kd-settings .mat-form-field-subscript-wrapper {
+  margin-left: 0 !important;
+  padding: 0 14px !important;
 }
 
 kd-create-from-form .mat-select-arrow-wrapper,
-kd-create .mat-select-arrow-wrapper {
+kd-create .mat-select-arrow-wrapper,
+kd-settings .mat-select-arrow-wrapper {
   transform: translateY(0) !important;
-  padding-right: 2px !important;
+  padding-right: 0 !important;
 }
 
 kd-upload-file {
+  display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
+}
+
+kd-upload-file .mat-form-field {
+  margin-bottom: 0 !important;
 }
 
 kd-upload-file .kd-upload-button {
   margin-top: 0 !important;
+  margin-bottom: 0 !important;
   align-self: center !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  border-radius: var(--glass-radius-sm) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(225, 240, 255, 0.18) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
 }
 
-/* Settings field separation + label clearance */
+/* Settings field separation */
 kd-settings .mat-form-field,
 .kd-settings .mat-form-field,
 kd-settings-global .mat-form-field {
-  margin-bottom: 10px !important;
+  margin-bottom: 14px !important;
   display: block !important;
-}
-
-kd-settings .mat-form-field-flex,
-.kd-settings .mat-form-field-flex {
-  padding: 0 14px !important;
-}
-
-kd-settings .mat-form-field-label,
-.kd-settings .mat-form-field-label {
-  left: 14px !important;
 }
 
 kd-settings .mat-form-field-wrapper,
 .kd-settings .mat-form-field-wrapper {
-  margin-top: 4px !important;
-  padding-bottom: 0.75em !important;
+  margin-top: 0.5em !important;
+  padding-bottom: 0.85em !important;
 }
 
 /* ---------- Button consistency ---------- */
