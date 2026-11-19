@@ -8,24 +8,24 @@
 :root {
   --glass-surface: linear-gradient(
     135deg,
-    rgba(190, 215, 255, 0.14),
-    rgba(145, 175, 215, 0.07) 48%,
-    rgba(150, 225, 215, 0.10)
+    rgba(210, 230, 255, 0.17) 0%,
+    rgba(170, 195, 230, 0.07) 48%,
+    rgba(160, 230, 220, 0.12) 100%
   );
-  --glass-surface-flat: rgba(175, 200, 235, 0.09);
+  --glass-surface-flat: rgba(190, 215, 245, 0.11);
   --glass-surface-elevated: linear-gradient(
     145deg,
-    rgba(200, 220, 255, 0.18),
-    rgba(150, 180, 220, 0.09) 50%,
-    rgba(155, 220, 210, 0.12)
+    rgba(215, 232, 255, 0.20) 0%,
+    rgba(165, 190, 225, 0.09) 50%,
+    rgba(165, 230, 220, 0.14) 100%
   );
-  --glass-surface-hover: rgba(200, 220, 255, 0.10);
-  --glass-surface-active: rgba(141, 196, 255, 0.20);
-  --glass-surface-recessed: rgba(8, 14, 24, 0.22);
+  --glass-surface-hover: rgba(210, 228, 255, 0.12);
+  --glass-surface-active: rgba(150, 200, 255, 0.22);
+  --glass-surface-recessed: rgba(10, 18, 32, 0.28);
 
-  --glass-border: rgba(225, 240, 255, 0.17);
-  --glass-highlight: rgba(255, 255, 255, 0.16);
-  --glass-edge-soft: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(225, 240, 255, 0.20);
+  --glass-highlight: rgba(255, 255, 255, 0.20);
+  --glass-edge-soft: rgba(255, 255, 255, 0.05);
 
   --glass-blur: 24px;
   --glass-blur-strong: 36px;
@@ -52,14 +52,14 @@
   --status-info: #93C5FD;
 
   --glass-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
-    0 8px 28px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.18);
 
   --glass-shadow-elevated:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
-    0 16px 40px rgba(0, 0, 0, 0.26);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 36px rgba(0, 0, 0, 0.24);
 
   --ease-glass: 180ms cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -126,8 +126,17 @@ kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidena
 }
 
 /* ---------- Primary masthead + secondary toolbar (one glass ribbon) ---------- */
+/*
+  P0 stacking: backdrop-filter on both toolbars creates stacking contexts.
+  Secondary toolbar follows primary in DOM, so it painted over the in-toolbar
+  .kd-notifications-panel (absolute, z-index 1000 only within primary context).
+  Raise primary above secondary/content so notifications remain visible.
+*/
 .kd-primary-toolbar,
 .mat-toolbar.kd-primary-toolbar {
+  position: relative !important;
+  z-index: 400 !important;
+  overflow: visible !important;
   background:
     var(--masthead-glass),
     var(--glass-surface-flat) !important;
@@ -140,10 +149,27 @@ kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidena
   color: #ffffff !important;
 }
 
-/* Priority 1 — kill solid .kd-bg-primary (#326de6 / #327df4) on secondary toolbar */
+.kd-primary-toolbar .kd-toolbar-tools,
+.kd-primary-toolbar .kd-toolbar-action,
+.kd-primary-toolbar kd-notifications,
+.kd-primary-toolbar .kd-notifications-container {
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.kd-notifications-panel {
+  position: absolute !important;
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+}
+
+/* Secondary toolbar stays below primary (notifications) but above page content */
 .kd-second-toolbar,
 .kd-second-toolbar.kd-bg-primary,
 mat-toolbar.kd-second-toolbar.kd-bg-primary {
+  position: relative !important;
+  z-index: 200 !important;
   background:
     var(--masthead-glass),
     var(--glass-surface-flat) !important;
@@ -155,6 +181,16 @@ mat-toolbar.kd-second-toolbar.kd-bg-primary {
     inset 0 -1px 0 rgba(255, 255, 255, 0.10),
     inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
   color: var(--text-primary) !important;
+}
+
+.kd-chrome-container,
+.kd-scroll-container {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.cdk-overlay-container {
+  z-index: 1100 !important;
 }
 
 .kd-second-toolbar .kd-toolbar-tools,
@@ -241,10 +277,17 @@ mat-toolbar.kd-second-toolbar.kd-bg-primary {
 /* Glass icon buttons in masthead */
 .kd-primary-toolbar .mat-icon-button,
 .mat-toolbar.mat-primary .mat-icon-button {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.06) 100%
+  ) !important;
+  border: 1px solid rgba(225, 240, 255, 0.22) !important;
   border-radius: var(--glass-radius-pill) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 2px 8px rgba(0, 0, 0, 0.12) !important;
   transition:
     background-color var(--ease-glass),
     border-color var(--ease-glass),
@@ -254,8 +297,12 @@ mat-toolbar.kd-second-toolbar.kd-bg-primary {
 
 .kd-primary-toolbar .mat-icon-button:hover,
 .mat-toolbar.mat-primary .mat-icon-button:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.10) 100%
+  ) !important;
+  border-color: rgba(255, 255, 255, 0.32) !important;
 }
 
 .kd-primary-toolbar .mat-icon-button:active,
@@ -272,61 +319,69 @@ mat-toolbar.kd-second-toolbar.kd-bg-primary {
 
 /* ---------- Header controls: one surface each ---------- */
 .kd-primary-toolbar .kd-search {
-  background: rgba(255, 255, 255, 0.10) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(255, 255, 255, 0.11) !important;
+  border: 1px solid rgba(225, 240, 255, 0.22) !important;
   border-radius: var(--glass-radius-sm) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
-/* Priority 2 — namespace: one owner surface = kd-namespace-selector */
+/* Namespace — glass owner = .kd-namespace-select-input-container (contains arrow) */
 .kd-primary-toolbar kd-namespace-selector,
 kd-namespace-selector#nav-namespace-selector,
-.kd-primary-toolbar .kd-namespace-selector,
 kd-namespace-selector {
   display: inline-flex !important;
   align-items: center !important;
-  background: rgba(255, 255, 255, 0.10) !important;
-  border: 1px solid rgba(255, 255, 255, 0.18) !important;
-  border-radius: var(--glass-radius-sm) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
-  padding: 0 4px 0 10px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin-right: 12px !important;
   min-height: 36px !important;
+  overflow: visible !important;
+}
+
+.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input-container,
+kd-namespace-selector .kd-namespace-select-input-container.mat-form-field,
+kd-namespace-selector .kd-namespace-select-input-container {
+  background: rgba(255, 255, 255, 0.11) !important;
+  border: 1px solid rgba(225, 240, 255, 0.22) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+  padding: 0 28px 0 12px !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
   transition:
     background-color var(--ease-glass),
     border-color var(--ease-glass),
     box-shadow var(--ease-glass) !important;
 }
 
-.kd-primary-toolbar kd-namespace-selector:hover,
-kd-namespace-selector:hover {
-  background: rgba(255, 255, 255, 0.14) !important;
-  border-color: rgba(255, 255, 255, 0.26) !important;
+.kd-primary-toolbar kd-namespace-selector:hover .kd-namespace-select-input-container,
+kd-namespace-selector:hover .kd-namespace-select-input-container {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(255, 255, 255, 0.30) !important;
 }
 
-.kd-primary-toolbar kd-namespace-selector:focus-within,
-kd-namespace-selector:focus-within {
+.kd-primary-toolbar kd-namespace-selector:focus-within .kd-namespace-select-input-container,
+kd-namespace-selector:focus-within .kd-namespace-select-input-container {
   border-color: rgba(141, 196, 255, 0.55) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
     0 0 0 2px rgba(141, 196, 255, 0.18) !important;
 }
 
-/* Strip nested paints that create double frames / dark strips */
-.kd-primary-toolbar kd-namespace-selector .kd-namespace-select,
-.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input-container,
-.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input,
-.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input-border,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-wrapper,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-flex,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-infix,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-outline,
-.kd-primary-toolbar kd-namespace-selector .mat-select-trigger,
+/* Clear nested paints inside the single glass field */
 kd-namespace-selector .kd-namespace-select,
-kd-namespace-selector .kd-namespace-select-input-container,
 kd-namespace-selector .kd-namespace-select-input,
 kd-namespace-selector .kd-namespace-select-input-border,
-kd-namespace-selector .mat-form-field,
 kd-namespace-selector .mat-form-field-wrapper,
 kd-namespace-selector .mat-form-field-flex,
 kd-namespace-selector .mat-form-field-infix,
@@ -338,28 +393,46 @@ kd-namespace-selector .mat-select-trigger {
   border-bottom: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
 }
 
 kd-namespace-selector .mat-form-field-underline,
-kd-namespace-selector .mat-form-field-ripple,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-underline,
-.kd-primary-toolbar kd-namespace-selector .mat-form-field-ripple {
+kd-namespace-selector .mat-form-field-ripple {
   display: none !important;
 }
 
-kd-namespace-selector .mat-select-value,
-kd-namespace-selector .mat-select-value-text,
-.kd-primary-toolbar kd-namespace-selector .mat-select-value,
-.kd-primary-toolbar kd-namespace-selector .mat-select-value-text {
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  line-height: 36px !important;
+kd-namespace-selector .mat-form-field-wrapper {
+  padding-bottom: 0 !important;
+  width: 100% !important;
 }
 
-kd-namespace-selector .mat-select-arrow,
-.kd-primary-toolbar kd-namespace-selector .mat-select-arrow {
-  color: rgba(255, 255, 255, 0.78) !important;
-  margin-top: -2px !important;
+kd-namespace-selector .mat-form-field-infix {
+  border-top: 0 !important;
+  width: auto !important;
+  min-width: 8rem !important;
+}
+
+kd-namespace-selector .mat-select-value,
+kd-namespace-selector .mat-select-value-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  line-height: 34px !important;
+}
+
+/* Keep chevron inside the rounded glass (right padding reserves room) */
+kd-namespace-selector .mat-select-arrow-wrapper {
+  transform: translateY(0) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 100% !important;
+  right: 8px !important;
+}
+
+kd-namespace-selector .mat-select-arrow {
+  color: rgba(255, 255, 255, 0.82) !important;
+  margin: 0 !important;
 }
 
 .kd-primary-toolbar .kd-search .mat-form-field-flex,
@@ -405,6 +478,16 @@ kd-namespace-selector .mat-select-arrow,
   box-shadow:
     inset -1px 0 0 rgba(255, 255, 255, 0.04),
     8px 0 28px rgba(0, 0, 0, 0.16) !important;
+  overflow-x: hidden !important;
+}
+
+.kd-nav .mat-nav-list,
+.kd-nav mat-nav-list,
+.kd-nav .mat-list-base {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
 }
 
 .kd-nav-group-header,
@@ -421,10 +504,12 @@ kd-namespace-selector .mat-select-arrow,
 .kd-nav .mat-list-item,
 .kd-nav a.kd-nav-item-button {
   border-radius: 12px !important;
-  margin: 2px 10px !important;
+  margin: 2px 12px !important;
   padding-left: 12px !important;
   padding-right: 12px !important;
   box-sizing: border-box !important;
+  max-width: calc(100% - 24px) !important;
+  width: auto !important;
   color: var(--text-secondary) !important;
   transition:
     background-color var(--ease-glass),
@@ -439,18 +524,24 @@ kd-namespace-selector .mat-select-arrow,
   color: var(--text-primary) !important;
 }
 
-/* Priority 5 — complete rounded active chip inset from sidebar edge */
+/* Active nav chip fully inset — both rounded corners visible */
 .kd-nav-item-button-active,
 .kd-nav a.kd-nav-item-button-active {
-  background: var(--glass-surface-active) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(160, 205, 255, 0.26) 0%,
+    rgba(120, 170, 230, 0.14) 100%
+  ) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(141, 196, 255, 0.34) !important;
+  border: 1px solid rgba(180, 215, 255, 0.36) !important;
   border-radius: 12px !important;
-  margin: 2px 10px !important;
+  margin: 2px 12px !important;
+  max-width: calc(100% - 24px) !important;
+  box-sizing: border-box !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
 /* ---------- Cards / elevated glass ---------- */
@@ -542,14 +633,22 @@ kd-settings-global .mat-form-field-flex {
   color: var(--text-primary) !important;
   border-radius: var(--glass-radius-sm) !important;
   border: 1px solid var(--glass-border) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03) !important;
   padding: 0 12px !important;
-  min-height: 48px !important;
+  min-height: 42px !important;
+  height: auto !important;
   align-items: center !important;
   transition:
     background-color var(--ease-glass),
     border-color var(--ease-glass),
     box-shadow var(--ease-glass) !important;
+}
+
+kd-settings .mat-form-field-wrapper,
+.kd-settings .mat-form-field-wrapper {
+  padding-bottom: 0.35em !important;
 }
 
 kd-settings .mat-form-field-infix,
@@ -563,8 +662,8 @@ kd-settings .mat-select-trigger,
   border: none !important;
   box-shadow: none !important;
   color: var(--text-primary) !important;
-  padding-top: 1.1em !important;
-  padding-bottom: 0.4em !important;
+  padding-top: 0.85em !important;
+  padding-bottom: 0.35em !important;
 }
 
 kd-settings .mat-form-field-underline,
@@ -633,20 +732,24 @@ input.mat-input-element {
 }
 
 .mat-slide-toggle-thumb {
-  background: rgba(240, 245, 252, 0.92) !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+  background: rgba(240, 245, 252, 0.94) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.25) !important;
 }
 
 .mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
-  background: rgba(110, 231, 183, 0.45) !important;
+  background: rgba(67, 214, 160, 0.48) !important;
 }
 
-.mat-slider-track-background { background: rgba(255, 255, 255, 0.14) !important; }
-.mat-slider-track-fill { background: rgba(141, 196, 255, 0.55) !important; }
+.mat-slider-track-background { background: rgba(255, 255, 255, 0.16) !important; }
+.mat-slider-track-fill { background: rgba(141, 196, 255, 0.62) !important; }
 .mat-slider-thumb {
-  background: #F0F5FC !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
+  background: #F4F8FF !important;
+  border: 1px solid rgba(255, 255, 255, 0.42) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.28) !important;
 }
 
 .mat-raised-button.mat-primary,
@@ -679,13 +782,17 @@ input.mat-input-element {
 .cdk-overlay-pane .mat-menu-panel,
 .mat-autocomplete-panel,
 .mat-tooltip {
-  background: rgba(18, 26, 40, 0.58) !important;
+  background: rgba(18, 26, 40, 0.72) !important;
   backdrop-filter: blur(var(--glass-blur-strong)) saturate(160%) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(160%) !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: var(--glass-radius) !important;
   color: var(--text-primary) !important;
   box-shadow: var(--glass-shadow-elevated) !important;
+}
+
+.kd-notifications-panel {
+  background: rgba(16, 24, 38, 0.86) !important;
 }
 
 .mat-option {
@@ -723,7 +830,7 @@ input.mat-input-element {
   background-color: rgba(67, 214, 160, 0.55) !important;
 }
 
-/* Priority 6 — soften healthy chart green only (#00c752 from stock chart config) */
+/* Soften healthy chart green only (#00c752 from stock chart config) */
 .ngx-charts [fill="#00c752"],
 .ngx-charts [fill="#00C752"],
 .ngx-charts [style*="fill: rgb(0, 199, 82)"],
@@ -731,9 +838,277 @@ input.mat-input-element {
   fill: #43D6A0 !important;
 }
 
+.ngx-charts [stroke="#00c752"],
+.ngx-charts [stroke="#00C752"],
+.ngx-charts path[stroke="#00c752"],
+.ngx-charts line[stroke="#00c752"],
+.ngx-charts [style*="stroke: rgb(0, 199, 82)"],
+.ngx-charts [style*="stroke:#00c752"] {
+  stroke: #43D6A0 !important;
+}
+
 .ngx-charts text,
 .ngx-charts .tick text {
   fill: var(--text-secondary) !important;
+}
+
+/* ---------- Create page tabs ---------- */
+.mat-tab-header,
+.mat-tab-nav-bar {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(225, 240, 255, 0.12) !important;
+}
+
+.mat-tab-label,
+.mat-tab-link {
+  color: var(--text-secondary) !important;
+  opacity: 1 !important;
+  background: transparent !important;
+  border-radius: 8px 8px 0 0 !important;
+  transition:
+    color var(--ease-glass),
+    background-color var(--ease-glass) !important;
+}
+
+.mat-tab-label:hover:not(.mat-tab-disabled),
+.mat-tab-link:hover:not(.mat-tab-disabled) {
+  background: rgba(200, 220, 255, 0.07) !important;
+  color: var(--text-primary) !important;
+}
+
+.mat-tab-label.mat-tab-label-active,
+.mat-tab-link.mat-tab-label-active,
+.mat-tab-label-active .mat-tab-label-content {
+  color: #F4F8FF !important;
+  opacity: 1 !important;
+  background: rgba(141, 196, 255, 0.10) !important;
+}
+
+.mat-tab-group.mat-primary .mat-ink-bar,
+.mat-tab-nav-bar.mat-primary .mat-ink-bar,
+.mat-ink-bar {
+  background-color: rgba(141, 196, 255, 0.92) !important;
+  height: 2px !important;
+  border-radius: 2px 2px 0 0 !important;
+}
+
+/* ---------- Create / Settings form alignment ---------- */
+kd-create-from-form .mat-form-field-flex,
+kd-create-from-file .mat-form-field-flex,
+kd-upload-file .mat-form-field-flex,
+kd-create .mat-form-field-flex {
+  padding: 0 14px !important;
+  min-height: 42px !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+}
+
+kd-create-from-form .mat-form-field-infix,
+kd-create-from-file .mat-form-field-infix,
+kd-upload-file .mat-form-field-infix,
+kd-create .mat-form-field-infix {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  border-top-width: 0.75em !important;
+}
+
+kd-create-from-form .mat-input-element,
+kd-create-from-file .mat-input-element,
+kd-upload-file .mat-input-element,
+kd-create .mat-input-element,
+kd-create-from-form .mat-select-value,
+kd-create .mat-select-value {
+  padding-left: 0 !important;
+  margin-left: 0 !important;
+  color: var(--text-primary) !important;
+}
+
+kd-create-from-form .mat-form-field-label,
+kd-create-from-file .mat-form-field-label,
+kd-upload-file .mat-form-field-label,
+kd-create .mat-form-field-label {
+  left: 14px !important;
+}
+
+kd-create-from-form .mat-form-field.mat-form-field-should-float .mat-form-field-label,
+kd-create-from-form .mat-form-field.mat-focused .mat-form-field-label,
+kd-create .mat-form-field.mat-form-field-should-float .mat-form-field-label {
+  left: 14px !important;
+}
+
+kd-create-from-form .mat-form-field-subscript-wrapper,
+kd-create .mat-form-field-subscript-wrapper {
+  margin-left: 2px !important;
+  padding: 0 12px !important;
+}
+
+kd-create-from-form .mat-select-arrow-wrapper,
+kd-create .mat-select-arrow-wrapper {
+  transform: translateY(0) !important;
+  padding-right: 2px !important;
+}
+
+kd-upload-file {
+  align-items: center !important;
+}
+
+kd-upload-file .kd-upload-button {
+  margin-top: 0 !important;
+  align-self: center !important;
+}
+
+/* Settings field separation + label clearance */
+kd-settings .mat-form-field,
+.kd-settings .mat-form-field,
+kd-settings-global .mat-form-field {
+  margin-bottom: 10px !important;
+  display: block !important;
+}
+
+kd-settings .mat-form-field-flex,
+.kd-settings .mat-form-field-flex {
+  padding: 0 14px !important;
+}
+
+kd-settings .mat-form-field-label,
+.kd-settings .mat-form-field-label {
+  left: 14px !important;
+}
+
+kd-settings .mat-form-field-wrapper,
+.kd-settings .mat-form-field-wrapper {
+  margin-top: 4px !important;
+  padding-bottom: 0.75em !important;
+}
+
+/* ---------- Button consistency ---------- */
+.mat-raised-button,
+.mat-flat-button,
+.mat-stroked-button,
+.mat-button {
+  border-radius: var(--glass-radius-sm) !important;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass),
+    opacity var(--ease-glass) !important;
+}
+
+.mat-button.mat-primary,
+.mat-stroked-button.mat-primary {
+  color: var(--link-color) !important;
+  border: 1px solid rgba(141, 196, 255, 0.28) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.mat-button.mat-primary:hover,
+.mat-stroked-button.mat-primary:hover {
+  background: rgba(141, 196, 255, 0.10) !important;
+}
+
+.mat-raised-button.mat-primary[disabled],
+.mat-flat-button.mat-primary[disabled],
+.mat-button[disabled],
+.mat-raised-button:disabled,
+.mat-flat-button:disabled,
+.mat-button:disabled {
+  opacity: 0.42 !important;
+  color: var(--text-muted) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none !important;
+}
+
+/* ---------- Ace YAML/JSON editor (kd-text-input → .kd-ace) ---------- */
+.kd-ace,
+.kd-ace.ace_editor,
+kd-text-input .kd-ace,
+kd-text-input .ace_editor {
+  background: linear-gradient(
+    160deg,
+    rgba(18, 32, 52, 0.72) 0%,
+    rgba(12, 22, 38, 0.78) 100%
+  ) !important;
+  border: 1px solid rgba(225, 240, 255, 0.18) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 8px 24px rgba(0, 0, 0, 0.20) !important;
+  color: var(--text-primary) !important;
+}
+
+.kd-ace .ace_gutter,
+.ace_editor .ace_gutter {
+  background: rgba(8, 14, 26, 0.55) !important;
+  border-right: 1px solid rgba(225, 240, 255, 0.10) !important;
+  color: var(--text-muted) !important;
+}
+
+.kd-ace .ace_gutter-active-line,
+.ace_editor .ace_gutter-active-line {
+  background: rgba(141, 196, 255, 0.10) !important;
+}
+
+.kd-ace .ace_scroller,
+.kd-ace .ace_content,
+.ace_editor .ace_scroller,
+.ace_editor .ace_content {
+  background: transparent !important;
+}
+
+.kd-ace .ace_active-line,
+.ace_editor .ace_active-line {
+  background: rgba(141, 196, 255, 0.08) !important;
+}
+
+.kd-ace .ace_cursor,
+.ace_editor .ace_cursor {
+  color: #F0F5FC !important;
+  border-left-color: #F0F5FC !important;
+}
+
+.kd-ace .ace_marker-layer .ace_selection,
+.ace_editor .ace_marker-layer .ace_selection {
+  background: rgba(141, 196, 255, 0.28) !important;
+}
+
+.kd-ace .ace_marker-layer .ace_selected-word,
+.ace_editor .ace_marker-layer .ace_selected-word {
+  background: rgba(141, 196, 255, 0.16) !important;
+  border: 1px solid rgba(141, 196, 255, 0.35) !important;
+}
+
+.kd-ace .ace_print-margin,
+.ace_editor .ace_print-margin {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Readable syntax on glass (ace-tm defaults are light-theme) */
+.kd-ace.ace-tm .ace_text-layer,
+.ace-tm .ace_text-layer {
+  color: #E8EEF8 !important;
+}
+
+.kd-ace.ace-tm .ace_keyword,
+.ace-tm .ace_keyword { color: #8DC4FF !important; }
+
+.kd-ace.ace-tm .ace_string,
+.ace-tm .ace_string { color: #7EE0C3 !important; }
+
+.kd-ace.ace-tm .ace_constant,
+.kd-ace.ace-tm .ace_constant.ace_numeric,
+.ace-tm .ace_constant,
+.ace-tm .ace_constant.ace_numeric { color: #F5D0A0 !important; }
+
+.kd-ace.ace-tm .ace_comment,
+.ace-tm .ace_comment { color: #8A9BB0 !important; }
+
+.kd-ace.ace-tm .ace_meta.ace_tag,
+.ace-tm .ace_meta.ace_tag { color: #A8C8F0 !important; }
+
+.kd-ace .ace_scrollbar::-webkit-scrollbar-thumb,
+.ace_editor .ace_scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18) !important;
 }
 
 /* Keep toolbar form-fields from picking up recessed generic flex paint */
