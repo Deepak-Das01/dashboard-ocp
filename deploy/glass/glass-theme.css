@@ -1,851 +1,749 @@
-/*
- * Kubernetes Dashboard — Enterprise Glass UI
- * Phase 2: Fit & finish / pixel alignment (CSS injection only)
- * Target: kubernetesui/dashboard v2.7.0 + Angular Material
- *
- * Root-cause driven corrections:
- * - Nested namespace/search surfaces (paint one owner only)
- * - Fragmented table borders (row separators, not per-cell)
- * - Clipped nav selection (padding + indicator + overflow)
- * - Aggressive wrapping (normalize word-break)
- * - Flat/opaque surfaces (restrained glass restored)
- */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
-/* ========== Design tokens ========== */
+/* ============================================================
+   Kubernetes Dashboard Glass UI — Liquid Glass refinement
+   Cosmetic only. Do not alter table display / flex column layout.
+   ============================================================ */
+
 :root {
-  --app-background: #0c121d;
-  --surface-base: #131c2a;
-  --surface-card: rgba(23, 34, 50, 0.88);
-  --surface-elevated: rgba(31, 43, 60, 0.94);
-  --surface-control: rgba(255, 255, 255, 0.045);
-  --surface-control-hover: rgba(255, 255, 255, 0.07);
-  --surface-hover: rgba(148, 163, 184, 0.08);
-  --surface-selected: rgba(50, 108, 229, 0.16);
-  --surface-table: rgba(19, 28, 42, 0.94);
-  --surface-header: rgba(14, 22, 34, 0.78);
-  --surface-sidebar: rgba(16, 24, 36, 0.82);
-  --surface-toolbar2: rgba(18, 28, 42, 0.9);
+  --glass-surface: linear-gradient(
+    135deg,
+    rgba(190, 215, 255, 0.14),
+    rgba(145, 175, 215, 0.07) 48%,
+    rgba(150, 225, 215, 0.10)
+  );
+  --glass-surface-flat: rgba(175, 200, 235, 0.09);
+  --glass-surface-elevated: linear-gradient(
+    145deg,
+    rgba(200, 220, 255, 0.18),
+    rgba(150, 180, 220, 0.09) 50%,
+    rgba(155, 220, 210, 0.12)
+  );
+  --glass-surface-hover: rgba(200, 220, 255, 0.10);
+  --glass-surface-active: rgba(141, 196, 255, 0.20);
+  --glass-surface-recessed: rgba(8, 14, 24, 0.22);
 
-  --border-subtle: rgba(255, 255, 255, 0.065);
-  --border-default: rgba(255, 255, 255, 0.11);
-  --border-focus: rgba(96, 165, 250, 0.65);
+  --glass-border: rgba(225, 240, 255, 0.17);
+  --glass-highlight: rgba(255, 255, 255, 0.16);
+  --glass-edge-soft: rgba(255, 255, 255, 0.08);
 
-  --text-primary: #e8edf5;
-  --text-secondary: #a5b2c5;
-  --text-muted: #8493a9;
-  --text-on-accent: #ffffff;
+  --glass-blur: 24px;
+  --glass-blur-strong: 36px;
+  --glass-saturation: 155%;
+  --glass-radius: 16px;
+  --glass-radius-sm: 10px;
+  --glass-radius-pill: 999px;
 
-  --accent-primary: #326ce5;
-  --accent-link: #79b3fa;
-  --accent-teal: #2d7d78;
-  --accent-interactive: #60a5fa;
+  --masthead-glass: linear-gradient(
+    105deg,
+    rgba(40, 92, 180, 0.38) 0%,
+    rgba(22, 34, 52, 0.34) 48%,
+    rgba(28, 110, 108, 0.30) 100%
+  );
 
-  --status-success: #34d399;
-  --status-warning: #fbbf24;
-  --status-error: #f87171;
-  --status-info: #60a5fa;
+  --text-primary: #F0F5FC;
+  --text-secondary: #BCCBDD;
+  --text-muted: #9BAFC5;
+  --link-color: #8DC4FF;
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
+  --status-success: #43D6A0;
+  --status-warning: #FCD34D;
+  --status-error: #FCA5A5;
+  --status-info: #93C5FD;
 
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
+    0 8px 28px rgba(0, 0, 0, 0.18);
 
-  --header-height: 56px;
-  --toolbar2-height: 46px;
-  --sidebar-width: 244px;
-  --nav-row-height: 36px;
-  --input-height: 40px;
-  --button-height: 36px;
-  --table-header-height: 40px;
-  --table-row-min: 48px;
-  --icon-size: 20px;
-  --content-pad: 24px;
-  --nav-indicator: 2px;
+  --glass-shadow-elevated:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.03),
+    0 16px 40px rgba(0, 0, 0, 0.26);
 
-  --blur-panel: 16px;
-  --blur-overlay: 22px;
+  --ease-glass: 180ms cubic-bezier(0.22, 1, 0.36, 1);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.38);
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-
-  --t-fast: 120ms;
-  --t-normal: 180ms;
-
-  color-scheme: dark;
-  box-sizing: border-box;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: inherit;
+  /* Legacy aliases used by prior selectors */
+  --glass: var(--glass-surface-flat);
+  --glass-2: rgba(175, 200, 235, 0.17);
+  --stroke: var(--glass-border);
+  --text: var(--text-primary);
+  --muted: var(--text-muted);
+  --blur: var(--glass-blur);
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
-    --surface-card: #172232;
-    --surface-elevated: #1f2b3c;
-    --surface-header: #0e1622;
-    --surface-sidebar: #101824;
+    --glass-surface: rgba(28, 36, 52, 0.92);
+    --glass-surface-flat: rgba(28, 36, 52, 0.92);
+    --glass-surface-elevated: rgba(36, 46, 64, 0.94);
+    --glass-surface-hover: rgba(48, 60, 82, 0.88);
+    --glass-surface-active: rgba(52, 72, 104, 0.92);
+    --glass-surface-recessed: rgba(16, 22, 34, 0.94);
+    --masthead-glass: linear-gradient(105deg, #1e3a5f 0%, #151b24 48%, #1a3d3a 100%);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+html, body, kd-root { height: 100% !important; margin: 0 !important; }
 
-/* ========== Base ========== */
-html, body, kd-root { height: 100%; margin: 0; }
-
-body,
-body.kd-glass-theme {
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.45;
-  color: var(--text-primary);
-  background-color: var(--app-background);
+/* ---------- Ambient background ---------- */
+body, body.kd-glass-theme {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  color: var(--text-primary) !important;
+  background-color: #070b12 !important;
   background-image:
-    radial-gradient(ellipse 880px 500px at 6% -10%, rgba(50, 108, 229, 0.18), transparent 58%),
-    radial-gradient(ellipse 700px 460px at 98% 0%, rgba(45, 125, 120, 0.12), transparent 52%),
-    linear-gradient(165deg, var(--app-background) 0%, var(--surface-base) 52%, #0a1018 100%);
-  background-attachment: fixed;
-  -webkit-font-smoothing: antialiased;
-  word-break: normal;
-  overflow-wrap: normal;
+    radial-gradient(ellipse 1100px 720px at 8% -5%, rgba(56, 120, 220, 0.48), transparent 62%),
+    radial-gradient(ellipse 900px 640px at 92% 12%, rgba(45, 140, 130, 0.28), transparent 58%),
+    radial-gradient(ellipse 800px 560px at 78% 88%, rgba(36, 110, 180, 0.22), transparent 55%),
+    radial-gradient(ellipse 700px 480px at 35% 70%, rgba(90, 160, 230, 0.14), transparent 60%),
+    linear-gradient(165deg, #06090f 0%, #0c121c 48%, #070a11 100%) !important;
+  background-attachment: fixed !important;
 }
 
-kd-root,
-.kd-dark-theme,
-.mat-app-background,
-.mat-drawer-container,
-.mat-sidenav-container,
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+  opacity: 0.35;
+}
+
+kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidenav-container,
 .kd-bg-background {
   background: transparent !important;
+  background-color: transparent !important;
   color: var(--text-primary) !important;
 }
 
-.mat-drawer-content,
-.mat-sidenav-content {
-  background: transparent !important;
+.mat-drawer-content, .mat-sidenav-content { background: transparent !important; }
+
+/* ---------- Shared glass edge recipe ---------- */
+.kd-glass-panel {
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
-.kd-h1, h1 {
-  font-size: 24px !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.02em !important;
-  color: var(--text-primary) !important;
-  line-height: 1.25 !important;
-}
-
-.kd-h3, h2, h3 {
-  font-size: 18px !important;
-  font-weight: 600 !important;
-  color: var(--text-primary) !important;
-}
-
-.kd-muted, .kd-muted-light { color: var(--text-secondary) !important; }
-.kd-success { color: var(--status-success) !important; }
-.kd-error { color: var(--status-error) !important; }
-.kd-primary, .kd-accent { color: var(--accent-interactive) !important; }
-
-.kd-code-block,
-.kd-code-block-font,
-.kd-pre-block,
-pre, code {
-  font-family: var(--font-mono) !important;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ========== Header ========== */
+/* ---------- Primary masthead + secondary toolbar (one glass ribbon) ---------- */
 .kd-primary-toolbar,
-.mat-toolbar.mat-primary,
-.mat-toolbar,
-header.mat-toolbar {
-  min-height: var(--header-height) !important;
-  height: var(--header-height) !important;
-  padding: 0 var(--space-4) !important;
-  background: var(--surface-header) !important;
-  backdrop-filter: blur(var(--blur-panel)) saturate(135%);
-  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(135%);
-  border-bottom: 1px solid var(--border-default) !important;
-  box-shadow: var(--shadow-sm), var(--highlight-inset) !important;
-  color: var(--text-on-accent) !important;
+.mat-toolbar.kd-primary-toolbar {
+  background:
+    var(--masthead-glass),
+    var(--glass-surface-flat) !important;
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  border-bottom: 1px solid transparent !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 28px rgba(0, 0, 0, 0.18) !important;
+  color: #ffffff !important;
 }
 
-.mat-toolbar-row {
-  height: var(--header-height) !important;
-  align-items: center !important;
-  gap: var(--space-3);
+/* Priority 1 — kill solid .kd-bg-primary (#326de6 / #327df4) on secondary toolbar */
+.kd-second-toolbar,
+.kd-second-toolbar.kd-bg-primary,
+mat-toolbar.kd-second-toolbar.kd-bg-primary {
+  background:
+    var(--masthead-glass),
+    var(--glass-surface-flat) !important;
+  background-color: transparent !important;
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-primary) !important;
 }
 
-/* Brand: white on toolbar */
+.kd-second-toolbar .kd-toolbar-tools,
+.kd-second-toolbar .kd-actionbar-breadcrumbs,
+.kd-second-toolbar kd-nav-hamburger,
+.kd-second-toolbar kd-breadcrumbs,
+.kd-second-toolbar kd-actionbar {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.kd-second-toolbar a,
+.kd-second-toolbar .kd-actionbar-breadcrumbs,
+.kd-second-toolbar .mat-icon {
+  color: var(--text-primary) !important;
+}
+
+.kd-second-toolbar .kd-actionbar-breadcrumbs a.kd-muted,
+.kd-second-toolbar .kd-muted {
+  color: var(--text-secondary) !important;
+}
+
+.kd-second-toolbar .kd-actionbar-breadcrumbs a:last-child,
+.kd-second-toolbar .kd-actionbar-breadcrumbs .kd-primary {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
 .kd-primary-toolbar .kd-toolbar-logo-text,
 .kd-primary-toolbar .kd-toolbar-logo-text *,
+.mat-toolbar.mat-primary .kd-toolbar-logo-text,
+.mat-toolbar .kd-toolbar-logo-text,
 .kd-toolbar-logo-text,
 .kd-primary-toolbar a,
 .kd-primary-toolbar .kd-accent,
-.kd-primary-toolbar .kd-primary,
 .mat-toolbar.mat-primary .kd-accent,
-.mat-toolbar.mat-primary .kd-primary {
-  color: var(--text-on-accent) !important;
-  -webkit-text-fill-color: var(--text-on-accent) !important;
-  fill: var(--text-on-accent) !important;
+.kd-primary-toolbar .mat-toolbar-row,
+.kd-primary-toolbar span {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   opacity: 1 !important;
+}
+
+.kd-primary-toolbar svg,
+.kd-primary-toolbar img,
+.mat-toolbar.mat-primary svg {
+  filter: none !important;
 }
 
 .kd-primary-toolbar .mat-icon,
 .kd-primary-toolbar .material-icons,
 .kd-primary-toolbar .mat-icon-button,
 .kd-primary-toolbar .mat-button,
+.kd-primary-toolbar .mat-icon-button .mat-icon,
 .kd-primary-toolbar .kd-toolbar-action,
+.kd-primary-toolbar .kd-toolbar-action *,
 .kd-primary-toolbar .kd-primary-toolbar-icon,
+.kd-primary-toolbar button,
+.kd-primary-toolbar button *,
 .mat-toolbar.mat-primary .mat-icon,
-.mat-toolbar.mat-primary .mat-icon-button {
-  color: var(--text-on-accent) !important;
-  -webkit-text-fill-color: var(--text-on-accent) !important;
-  background: transparent !important;
-}
-
-.kd-primary-toolbar .mat-icon,
-.mat-toolbar.mat-primary .mat-icon,
-.kd-primary-toolbar .material-icons {
-  font-size: var(--icon-size) !important;
-  width: var(--icon-size) !important;
-  height: var(--icon-size) !important;
-  line-height: var(--icon-size) !important;
-}
-
-.kd-primary-toolbar .mat-icon-button,
+.mat-toolbar.mat-primary .material-icons,
 .mat-toolbar.mat-primary .mat-icon-button,
-.kd-primary-toolbar .kd-toolbar-action {
-  width: 36px !important;
-  height: 36px !important;
-  line-height: 36px !important;
-  border-radius: var(--radius-md) !important;
-  transition: background-color var(--t-fast) ease;
+.mat-toolbar.mat-primary .mat-icon-button .mat-icon,
+.mat-toolbar .kd-toolbar-action,
+.mat-toolbar .kd-toolbar-action .mat-icon {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.kd-primary-toolbar .kd-primary,
+.kd-primary-toolbar .kd-accent,
+.mat-toolbar.mat-primary .kd-primary,
+.mat-toolbar.mat-primary .kd-accent,
+.kd-primary-toolbar .mat-button.mat-primary,
+.kd-primary-toolbar .mat-icon-button.mat-primary {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Glass icon buttons in masthead */
+.kd-primary-toolbar .mat-icon-button,
+.mat-toolbar.mat-primary .mat-icon-button {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: var(--glass-radius-pill) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass),
+    opacity var(--ease-glass) !important;
 }
 
 .kd-primary-toolbar .mat-icon-button:hover,
 .mat-toolbar.mat-primary .mat-icon-button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+.kd-primary-toolbar .mat-icon-button:active,
+.mat-toolbar.mat-primary .mat-icon-button:active {
+  background: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18) !important;
 }
 
 .kd-primary-toolbar .mat-button-focus-overlay,
-.kd-primary-toolbar .mat-ripple-element {
+.kd-primary-toolbar .mat-ripple-element,
+.mat-toolbar.mat-primary .mat-button-focus-overlay {
   background-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-/* ----- Namespace + search: ONE surface owner -----
- * Root cause: backgrounds/borders were painted on select, input,
- * input-container AND mat-form-field-flex simultaneously.
- */
-.kd-namespace-select,
-.kd-namespace-select-input,
-.kd-search,
-.kd-search-input,
-.kd-primary-toolbar .mat-form-field,
-.kd-primary-toolbar .mat-form-field-wrapper,
-.kd-primary-toolbar .mat-form-field-flex,
-.kd-primary-toolbar .mat-form-field-infix,
-.kd-primary-toolbar .mat-form-field-outline,
-.kd-primary-toolbar .mat-form-field-underline,
-.kd-primary-toolbar .mat-form-field-ripple {
+/* ---------- Header controls: one surface each ---------- */
+.kd-primary-toolbar .kd-search {
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Priority 2 — namespace: one owner surface = kd-namespace-selector */
+.kd-primary-toolbar kd-namespace-selector,
+kd-namespace-selector#nav-namespace-selector,
+.kd-primary-toolbar .kd-namespace-selector,
+kd-namespace-selector {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+  padding: 0 4px 0 10px !important;
+  min-height: 36px !important;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass) !important;
+}
+
+.kd-primary-toolbar kd-namespace-selector:hover,
+kd-namespace-selector:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.26) !important;
+}
+
+.kd-primary-toolbar kd-namespace-selector:focus-within,
+kd-namespace-selector:focus-within {
+  border-color: rgba(141, 196, 255, 0.55) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 2px rgba(141, 196, 255, 0.18) !important;
+}
+
+/* Strip nested paints that create double frames / dark strips */
+.kd-primary-toolbar kd-namespace-selector .kd-namespace-select,
+.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input-container,
+.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input,
+.kd-primary-toolbar kd-namespace-selector .kd-namespace-select-input-border,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-wrapper,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-flex,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-infix,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-outline,
+.kd-primary-toolbar kd-namespace-selector .mat-select-trigger,
+kd-namespace-selector .kd-namespace-select,
+kd-namespace-selector .kd-namespace-select-input-container,
+kd-namespace-selector .kd-namespace-select-input,
+kd-namespace-selector .kd-namespace-select-input-border,
+kd-namespace-selector .mat-form-field,
+kd-namespace-selector .mat-form-field-wrapper,
+kd-namespace-selector .mat-form-field-flex,
+kd-namespace-selector .mat-form-field-infix,
+kd-namespace-selector .mat-form-field-outline,
+kd-namespace-selector .mat-select-trigger {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+kd-namespace-selector .mat-form-field-underline,
+kd-namespace-selector .mat-form-field-ripple,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-underline,
+.kd-primary-toolbar kd-namespace-selector .mat-form-field-ripple {
+  display: none !important;
+}
+
+kd-namespace-selector .mat-select-value,
+kd-namespace-selector .mat-select-value-text,
+.kd-primary-toolbar kd-namespace-selector .mat-select-value,
+.kd-primary-toolbar kd-namespace-selector .mat-select-value-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  line-height: 36px !important;
+}
+
+kd-namespace-selector .mat-select-arrow,
+.kd-primary-toolbar kd-namespace-selector .mat-select-arrow {
+  color: rgba(255, 255, 255, 0.78) !important;
+  margin-top: -2px !important;
+}
+
+.kd-primary-toolbar .kd-search .mat-form-field-flex,
+.kd-primary-toolbar .kd-search .mat-form-field-outline,
+.kd-primary-toolbar .kd-search .mat-form-field-wrapper,
+.kd-primary-toolbar .kd-search .mat-form-field-infix,
+.kd-primary-toolbar .kd-search-input,
+.kd-primary-toolbar .mat-input-element {
   background: transparent !important;
   background-color: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
 
-.kd-namespace-select-input-container,
-.kd-primary-toolbar .kd-search,
-.kd-primary-toolbar .kd-namespace-select {
-  display: inline-flex !important;
-  align-items: center !important;
-  height: var(--input-height) !important;
-  min-height: var(--input-height) !important;
-  padding: 0 var(--space-3) !important;
-  background: var(--surface-control) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: none !important;
-  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease;
-}
-
-.kd-namespace-select-input-container:hover,
-.kd-primary-toolbar .kd-search:hover,
-.kd-primary-toolbar .kd-namespace-select:hover {
-  background: var(--surface-control-hover) !important;
-  border-color: rgba(255, 255, 255, 0.16) !important;
-}
-
-.kd-namespace-select-input,
-.kd-search-input,
 .kd-primary-toolbar .mat-input-element,
-.kd-primary-toolbar input {
-  height: calc(var(--input-height) - 2px) !important;
-  line-height: calc(var(--input-height) - 2px) !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  color: var(--text-primary) !important;
-  font-size: 13px !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
+.kd-primary-toolbar input,
+.kd-primary-toolbar .mat-select-value,
+.kd-primary-toolbar .mat-select-value-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
-.kd-search-input::placeholder,
-.mat-input-element::placeholder {
-  color: var(--text-muted) !important;
+.kd-primary-toolbar .mat-input-element::placeholder,
+.kd-primary-toolbar input::placeholder {
+  color: rgba(240, 245, 252, 0.62) !important;
   opacity: 1 !important;
 }
 
-.kd-primary-toolbar .mat-form-field-underline,
-.kd-primary-toolbar .mat-form-field-ripple,
-.mat-form-field-underline,
-.mat-form-field-ripple {
-  display: none !important;
+.kd-primary-toolbar .mat-form-field-label,
+.kd-primary-toolbar .mat-form-field.mat-focused .mat-form-field-label {
+  color: rgba(240, 245, 252, 0.72) !important;
 }
 
-.kd-primary-toolbar .mat-select-arrow,
-.kd-namespace-select .mat-select-arrow {
-  color: var(--text-secondary) !important;
-}
-
-button:focus-visible,
-.mat-button:focus-visible,
-.mat-icon-button:focus-visible,
-.mat-input-element:focus-visible,
-.kd-search-input:focus-visible {
-  outline: 2px solid var(--border-focus) !important;
-  outline-offset: 2px !important;
-}
-
-/* ========== Secondary toolbar / actionbar / breadcrumbs ========== */
-.kd-actionbar {
-  min-height: var(--toolbar2-height) !important;
-  height: auto !important;
-  padding: var(--space-2) var(--content-pad) !important;
-  background: var(--surface-toolbar2) !important;
-  border-bottom: 1px solid var(--border-subtle) !important;
-  box-shadow: none !important;
-  align-items: center !important;
-}
-
-.kd-actionbar,
-.kd-actionbar * {
-  color: var(--text-secondary);
-}
-
-.kd-actionbar a,
-.kd-actionbar .mat-button {
-  color: var(--text-secondary) !important;
-  font-size: 13px !important;
-  line-height: 1.3 !important;
-  vertical-align: middle !important;
-}
-
-.kd-actionbar .mat-icon {
-  font-size: 18px !important;
-  width: 18px !important;
-  height: 18px !important;
-  vertical-align: middle !important;
-}
-
-/* ========== Sidebar ========== */
+/* ---------- Smoked-glass sidebar ---------- */
 .kd-nav,
 .mat-drawer,
 .mat-sidenav,
-.mat-drawer.mat-drawer-side,
-.mat-sidenav.mat-drawer-side {
-  width: var(--sidebar-width) !important;
-  max-width: var(--sidebar-width) !important;
-  background: var(--surface-sidebar) !important;
-  backdrop-filter: blur(var(--blur-panel)) saturate(130%);
-  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(130%);
-  border-right: 1px solid var(--border-subtle) !important;
-  box-shadow: none !important;
-  overflow-x: hidden !important;
+.mat-drawer.mat-drawer-side {
+  background: rgba(12, 18, 28, 0.42) !important;
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
+  border-right: 1px solid var(--glass-border) !important;
+  box-shadow:
+    inset -1px 0 0 rgba(255, 255, 255, 0.04),
+    8px 0 28px rgba(0, 0, 0, 0.16) !important;
 }
 
-.mat-drawer-inner-container {
-  overflow-x: hidden !important;
-  padding: var(--space-2) 0 var(--space-4) !important;
-}
-
-/* Root cause of clipped selection: item margin + full-width bg vs scrollbar.
- * Keep horizontal padding on the list, not overflowing item borders. */
-.kd-nav-item-button,
-.mat-nav-list .mat-list-item,
-.mat-list-item {
-  box-sizing: border-box !important;
-  width: auto !important;
-  max-width: 100% !important;
-  margin: 2px var(--space-3) !important;
-  padding: 0 var(--space-3) !important;
-  min-height: var(--nav-row-height) !important;
-  height: var(--nav-row-height) !important;
-  border-radius: var(--radius-md) !important;
-  border: none !important;
+.kd-nav-group-header,
+.kd-nav .mat-subheader {
   color: var(--text-secondary) !important;
-  font-size: 13px !important;
-  line-height: var(--nav-row-height) !important;
-  overflow: hidden !important;
-  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  opacity: 0.9 !important;
+}
+
+.kd-nav-item-button,
+.kd-nav .mat-list-item,
+.kd-nav a.kd-nav-item-button {
+  border-radius: 12px !important;
+  margin: 2px 10px !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+  box-sizing: border-box !important;
+  color: var(--text-secondary) !important;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    color var(--ease-glass),
+    box-shadow var(--ease-glass) !important;
 }
 
 .kd-nav-item-button:hover,
-.mat-list-item:hover {
-  background: var(--surface-hover) !important;
+.kd-nav .mat-list-item:hover {
+  background: var(--glass-surface-hover) !important;
   color: var(--text-primary) !important;
 }
 
+/* Priority 5 — complete rounded active chip inset from sidebar edge */
 .kd-nav-item-button-active,
-.kd-nav-item-button.mat-accent,
-.mat-list-item.active {
-  background: var(--surface-selected) !important;
-  color: var(--text-primary) !important;
-  box-shadow: inset var(--nav-indicator) 0 0 0 var(--accent-primary) !important;
-}
-
-.mat-drawer::-webkit-scrollbar,
-.mat-sidenav::-webkit-scrollbar,
-.kd-nav::-webkit-scrollbar,
-.mat-drawer-inner-container::-webkit-scrollbar {
-  width: 8px;
-}
-.mat-drawer::-webkit-scrollbar-thumb,
-.mat-sidenav::-webkit-scrollbar-thumb,
-.mat-drawer-inner-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-}
-
-/* ========== Cards ========== */
-.mat-card,
-mat-card,
-.kd-bg-card-dark,
-.kd-card-content,
-.kd-minimized-card,
-.kd-minimized-card-header,
-kd-login .mat-card {
-  background: var(--surface-card) !important;
-  backdrop-filter: blur(var(--blur-panel)) saturate(130%);
-  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(130%);
-  border: 1px solid var(--border-default) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-md), var(--highlight-inset) !important;
-  color: var(--text-primary) !important;
+.kd-nav a.kd-nav-item-button-active {
+  background: var(--glass-surface-active) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(141, 196, 255, 0.34) !important;
+  border-radius: 12px !important;
+  margin: 2px 10px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
   overflow: visible !important;
 }
 
-/* Avoid competing nested outlines inside cards */
-.mat-card .mat-card,
-.kd-card-content .kd-card-content {
+/* ---------- Cards / elevated glass ---------- */
+.mat-card,
+mat-card,
+.kd-bg-card-dark,
+.kd-minimized-card,
+kd-login .mat-card,
+kd-login mat-card {
+  background: var(--glass-surface) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: var(--glass-shadow-elevated) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Nested card content: no second glass paint (avoids flat plastic stacking) */
+.kd-card-content,
+.kd-minimized-card-header,
+.mat-card > .mat-card-content,
+.mat-card .kd-card-content {
+  background: transparent !important;
+  background-color: transparent !important;
   box-shadow: none !important;
-  border-color: var(--border-subtle) !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
-.kd-card-group-header,
-.mat-card-header,
-.mat-card-title,
-.kd-card-top-radius {
-  color: var(--text-primary) !important;
-  border-color: var(--border-subtle) !important;
-  font-weight: 600 !important;
-  padding-left: var(--space-4) !important;
-  padding-right: var(--space-4) !important;
-}
-
-.kd-card-padding {
-  padding: var(--space-4) !important;
-}
-
-.kd-bg-primary {
-  background: rgba(50, 108, 229, 0.2) !important;
-  color: var(--text-primary) !important;
-}
-
-.kd-graph-legend-entry,
-.kd-sparkline,
-.kd-sparkline-value {
-  color: var(--text-secondary) !important;
-  font-size: 12px !important;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ========== Tables (Material flex rows) ==========
- * Root causes:
- * - borders on every .mat-cell created fragmented separators
- * - mixed paddings shifted header vs body
- * - word-break from app/theme split labels
- */
+/* Table cosmetic only — preserve upstream layout contract */
 .mat-table,
 table.mat-table {
-  background: var(--surface-table) !important;
-  border: 1px solid var(--border-subtle) !important;
-  border-radius: var(--radius-md) !important;
-  overflow: auto !important;
-  width: 100% !important;
-  display: block !important; /* allow scoped horizontal scroll for wide resources */
-}
-
-/* Keep Material row flex layout intact */
-.mat-header-row,
-.mat-row,
-.mat-footer-row {
-  display: flex !important;
-  align-items: center !important;
-  width: 100% !important;
-  min-width: max-content !important;
-  border: none !important;
-  border-bottom: 1px solid var(--border-subtle) !important;
   background: transparent !important;
-  box-shadow: none !important;
 }
 
 .mat-header-row {
-  min-height: var(--table-header-height) !important;
-  height: var(--table-header-height) !important;
-  background: rgba(255, 255, 255, 0.035) !important;
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 2 !important;
+  background: rgba(175, 200, 235, 0.08) !important;
 }
 
 .mat-row {
-  min-height: var(--table-row-min) !important;
-  height: auto !important;
-  transition: background-color var(--t-fast) ease;
+  background: transparent !important;
+  transition: background-color var(--ease-glass) !important;
 }
 
 .mat-row:hover {
-  background: var(--surface-hover) !important;
-}
-
-.mat-header-row:last-child,
-.mat-row:last-child {
-  border-bottom: none !important;
+  background: var(--glass-surface-hover) !important;
 }
 
 .mat-header-cell,
-.mat-cell,
-.mat-footer-cell {
-  border: none !important;
-  border-bottom: none !important;
-  box-shadow: none !important;
-  padding: var(--space-2) var(--space-3) !important;
-  display: flex !important;
-  align-items: center !important;
-  overflow: hidden !important;
-  word-break: normal !important;
-  overflow-wrap: anywhere !important; /* only for unbroken long tokens */
-  white-space: normal !important;
+.mat-cell {
   color: var(--text-primary) !important;
-  font-size: 13px !important;
-  line-height: 1.35 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 .mat-header-cell {
   color: var(--text-secondary) !important;
-  font-size: 12px !important;
   font-weight: 600 !important;
-  letter-spacing: 0.01em !important;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-}
-
-.mat-cell a,
-.mat-header-cell a,
-a.kd-clickable {
-  color: var(--accent-link) !important;
-  text-decoration: none !important;
-}
-
-.mat-cell a:hover,
-a.kd-clickable:hover {
-  color: #a8ceff !important;
-  text-decoration: underline !important;
-}
-
-/* Compact numeric / status / action-ish cells when min-width classes are small */
-.mat-cell.col-min-30,
-.mat-header-cell.col-min-30,
-.mat-cell.col-min-40,
-.mat-header-cell.col-min-40,
-.mat-cell.col-min-50,
-.mat-header-cell.col-min-50,
-.mat-cell.col-min-60,
-.mat-header-cell.col-min-60,
-.mat-cell.col-min-70,
-.mat-header-cell.col-min-70,
-.mat-cell.col-min-80,
-.mat-header-cell.col-min-80 {
-  justify-content: flex-end !important;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-}
-
-.mat-paginator,
-.mat-paginator-container {
-  background: transparent !important;
-  color: var(--text-secondary) !important;
-  border-top: 1px solid var(--border-subtle) !important;
-  min-height: 48px !important;
-}
-
-/* ========== Chips / labels ========== */
-.mat-chip-list,
-.mat-chip-list-wrapper,
-.kd-namespace-chip-list {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  align-items: center !important;
-}
-
-.mat-chip,
-.mat-chip-list .mat-chip,
-.mat-standard-chip {
-  display: inline-flex !important;
-  align-items: center !important;
-  max-width: 100% !important;
-  width: auto !important;
-  min-height: 22px !important;
-  height: auto !important;
-  margin: 0 !important;
-  padding: 2px 8px !important;
-  font-size: 11px !important;
-  line-height: 1.35 !important;
-  border-radius: var(--radius-sm) !important;
-  background: rgba(148, 163, 184, 0.12) !important;
-  border: 1px solid var(--border-subtle) !important;
-  color: var(--text-secondary) !important;
-  box-shadow: none !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
-}
-
-.mat-chip .mat-chip-remove,
-.mat-chip .mat-icon {
-  width: 14px !important;
-  height: 14px !important;
-  font-size: 14px !important;
-}
-
-.kd-chips-show-button {
-  color: var(--accent-link) !important;
   font-size: 12px !important;
-  white-space: nowrap !important;
+  letter-spacing: 0.02em !important;
 }
 
-/* ========== Forms / Settings ==========
- * Root cause: painting flex + outline + input created nested borders and
- * colliding floating labels. Own the field wrapper once; clear children.
- */
-.mat-form-field {
-  width: 100%;
-  font-size: 13px !important;
+a.kd-primary,
+.kd-primary,
+.mat-cell a {
+  color: var(--link-color) !important;
 }
 
-.mat-form-field-wrapper {
-  padding-bottom: 1.1em !important; /* room for subscript without huge gaps */
-  margin: 0 !important;
+/* Soft glass capsules for chips — no layout forced wrapping */
+.mat-chip,
+.mat-chip.mat-standard-chip,
+.kd-chip {
+  background: rgba(220, 235, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 8px !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  min-height: 24px !important;
+  font-size: 12px !important;
 }
 
-.mat-form-field-flex {
+/* ---------- Forms / settings (Priority 4) ---------- */
+/* Owner surface = .mat-form-field-flex only; strip nested paints */
+kd-settings .mat-form-field-flex,
+.kd-settings .mat-form-field-flex,
+kd-settings-global .mat-form-field-flex {
+  background: var(--glass-surface-recessed) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  padding: 0 12px !important;
+  min-height: 48px !important;
   align-items: center !important;
-  min-height: var(--input-height) !important;
-  background: var(--surface-control) !important;
-  border: 1px solid var(--border-default) !important;
-  border-radius: var(--radius-md) !important;
-  padding: 0 var(--space-3) !important;
-  box-shadow: none !important;
-  transition: border-color var(--t-fast) ease, background-color var(--t-fast) ease;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass) !important;
 }
 
-.mat-form-field-appearance-outline .mat-form-field-outline,
-.mat-form-field-appearance-outline .mat-form-field-outline-thick,
-.mat-form-field-appearance-outline .mat-form-field-outline-start,
-.mat-form-field-appearance-outline .mat-form-field-outline-end,
-.mat-form-field-appearance-outline .mat-form-field-outline-gap,
-.mat-form-field-underline,
-.mat-form-field-ripple {
-  color: transparent !important;
-  opacity: 0 !important;
-  display: none !important;
-}
-
-.mat-form-field-infix {
+kd-settings .mat-form-field-infix,
+kd-settings .mat-input-element,
+kd-settings input.mat-input-element,
+kd-settings .mat-select-trigger,
+.kd-settings .mat-form-field-infix,
+.kd-settings .mat-input-element {
+  background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
-  padding: 0.6em 0 !important;
-  width: auto !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  padding-top: 1.1em !important;
+  padding-bottom: 0.4em !important;
 }
 
-.mat-form-field-label {
+kd-settings .mat-form-field-underline,
+kd-settings .mat-form-field-ripple,
+kd-settings .mat-form-field-wrapper .mat-form-field-underline,
+.kd-settings .mat-form-field-underline {
+  display: none !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+kd-settings .mat-form-field.mat-focused .mat-form-field-flex,
+.kd-settings .mat-form-field.mat-focused .mat-form-field-flex {
+  border-color: rgba(141, 196, 255, 0.48) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(141, 196, 255, 0.18) !important;
+}
+
+kd-settings .mat-form-field-label,
+.kd-settings .mat-form-field-label {
   color: var(--text-muted) !important;
 }
 
-.mat-form-field.mat-focused .mat-form-field-flex {
-  border-color: var(--border-focus) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
+kd-settings .mat-form-field.mat-focused .mat-form-field-label,
+kd-settings .mat-form-field.mat-form-field-should-float .mat-form-field-label {
+  color: var(--text-secondary) !important;
 }
 
-.mat-form-field.mat-focused .mat-form-field-label {
-  color: var(--accent-interactive) !important;
+/* Non-settings generic inputs (create dialogs etc.) — single flex surface */
+.mat-form-field-flex {
+  background: var(--glass-surface-recessed) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.mat-form-field-underline,
+.mat-form-field-ripple {
+  display: none !important;
 }
 
 .mat-input-element,
-.mat-select-value,
-.mat-select-trigger {
+input.mat-input-element {
+  background: transparent !important;
   color: var(--text-primary) !important;
-  caret-color: var(--accent-interactive) !important;
 }
 
-.mat-form-field-appearance-fill .mat-form-field-flex {
-  background: var(--surface-control) !important;
+.mat-form-field.mat-focused .mat-form-field-flex {
+  border-color: rgba(141, 196, 255, 0.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(141, 196, 255, 0.18) !important;
 }
 
-/* Settings: keep controls from stretching endlessly where layout allows */
-kd-settings .mat-form-field,
-kd-settings .mat-slider,
-kd-settings .mat-slide-toggle {
-  max-width: 420px;
+.mat-form-field-label,
+.mat-placeholder,
+::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 1 !important;
 }
 
-.mat-slide-toggle.mat-checked .mat-slide-toggle-thumb {
-  background-color: var(--accent-interactive) !important;
-}
-.mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
-  background-color: rgba(96, 165, 250, 0.45) !important;
-}
+
 .mat-slide-toggle-bar {
-  background-color: rgba(255, 255, 255, 0.16) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
 }
+
 .mat-slide-toggle-thumb {
-  background-color: #dbe4f0 !important;
+  background: rgba(240, 245, 252, 0.92) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
 }
 
-.mat-slider-track-fill,
-.mat-accent .mat-slider-track-fill,
-.mat-accent .mat-slider-thumb {
-  background-color: var(--accent-interactive) !important;
-}
-.mat-slider-track-background {
-  background-color: rgba(255, 255, 255, 0.12) !important;
-}
-.kd-slider-value {
-  color: var(--text-secondary) !important;
-  font-variant-numeric: tabular-nums;
-  font-size: 12px !important;
-  min-width: 2.5em;
-  text-align: right;
+.mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
+  background: rgba(110, 231, 183, 0.45) !important;
 }
 
-/* ========== Buttons ========== */
-.mat-raised-button,
-.mat-flat-button,
-.mat-stroked-button,
-.mat-button {
-  border-radius: var(--radius-md) !important;
-  min-height: var(--button-height) !important;
-  line-height: var(--button-height) !important;
-  padding: 0 var(--space-4) !important;
-  font-size: 13px !important;
-  font-weight: 500 !important;
-  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
+.mat-slider-track-background { background: rgba(255, 255, 255, 0.14) !important; }
+.mat-slider-track-fill { background: rgba(141, 196, 255, 0.55) !important; }
+.mat-slider-thumb {
+  background: #F0F5FC !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28) !important;
 }
 
 .mat-raised-button.mat-primary,
 .mat-flat-button.mat-primary {
-  background: rgba(50, 108, 229, 0.9) !important;
-  color: var(--text-on-accent) !important;
-  border: 1px solid rgba(96, 165, 250, 0.35) !important;
-  box-shadow: none !important;
+  background: rgba(141, 196, 255, 0.28) !important;
+  color: #F8FBFF !important;
+  border: 1px solid rgba(141, 196, 255, 0.42) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  transition:
+    background-color var(--ease-glass),
+    border-color var(--ease-glass),
+    box-shadow var(--ease-glass) !important;
 }
 
 .mat-raised-button.mat-primary:hover,
 .mat-flat-button.mat-primary:hover {
-  background: #326ce5 !important;
+  background: rgba(141, 196, 255, 0.38) !important;
 }
 
-.mat-stroked-button {
-  border-color: var(--border-default) !important;
-  color: var(--text-primary) !important;
-  background: transparent !important;
-}
-
-.mat-button[disabled],
-.mat-raised-button[disabled],
-.mat-flat-button[disabled],
-.mat-icon-button[disabled] {
-  opacity: 0.45 !important;
-}
-
-/* ========== Overlays ========== */
+/* ---------- Elevated overlays ---------- */
 .mat-dialog-container,
 .mat-menu-panel,
 .kd-notifications-panel,
 .kd-user-panel,
-.mat-select-panel {
-  background: var(--surface-elevated) !important;
-  backdrop-filter: blur(var(--blur-overlay)) saturate(135%);
-  -webkit-backdrop-filter: blur(var(--blur-overlay)) saturate(135%);
-  border: 1px solid var(--border-default) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--shadow-lg), var(--highlight-inset) !important;
-  color: var(--text-primary) !important;
-  overflow: hidden;
-}
-
-.cdk-overlay-dark-backdrop {
-  background: rgba(8, 12, 20, 0.55) !important;
-}
-
-.mat-menu-item {
-  color: var(--text-primary) !important;
-  font-size: 13px !important;
-  min-height: 40px !important;
-  transition: background-color var(--t-fast) ease;
-}
-.mat-menu-item:hover:not([disabled]) {
-  background: var(--surface-hover) !important;
-}
-
+.mat-select-panel,
+.cdk-overlay-pane .mat-select-panel,
+.cdk-overlay-pane .mat-menu-panel,
+.mat-autocomplete-panel,
 .mat-tooltip {
-  background: #1f2937 !important;
+  background: rgba(18, 26, 40, 0.58) !important;
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(160%) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
   color: var(--text-primary) !important;
-  font-size: 12px !important;
-  border-radius: var(--radius-sm) !important;
-  border: 1px solid var(--border-subtle) !important;
+  box-shadow: var(--glass-shadow-elevated) !important;
 }
 
-.kd-notification-unread { background: var(--surface-selected) !important; }
-.kd-loading-shade { background: rgba(12, 18, 29, 0.45) !important; }
+.mat-option {
+  color: var(--text-primary) !important;
+  transition: background-color var(--ease-glass) !important;
+}
 
-kd-login .mat-card {
-  background: var(--surface-elevated) !important;
-  border-radius: var(--radius-xl) !important;
+.mat-option:hover:not(.mat-option-disabled),
+.mat-option.mat-active {
+  background: var(--glass-surface-hover) !important;
+}
+
+.mat-option.mat-selected:not(.mat-option-multiple) {
+  background: var(--glass-surface-active) !important;
+  color: #F4F8FF !important;
+}
+
+.mat-select-panel .mat-form-field-flex,
+.cdk-overlay-pane .mat-form-field-flex {
+  background: var(--glass-surface-recessed) !important;
+}
+
+/* ---------- Status / charts cosmetic ---------- */
+.kd-muted, .kd-muted-light { color: var(--text-muted) !important; }
+.kd-success { color: var(--status-success) !important; }
+.kd-error { color: var(--status-error) !important; }
+.kd-warning { color: var(--status-warning) !important; }
+.kd-primary, .kd-accent { color: var(--status-info) !important; }
+
+.kd-bg-success {
+  background-color: var(--status-success) !important;
+}
+
+.kd-bg-success-light {
+  background-color: rgba(67, 214, 160, 0.55) !important;
+}
+
+/* Priority 6 — soften healthy chart green only (#00c752 from stock chart config) */
+.ngx-charts [fill="#00c752"],
+.ngx-charts [fill="#00C752"],
+.ngx-charts [style*="fill: rgb(0, 199, 82)"],
+.ngx-charts [style*="fill:#00c752"] {
+  fill: #43D6A0 !important;
+}
+
+.ngx-charts text,
+.ngx-charts .tick text {
+  fill: var(--text-secondary) !important;
+}
+
+/* Keep toolbar form-fields from picking up recessed generic flex paint */
+.kd-primary-toolbar .mat-form-field-flex,
+.kd-primary-toolbar .mat-form-field-underline {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-height: 0 !important;
 }
 
 .mat-elevation-z1,
@@ -854,24 +752,21 @@ kd-login .mat-card {
 .mat-elevation-z4,
 .mat-elevation-z6,
 .mat-elevation-z8 {
-  box-shadow: var(--shadow-md), var(--highlight-inset) !important;
+  box-shadow: var(--glass-shadow) !important;
 }
 
-.kd-border,
-.kd-no-bottom-border {
-  border-color: var(--border-subtle) !important;
-}
-
-/* ========== Scrollbars (content) ========== */
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-*::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
-  background-clip: padding-box;
+*::-webkit-scrollbar-track { background: transparent !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
