@@ -1,13 +1,13 @@
 # Kubernetes Dashboard Glass UI
 
-**Product release: `v1.1` (version `1.1.0`)**
+**Product release: `v1.2` (version `1.2.0`)**
 
 A translucent, macOS-inspired **glass theme** for the official [Kubernetes Dashboard](https://github.com/kubernetes/dashboard), delivered as a small nginx reverse-proxy that injects custom CSS—without rebuilding the upstream Dashboard image.
 
 | Item | Value |
 |------|--------|
-| Release | **v1.1** |
-| Version | **1.1.0** |
+| Release | **v1.2** |
+| Version | **1.2.0** |
 | Upstream Dashboard | `v2.7.0` (configurable) |
 | Glass HTTPS NodePort | **`30443`** (use this) |
 | Glass HTTP NodePort | `30080` (redirects to HTTPS only) |

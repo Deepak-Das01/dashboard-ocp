@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.2 — 1.2.0
+
+### Changed
+- Enterprise Glass UI refinement (design tokens, restrained glass, denser tables)
+- Header/sidebar/search/chip/dialog/settings polish
+- Removed external Google Fonts CDN (system font stack for air-gapped use)
+- Stronger opaque table surfaces for readability
+
+### Notes
+- Workload pie→donut conversion not applied (chart internals not themeable without Angular source)
+
 ## v1.1 — 1.1.0
 
 ### Changed
