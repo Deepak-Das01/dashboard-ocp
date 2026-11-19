@@ -604,6 +604,18 @@ table.mat-table {
   background: transparent !important;
 }
 
+/* Events: wrap long unbroken tokens inside existing cell bounds only.
+   Do not alter flex, widths, table-layout, or overflow. */
+kd-event-list .mat-column-reason.mat-cell,
+kd-event-list .mat-column-name.mat-cell,
+kd-event-list .mat-column-message.mat-cell,
+kd-event-list .cdk-column-reason.mat-cell,
+kd-event-list .cdk-column-name.mat-cell,
+kd-event-list .cdk-column-message.mat-cell {
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
 .mat-header-row {
   background: rgba(175, 200, 235, 0.08) !important;
 }
@@ -817,14 +829,20 @@ input.mat-input-element {
 }
 
 .kd-notifications-panel {
+  /* Nested under primary toolbar (already blurred): increase tint opacity
+     for frosting rather than raising blur / z-index (avoids stacking regress). */
   background: linear-gradient(
     160deg,
-    rgba(190, 215, 255, 0.14) 0%,
-    rgba(18, 28, 44, 0.78) 42%,
-    rgba(14, 24, 38, 0.82) 100%
+    rgba(190, 215, 255, 0.22) 0%,
+    rgba(18, 28, 44, 0.90) 40%,
+    rgba(12, 20, 34, 0.94) 100%
   ) !important;
-  border: 1px solid rgba(225, 240, 255, 0.20) !important;
-  box-shadow: var(--glass-shadow-elevated) !important;
+  border: 1px solid rgba(225, 240, 255, 0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 16px 40px rgba(0, 0, 0, 0.32) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Compact empty notification state (keep tall when items exist) */
