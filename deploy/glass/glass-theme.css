@@ -1,44 +1,54 @@
 /*
  * Kubernetes Dashboard — Enterprise Glass UI
- * Product: dashboard-ocp Glass theme (CSS injection layer)
+ * Phase 2: Fit & finish / pixel alignment (CSS injection only)
  * Target: kubernetesui/dashboard v2.7.0 + Angular Material
- * Scope: cosmetic only — no functional overrides
+ *
+ * Root-cause driven corrections:
+ * - Nested namespace/search surfaces (paint one owner only)
+ * - Fragmented table borders (row separators, not per-cell)
+ * - Clipped nav selection (padding + indicator + overflow)
+ * - Aggressive wrapping (normalize word-break)
+ * - Flat/opaque surfaces (restrained glass restored)
  */
 
 /* ========== Design tokens ========== */
 :root {
-  --bg-primary: #0b1018;
-  --bg-secondary: #111827;
-
-  --surface-glass: rgba(28, 39, 54, 0.78);
-  --surface-elevated: rgba(37, 50, 68, 0.88);
+  --app-background: #0c121d;
+  --surface-base: #131c2a;
+  --surface-card: rgba(23, 34, 50, 0.88);
+  --surface-elevated: rgba(31, 43, 60, 0.94);
+  --surface-control: rgba(255, 255, 255, 0.045);
+  --surface-control-hover: rgba(255, 255, 255, 0.07);
   --surface-hover: rgba(148, 163, 184, 0.08);
   --surface-selected: rgba(50, 108, 229, 0.16);
-  --surface-table: rgba(17, 24, 39, 0.92);
-  --surface-header: rgba(15, 23, 36, 0.82);
+  --surface-table: rgba(19, 28, 42, 0.94);
+  --surface-header: rgba(14, 22, 34, 0.78);
+  --surface-sidebar: rgba(16, 24, 36, 0.82);
+  --surface-toolbar2: rgba(18, 28, 42, 0.9);
 
-  --accent-primary: #326ce5;
-  --accent-interactive: #60a5fa;
-  --accent-teal: #2d7d78;
+  --border-subtle: rgba(255, 255, 255, 0.065);
+  --border-default: rgba(255, 255, 255, 0.11);
+  --border-focus: rgba(96, 165, 250, 0.65);
 
   --text-primary: #e8edf5;
-  --text-secondary: #94a3b8;
-  --text-muted: #77869a;
+  --text-secondary: #a5b2c5;
+  --text-muted: #8493a9;
   --text-on-accent: #ffffff;
+
+  --accent-primary: #326ce5;
+  --accent-link: #79b3fa;
+  --accent-teal: #2d7d78;
+  --accent-interactive: #60a5fa;
 
   --status-success: #34d399;
   --status-warning: #fbbf24;
   --status-error: #f87171;
   --status-info: #60a5fa;
 
-  --border-subtle: rgba(255, 255, 255, 0.07);
-  --border-default: rgba(255, 255, 255, 0.12);
-  --border-focus: rgba(96, 165, 250, 0.65);
-
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -48,55 +58,61 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  --blur-panel: 18px;
-  --blur-overlay: 24px;
+  --header-height: 56px;
+  --toolbar2-height: 46px;
+  --sidebar-width: 244px;
+  --nav-row-height: 36px;
+  --input-height: 40px;
+  --button-height: 36px;
+  --table-header-height: 40px;
+  --table-row-min: 48px;
+  --icon-size: 20px;
+  --content-pad: 24px;
+  --nav-indicator: 2px;
+
+  --blur-panel: 16px;
+  --blur-overlay: 22px;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
-  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.38);
+  --highlight-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-  --transition-fast: 120ms;
-  --transition-normal: 180ms;
-  --transition-slow: 250ms;
-
-  --header-height: 56px;
-  --sidebar-width: 240px;
-  --row-height: 48px;
+  --t-fast: 120ms;
+  --t-normal: 180ms;
 
   color-scheme: dark;
+  box-sizing: border-box;
 }
 
-/* Opaque fallbacks when backdrop-filter unsupported */
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
-    --surface-glass: #1c2736;
-    --surface-elevated: #253244;
-    --surface-header: #0f1724;
+    --surface-card: #172232;
+    --surface-elevated: #1f2b3c;
+    --surface-header: #0e1622;
+    --surface-sidebar: #101824;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
   }
 }
 
 /* ========== Base ========== */
-html,
-body,
-kd-root {
-  height: 100%;
-  margin: 0;
-}
+html, body, kd-root { height: 100%; margin: 0; }
 
 body,
 body.kd-glass-theme {
@@ -104,15 +120,15 @@ body.kd-glass-theme {
   font-size: 14px;
   line-height: 1.45;
   color: var(--text-primary);
-  background-color: var(--bg-primary);
+  background-color: var(--app-background);
   background-image:
-    radial-gradient(ellipse 900px 520px at 8% -8%, rgba(50, 108, 229, 0.22), transparent 58%),
-    radial-gradient(ellipse 720px 480px at 96% 4%, rgba(45, 125, 120, 0.16), transparent 52%),
-    radial-gradient(ellipse 680px 420px at 70% 110%, rgba(96, 165, 250, 0.1), transparent 55%),
-    linear-gradient(165deg, var(--bg-primary) 0%, var(--bg-secondary) 48%, #0a1018 100%);
+    radial-gradient(ellipse 880px 500px at 6% -10%, rgba(50, 108, 229, 0.18), transparent 58%),
+    radial-gradient(ellipse 700px 460px at 98% 0%, rgba(45, 125, 120, 0.12), transparent 52%),
+    linear-gradient(165deg, var(--app-background) 0%, var(--surface-base) 52%, #0a1018 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 
 kd-root,
@@ -122,7 +138,6 @@ kd-root,
 .mat-sidenav-container,
 .kd-bg-background {
   background: transparent !important;
-  background-color: transparent !important;
   color: var(--text-primary) !important;
 }
 
@@ -131,47 +146,34 @@ kd-root,
   background: transparent !important;
 }
 
-/* Typography helpers */
-.kd-h1,
-h1 {
-  font-size: 26px !important;
+.kd-h1, h1 {
+  font-size: 24px !important;
   font-weight: 600 !important;
   letter-spacing: -0.02em !important;
   color: var(--text-primary) !important;
+  line-height: 1.25 !important;
 }
 
-.kd-h3,
-h2,
-h3 {
+.kd-h3, h2, h3 {
   font-size: 18px !important;
   font-weight: 600 !important;
   color: var(--text-primary) !important;
 }
 
-.kd-muted,
-.kd-muted-light {
-  color: var(--text-secondary) !important;
-}
-
+.kd-muted, .kd-muted-light { color: var(--text-secondary) !important; }
 .kd-success { color: var(--status-success) !important; }
 .kd-error { color: var(--status-error) !important; }
-.kd-warning,
-.kd-bg-warning,
-.kd-bg-warning-light { color: var(--status-warning) !important; }
-.kd-primary,
-.kd-accent { color: var(--accent-interactive) !important; }
+.kd-primary, .kd-accent { color: var(--accent-interactive) !important; }
 
 .kd-code-block,
 .kd-code-block-font,
 .kd-pre-block,
-.kd-logs-text-color-invert,
-pre,
-code {
+pre, code {
   font-family: var(--font-mono) !important;
   font-variant-numeric: tabular-nums;
 }
 
-/* ========== Header / top toolbar ========== */
+/* ========== Header ========== */
 .kd-primary-toolbar,
 .mat-toolbar.mat-primary,
 .mat-toolbar,
@@ -180,8 +182,8 @@ header.mat-toolbar {
   height: var(--header-height) !important;
   padding: 0 var(--space-4) !important;
   background: var(--surface-header) !important;
-  backdrop-filter: blur(var(--blur-panel)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(140%);
+  backdrop-filter: blur(var(--blur-panel)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(135%);
   border-bottom: 1px solid var(--border-default) !important;
   box-shadow: var(--shadow-sm), var(--highlight-inset) !important;
   color: var(--text-on-accent) !important;
@@ -190,17 +192,17 @@ header.mat-toolbar {
 .mat-toolbar-row {
   height: var(--header-height) !important;
   align-items: center !important;
+  gap: var(--space-3);
 }
 
-/* Brand wordmark + icons: readable white on toolbar */
+/* Brand: white on toolbar */
 .kd-primary-toolbar .kd-toolbar-logo-text,
 .kd-primary-toolbar .kd-toolbar-logo-text *,
-.mat-toolbar.mat-primary .kd-toolbar-logo-text,
 .kd-toolbar-logo-text,
 .kd-primary-toolbar a,
 .kd-primary-toolbar .kd-accent,
-.mat-toolbar.mat-primary .kd-accent,
 .kd-primary-toolbar .kd-primary,
+.mat-toolbar.mat-primary .kd-accent,
 .mat-toolbar.mat-primary .kd-primary {
   color: var(--text-on-accent) !important;
   -webkit-text-fill-color: var(--text-on-accent) !important;
@@ -214,14 +216,20 @@ header.mat-toolbar {
 .kd-primary-toolbar .mat-button,
 .kd-primary-toolbar .kd-toolbar-action,
 .kd-primary-toolbar .kd-primary-toolbar-icon,
-.kd-primary-toolbar button,
 .mat-toolbar.mat-primary .mat-icon,
-.mat-toolbar.mat-primary .material-icons,
 .mat-toolbar.mat-primary .mat-icon-button {
   color: var(--text-on-accent) !important;
   -webkit-text-fill-color: var(--text-on-accent) !important;
   background: transparent !important;
-  transition: background-color var(--transition-fast) ease, opacity var(--transition-fast) ease;
+}
+
+.kd-primary-toolbar .mat-icon,
+.mat-toolbar.mat-primary .mat-icon,
+.kd-primary-toolbar .material-icons {
+  font-size: var(--icon-size) !important;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  line-height: var(--icon-size) !important;
 }
 
 .kd-primary-toolbar .mat-icon-button,
@@ -231,67 +239,75 @@ header.mat-toolbar {
   height: 36px !important;
   line-height: 36px !important;
   border-radius: var(--radius-md) !important;
+  transition: background-color var(--t-fast) ease;
 }
 
 .kd-primary-toolbar .mat-icon-button:hover,
-.mat-toolbar.mat-primary .mat-icon-button:hover,
-.kd-primary-toolbar .kd-toolbar-action:hover {
+.mat-toolbar.mat-primary .mat-icon-button:hover {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
-.kd-primary-toolbar .mat-icon-button:focus-visible,
-.mat-toolbar.mat-primary .mat-icon-button:focus-visible,
-.kd-search-input:focus-visible,
-.mat-input-element:focus-visible,
-button:focus-visible,
-.mat-button:focus-visible,
-.mat-icon-button:focus-visible {
-  outline: 2px solid var(--border-focus) !important;
-  outline-offset: 2px !important;
-}
-
 .kd-primary-toolbar .mat-button-focus-overlay,
-.kd-primary-toolbar .mat-ripple-element,
-.mat-toolbar.mat-primary .mat-button-focus-overlay {
+.kd-primary-toolbar .mat-ripple-element {
   background-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-.kd-primary-toolbar .mat-icon,
-.mat-toolbar.mat-primary .mat-icon,
-.kd-primary-toolbar .material-icons {
-  font-size: 20px !important;
-  width: 20px !important;
-  height: 20px !important;
-}
-
-/* Namespace selector + search */
+/* ----- Namespace + search: ONE surface owner -----
+ * Root cause: backgrounds/borders were painted on select, input,
+ * input-container AND mat-form-field-flex simultaneously.
+ */
 .kd-namespace-select,
 .kd-namespace-select-input,
-.kd-namespace-select-input-container,
 .kd-search,
 .kd-search-input,
-.mat-form-field-flex {
-  background: rgba(255, 255, 255, 0.06) !important;
+.kd-primary-toolbar .mat-form-field,
+.kd-primary-toolbar .mat-form-field-wrapper,
+.kd-primary-toolbar .mat-form-field-flex,
+.kd-primary-toolbar .mat-form-field-infix,
+.kd-primary-toolbar .mat-form-field-outline,
+.kd-primary-toolbar .mat-form-field-underline,
+.kd-primary-toolbar .mat-form-field-ripple {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.kd-namespace-select-input-container,
+.kd-primary-toolbar .kd-search,
+.kd-primary-toolbar .kd-namespace-select {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: var(--input-height) !important;
+  min-height: var(--input-height) !important;
+  padding: 0 var(--space-3) !important;
+  background: var(--surface-control) !important;
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-md) !important;
-  color: var(--text-primary) !important;
-  min-height: 36px !important;
   box-shadow: none !important;
-  transition: border-color var(--transition-fast) ease, background-color var(--transition-fast) ease;
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease;
 }
 
-.kd-namespace-select:hover,
-.kd-search:hover,
-.kd-search-input:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+.kd-namespace-select-input-container:hover,
+.kd-primary-toolbar .kd-search:hover,
+.kd-primary-toolbar .kd-namespace-select:hover {
+  background: var(--surface-control-hover) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
+.kd-namespace-select-input,
 .kd-search-input,
-.mat-input-element,
-input.mat-input-element {
+.kd-primary-toolbar .mat-input-element,
+.kd-primary-toolbar input {
+  height: calc(var(--input-height) - 2px) !important;
+  line-height: calc(var(--input-height) - 2px) !important;
+  padding: 0 !important;
+  margin: 0 !important;
   color: var(--text-primary) !important;
   font-size: 13px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .kd-search-input::placeholder,
@@ -300,9 +316,56 @@ input.mat-input-element {
   opacity: 1 !important;
 }
 
+.kd-primary-toolbar .mat-form-field-underline,
+.kd-primary-toolbar .mat-form-field-ripple,
 .mat-form-field-underline,
 .mat-form-field-ripple {
   display: none !important;
+}
+
+.kd-primary-toolbar .mat-select-arrow,
+.kd-namespace-select .mat-select-arrow {
+  color: var(--text-secondary) !important;
+}
+
+button:focus-visible,
+.mat-button:focus-visible,
+.mat-icon-button:focus-visible,
+.mat-input-element:focus-visible,
+.kd-search-input:focus-visible {
+  outline: 2px solid var(--border-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* ========== Secondary toolbar / actionbar / breadcrumbs ========== */
+.kd-actionbar {
+  min-height: var(--toolbar2-height) !important;
+  height: auto !important;
+  padding: var(--space-2) var(--content-pad) !important;
+  background: var(--surface-toolbar2) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  box-shadow: none !important;
+  align-items: center !important;
+}
+
+.kd-actionbar,
+.kd-actionbar * {
+  color: var(--text-secondary);
+}
+
+.kd-actionbar a,
+.kd-actionbar .mat-button {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  vertical-align: middle !important;
+}
+
+.kd-actionbar .mat-icon {
+  font-size: 18px !important;
+  width: 18px !important;
+  height: 18px !important;
+  vertical-align: middle !important;
 }
 
 /* ========== Sidebar ========== */
@@ -313,25 +376,38 @@ input.mat-input-element {
 .mat-sidenav.mat-drawer-side {
   width: var(--sidebar-width) !important;
   max-width: var(--sidebar-width) !important;
-  background: var(--surface-glass) !important;
+  background: var(--surface-sidebar) !important;
   backdrop-filter: blur(var(--blur-panel)) saturate(130%);
   -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(130%);
   border-right: 1px solid var(--border-subtle) !important;
   box-shadow: none !important;
+  overflow-x: hidden !important;
 }
 
+.mat-drawer-inner-container {
+  overflow-x: hidden !important;
+  padding: var(--space-2) 0 var(--space-4) !important;
+}
+
+/* Root cause of clipped selection: item margin + full-width bg vs scrollbar.
+ * Keep horizontal padding on the list, not overflowing item borders. */
 .kd-nav-item-button,
 .mat-nav-list .mat-list-item,
 .mat-list-item {
-  margin: 2px var(--space-2) !important;
+  box-sizing: border-box !important;
+  width: auto !important;
+  max-width: 100% !important;
+  margin: 2px var(--space-3) !important;
   padding: 0 var(--space-3) !important;
-  min-height: 36px !important;
-  height: 36px !important;
+  min-height: var(--nav-row-height) !important;
+  height: var(--nav-row-height) !important;
   border-radius: var(--radius-md) !important;
-  border: 1px solid transparent !important;
+  border: none !important;
   color: var(--text-secondary) !important;
   font-size: 13px !important;
-  transition: background-color var(--transition-fast) ease, color var(--transition-fast) ease, border-color var(--transition-fast) ease;
+  line-height: var(--nav-row-height) !important;
+  overflow: hidden !important;
+  transition: background-color var(--t-fast) ease, color var(--t-fast) ease;
 }
 
 .kd-nav-item-button:hover,
@@ -345,32 +421,45 @@ input.mat-input-element {
 .mat-list-item.active {
   background: var(--surface-selected) !important;
   color: var(--text-primary) !important;
-  border-color: rgba(50, 108, 229, 0.28) !important;
-  box-shadow: inset 3px 0 0 var(--accent-primary) !important;
+  box-shadow: inset var(--nav-indicator) 0 0 0 var(--accent-primary) !important;
 }
 
 .mat-drawer::-webkit-scrollbar,
 .mat-sidenav::-webkit-scrollbar,
-.kd-nav::-webkit-scrollbar {
+.kd-nav::-webkit-scrollbar,
+.mat-drawer-inner-container::-webkit-scrollbar {
   width: 8px;
 }
+.mat-drawer::-webkit-scrollbar-thumb,
+.mat-sidenav::-webkit-scrollbar-thumb,
+.mat-drawer-inner-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+}
 
-/* ========== Cards / panels ========== */
+/* ========== Cards ========== */
 .mat-card,
 mat-card,
 .kd-bg-card-dark,
 .kd-card-content,
 .kd-minimized-card,
 .kd-minimized-card-header,
-kd-login .mat-card,
-kd-login mat-card {
-  background: var(--surface-glass) !important;
+kd-login .mat-card {
+  background: var(--surface-card) !important;
   backdrop-filter: blur(var(--blur-panel)) saturate(130%);
   -webkit-backdrop-filter: blur(var(--blur-panel)) saturate(130%);
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-md), var(--highlight-inset) !important;
   color: var(--text-primary) !important;
+  overflow: visible !important;
+}
+
+/* Avoid competing nested outlines inside cards */
+.mat-card .mat-card,
+.kd-card-content .kd-card-content {
+  box-shadow: none !important;
+  border-color: var(--border-subtle) !important;
 }
 
 .kd-card-group-header,
@@ -380,14 +469,19 @@ kd-login mat-card {
   color: var(--text-primary) !important;
   border-color: var(--border-subtle) !important;
   font-weight: 600 !important;
+  padding-left: var(--space-4) !important;
+  padding-right: var(--space-4) !important;
+}
+
+.kd-card-padding {
+  padding: var(--space-4) !important;
 }
 
 .kd-bg-primary {
-  background: rgba(50, 108, 229, 0.22) !important;
+  background: rgba(50, 108, 229, 0.2) !important;
   color: var(--text-primary) !important;
 }
 
-/* Workload / chart cards — tighten spacing; keep chart behavior intact */
 .kd-graph-legend-entry,
 .kd-sparkline,
 .kd-sparkline-value {
@@ -396,66 +490,117 @@ kd-login mat-card {
   font-variant-numeric: tabular-nums;
 }
 
-.kd-chart-green { color: var(--status-success) !important; }
-.kd-chart-blue { color: var(--status-info) !important; }
-
-/* ========== Tables ========== */
+/* ========== Tables (Material flex rows) ==========
+ * Root causes:
+ * - borders on every .mat-cell created fragmented separators
+ * - mixed paddings shifted header vs body
+ * - word-break from app/theme split labels
+ */
 .mat-table,
 table.mat-table {
   background: var(--surface-table) !important;
   border: 1px solid var(--border-subtle) !important;
   border-radius: var(--radius-md) !important;
-  overflow: hidden;
+  overflow: auto !important;
+  width: 100% !important;
+  display: block !important; /* allow scoped horizontal scroll for wide resources */
+}
+
+/* Keep Material row flex layout intact */
+.mat-header-row,
+.mat-row,
+.mat-footer-row {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  min-width: max-content !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .mat-header-row {
-  min-height: 40px !important;
-  height: 40px !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  min-height: var(--table-header-height) !important;
+  height: var(--table-header-height) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
 }
 
 .mat-row {
-  min-height: var(--row-height) !important;
+  min-height: var(--table-row-min) !important;
   height: auto !important;
-  background: transparent !important;
-  transition: background-color var(--transition-fast) ease;
+  transition: background-color var(--t-fast) ease;
 }
 
 .mat-row:hover {
   background: var(--surface-hover) !important;
 }
 
+.mat-header-row:last-child,
+.mat-row:last-child {
+  border-bottom: none !important;
+}
+
+.mat-header-cell,
+.mat-cell,
+.mat-footer-cell {
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  padding: var(--space-2) var(--space-3) !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important; /* only for unbroken long tokens */
+  white-space: normal !important;
+  color: var(--text-primary) !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+}
+
 .mat-header-cell {
   color: var(--text-secondary) !important;
   font-size: 12px !important;
   font-weight: 600 !important;
-  letter-spacing: 0.02em !important;
-  text-transform: none !important;
-  border-bottom: 1px solid var(--border-default) !important;
-  padding: var(--space-2) var(--space-3) !important;
-}
-
-.mat-cell,
-.mat-footer-cell {
-  color: var(--text-primary) !important;
-  font-size: 13px !important;
-  border-bottom: 1px solid var(--border-subtle) !important;
-  padding: var(--space-2) var(--space-3) !important;
-  vertical-align: middle !important;
+  letter-spacing: 0.01em !important;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
 }
 
 .mat-cell a,
 .mat-header-cell a,
 a.kd-clickable {
-  color: var(--accent-interactive) !important;
+  color: var(--accent-link) !important;
   text-decoration: none !important;
-  transition: color var(--transition-fast) ease;
 }
 
 .mat-cell a:hover,
 a.kd-clickable:hover {
-  color: #93c5fd !important;
+  color: #a8ceff !important;
   text-decoration: underline !important;
+}
+
+/* Compact numeric / status / action-ish cells when min-width classes are small */
+.mat-cell.col-min-30,
+.mat-header-cell.col-min-30,
+.mat-cell.col-min-40,
+.mat-header-cell.col-min-40,
+.mat-cell.col-min-50,
+.mat-header-cell.col-min-50,
+.mat-cell.col-min-60,
+.mat-header-cell.col-min-60,
+.mat-cell.col-min-70,
+.mat-header-cell.col-min-70,
+.mat-cell.col-min-80,
+.mat-header-cell.col-min-80 {
+  justify-content: flex-end !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap !important;
+  overflow-wrap: normal !important;
 }
 
 .mat-paginator,
@@ -466,78 +611,155 @@ a.kd-clickable:hover {
   min-height: 48px !important;
 }
 
-.mat-paginator .mat-icon-button {
-  color: var(--text-secondary) !important;
+/* ========== Chips / labels ========== */
+.mat-chip-list,
+.mat-chip-list-wrapper,
+.kd-namespace-chip-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  align-items: center !important;
 }
 
-/* ========== Chips / labels / badges ========== */
 .mat-chip,
 .mat-chip-list .mat-chip,
 .mat-standard-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  max-width: 100% !important;
+  width: auto !important;
   min-height: 22px !important;
   height: auto !important;
+  margin: 0 !important;
   padding: 2px 8px !important;
   font-size: 11px !important;
-  line-height: 1.3 !important;
+  line-height: 1.35 !important;
   border-radius: var(--radius-sm) !important;
   background: rgba(148, 163, 184, 0.12) !important;
   border: 1px solid var(--border-subtle) !important;
   color: var(--text-secondary) !important;
   box-shadow: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
 }
 
-.mat-chip:hover {
-  background: rgba(148, 163, 184, 0.18) !important;
+.mat-chip .mat-chip-remove,
+.mat-chip .mat-icon {
+  width: 14px !important;
+  height: 14px !important;
+  font-size: 14px !important;
 }
 
-.kd-chips-show-button,
-.kd-namespace-chip-list {
-  color: var(--accent-interactive) !important;
+.kd-chips-show-button {
+  color: var(--accent-link) !important;
   font-size: 12px !important;
+  white-space: nowrap !important;
 }
 
-/* ========== Forms / settings ========== */
-.mat-form-field-appearance-fill .mat-form-field-flex,
-.mat-form-field-appearance-outline .mat-form-field-flex,
-.mat-select-trigger,
-.mat-slider,
-.mat-slide-toggle {
-  color: var(--text-primary) !important;
+/* ========== Forms / Settings ==========
+ * Root cause: painting flex + outline + input created nested borders and
+ * colliding floating labels. Own the field wrapper once; clear children.
+ */
+.mat-form-field {
+  width: 100%;
+  font-size: 13px !important;
 }
 
-.mat-form-field-appearance-fill .mat-form-field-flex,
-.mat-form-field-appearance-outline .mat-form-field-outline {
-  background: rgba(255, 255, 255, 0.04) !important;
+.mat-form-field-wrapper {
+  padding-bottom: 1.1em !important; /* room for subscript without huge gaps */
+  margin: 0 !important;
+}
+
+.mat-form-field-flex {
+  align-items: center !important;
+  min-height: var(--input-height) !important;
+  background: var(--surface-control) !important;
+  border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-md) !important;
+  padding: 0 var(--space-3) !important;
+  box-shadow: none !important;
+  transition: border-color var(--t-fast) ease, background-color var(--t-fast) ease;
 }
 
-.mat-form-field-label,
-.mat-select-placeholder {
+.mat-form-field-appearance-outline .mat-form-field-outline,
+.mat-form-field-appearance-outline .mat-form-field-outline-thick,
+.mat-form-field-appearance-outline .mat-form-field-outline-start,
+.mat-form-field-appearance-outline .mat-form-field-outline-end,
+.mat-form-field-appearance-outline .mat-form-field-outline-gap,
+.mat-form-field-underline,
+.mat-form-field-ripple {
+  color: transparent !important;
+  opacity: 0 !important;
+  display: none !important;
+}
+
+.mat-form-field-infix {
+  border: none !important;
+  padding: 0.6em 0 !important;
+  width: auto !important;
+}
+
+.mat-form-field-label {
   color: var(--text-muted) !important;
+}
+
+.mat-form-field.mat-focused .mat-form-field-flex {
+  border-color: var(--border-focus) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.mat-form-field.mat-focused .mat-form-field-label {
+  color: var(--accent-interactive) !important;
+}
+
+.mat-input-element,
+.mat-select-value,
+.mat-select-trigger {
+  color: var(--text-primary) !important;
+  caret-color: var(--accent-interactive) !important;
+}
+
+.mat-form-field-appearance-fill .mat-form-field-flex {
+  background: var(--surface-control) !important;
+}
+
+/* Settings: keep controls from stretching endlessly where layout allows */
+kd-settings .mat-form-field,
+kd-settings .mat-slider,
+kd-settings .mat-slide-toggle {
+  max-width: 420px;
 }
 
 .mat-slide-toggle.mat-checked .mat-slide-toggle-thumb {
   background-color: var(--accent-interactive) !important;
 }
-
 .mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
   background-color: rgba(96, 165, 250, 0.45) !important;
 }
-
-.mat-slider-track-fill,
-.mat-accent .mat-slider-thumb,
-.mat-accent .mat-slider-track-fill {
-  background-color: var(--accent-interactive) !important;
+.mat-slide-toggle-bar {
+  background-color: rgba(255, 255, 255, 0.16) !important;
+}
+.mat-slide-toggle-thumb {
+  background-color: #dbe4f0 !important;
 }
 
+.mat-slider-track-fill,
+.mat-accent .mat-slider-track-fill,
+.mat-accent .mat-slider-thumb {
+  background-color: var(--accent-interactive) !important;
+}
 .mat-slider-track-background {
   background-color: rgba(255, 255, 255, 0.12) !important;
 }
-
 .kd-slider-value {
   color: var(--text-secondary) !important;
   font-variant-numeric: tabular-nums;
   font-size: 12px !important;
+  min-width: 2.5em;
+  text-align: right;
 }
 
 /* ========== Buttons ========== */
@@ -546,15 +768,17 @@ a.kd-clickable:hover {
 .mat-stroked-button,
 .mat-button {
   border-radius: var(--radius-md) !important;
-  min-height: 36px !important;
+  min-height: var(--button-height) !important;
+  line-height: var(--button-height) !important;
+  padding: 0 var(--space-4) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
-  transition: background-color var(--transition-fast) ease, border-color var(--transition-fast) ease, color var(--transition-fast) ease;
+  transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease, color var(--t-fast) ease;
 }
 
 .mat-raised-button.mat-primary,
 .mat-flat-button.mat-primary {
-  background: rgba(50, 108, 229, 0.88) !important;
+  background: rgba(50, 108, 229, 0.9) !important;
   color: var(--text-on-accent) !important;
   border: 1px solid rgba(96, 165, 250, 0.35) !important;
   box-shadow: none !important;
@@ -562,12 +786,13 @@ a.kd-clickable:hover {
 
 .mat-raised-button.mat-primary:hover,
 .mat-flat-button.mat-primary:hover {
-  background: rgba(50, 108, 229, 1) !important;
+  background: #326ce5 !important;
 }
 
 .mat-stroked-button {
   border-color: var(--border-default) !important;
   color: var(--text-primary) !important;
+  background: transparent !important;
 }
 
 .mat-button[disabled],
@@ -577,20 +802,20 @@ a.kd-clickable:hover {
   opacity: 0.45 !important;
 }
 
-/* ========== Overlays: dialogs, menus, notifications ========== */
+/* ========== Overlays ========== */
 .mat-dialog-container,
 .mat-menu-panel,
 .kd-notifications-panel,
 .kd-user-panel,
-.mat-select-panel,
-.cdk-overlay-pane .mat-menu-panel {
+.mat-select-panel {
   background: var(--surface-elevated) !important;
-  backdrop-filter: blur(var(--blur-overlay)) saturate(140%);
-  -webkit-backdrop-filter: blur(var(--blur-overlay)) saturate(140%);
+  backdrop-filter: blur(var(--blur-overlay)) saturate(135%);
+  -webkit-backdrop-filter: blur(var(--blur-overlay)) saturate(135%);
   border: 1px solid var(--border-default) !important;
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-lg), var(--highlight-inset) !important;
   color: var(--text-primary) !important;
+  overflow: hidden;
 }
 
 .cdk-overlay-dark-backdrop {
@@ -601,9 +826,8 @@ a.kd-clickable:hover {
   color: var(--text-primary) !important;
   font-size: 13px !important;
   min-height: 40px !important;
-  transition: background-color var(--transition-fast) ease;
+  transition: background-color var(--t-fast) ease;
 }
-
 .mat-menu-item:hover:not([disabled]) {
   background: var(--surface-hover) !important;
 }
@@ -616,22 +840,14 @@ a.kd-clickable:hover {
   border: 1px solid var(--border-subtle) !important;
 }
 
-.kd-notification-unread {
-  background: var(--surface-selected) !important;
-}
+.kd-notification-unread { background: var(--surface-selected) !important; }
+.kd-loading-shade { background: rgba(12, 18, 29, 0.45) !important; }
 
-.kd-loading-shade {
-  background: rgba(11, 16, 24, 0.45) !important;
-}
-
-/* Login */
-kd-login .mat-card,
-.kd-login-card {
+kd-login .mat-card {
   background: var(--surface-elevated) !important;
   border-radius: var(--radius-xl) !important;
 }
 
-/* Soften Material elevation noise */
 .mat-elevation-z1,
 .mat-elevation-z2,
 .mat-elevation-z3,
@@ -641,14 +857,14 @@ kd-login .mat-card,
   box-shadow: var(--shadow-md), var(--highlight-inset) !important;
 }
 
-/* ========== Scrollbars ========== */
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.kd-border,
+.kd-no-bottom-border {
+  border-color: var(--border-subtle) !important;
 }
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
+
+/* ========== Scrollbars (content) ========== */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.14);
   border-radius: 8px;
@@ -658,21 +874,4 @@ kd-login .mat-card,
 *::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
   background-clip: padding-box;
-}
-
-/* ========== Detail / logs / code surfaces ========== */
-.kd-secret-detail-text,
-.kd-equivalent-block,
-.kd-dialog-text {
-  color: var(--text-secondary) !important;
-}
-
-.kd-border,
-.kd-no-bottom-border {
-  border-color: var(--border-subtle) !important;
-}
-
-.kd-actionbar {
-  background: transparent !important;
-  border-color: var(--border-subtle) !important;
 }

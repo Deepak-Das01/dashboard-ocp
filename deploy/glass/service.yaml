@@ -7,8 +7,8 @@ metadata:
     app: dashboard-glass
     app.kubernetes.io/name: dashboard-glass
     app.kubernetes.io/part-of: kubernetes-dashboard-glass
-    app.kubernetes.io/version: "1.2.0"
-    dashboard.ocp/release: v1.2
+    app.kubernetes.io/version: "1.2.1"
+    dashboard.ocp/release: v1.2.1
 spec:
   type: NodePort
   selector:

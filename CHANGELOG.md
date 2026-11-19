@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.2.1 — 1.2.1
+
+### Fixed (Phase 2 fit & finish)
+- Nested namespace/search control surfaces (single border/background owner)
+- Fragmented table row borders (row-level separators; cell borders removed)
+- Clipped sidebar selection (padding model + 2px inset indicator)
+- Aggressive text wrapping on chips/cells
+- Floating-label / nested outline conflicts on Material form fields
+- Restored restrained glass translucency on header/sidebar/cards
+
 ## v1.2 — 1.2.0
 
 ### Changed
