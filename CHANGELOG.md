@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.2.2 — 1.2.2
+
+Stable cosmetic baseline for the Liquid Glass Kubernetes Dashboard packaging.
+
+### Changed (Liquid Glass cumulative)
+- Premium macOS-inspired Liquid Glass appearance with sapphire, charcoal and teal ambient gradients
+- Refined translucent panels, reflective borders and elevated overlay materials
+- Improved header, namespace selector and closed/open search surfaces
+- Consistent sidebar selection without clipped active corners
+- Polished resource tables and glass-aligned pagination footers
+- Corrected notification panel stacking and compact empty-state frosting
+- Improved form alignment, floating labels and file-selection control alignment
+- Coordinated YAML editor, dropdown and button styling
+- Emerald workload status colours retained
+- Events table text containment via safe in-cell wrapping (no table layout changes)
+
+### Notes
+- CSS-only glass packaging over upstream Kubernetes Dashboard v2.7.0
+- No functional, authentication or RBAC changes in this release
+
 ## v1.2.1 — 1.2.1
 
 ### Fixed (Phase 2 fit & finish)
