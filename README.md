@@ -1,13 +1,13 @@
 # Kubernetes Dashboard Glass UI
 
-**Product release: `v1` (version `1.0.0`)**
+**Product release: `v1.1` (version `1.1.0`)**
 
 A translucent, macOS-inspired **glass theme** for the official [Kubernetes Dashboard](https://github.com/kubernetes/dashboard), delivered as a small nginx reverse-proxy that injects custom CSS—without rebuilding the upstream Dashboard image.
 
 | Item | Value |
 |------|--------|
-| Release | **v1** |
-| Version | **1.0.0** |
+| Release | **v1.1** |
+| Version | **1.1.0** |
 | Upstream Dashboard | `v2.7.0` (configurable) |
 | Glass HTTPS NodePort | **`30443`** (use this) |
 | Glass HTTP NodePort | `30080` (redirects to HTTPS only) |
@@ -253,7 +253,7 @@ Change NodePorts by editing `deploy/glass/service.yaml` before apply.
 
 Glass resources are labeled:
 
-- `app.kubernetes.io/version: "1.0.0"`
+- `app.kubernetes.io/version: "1.1.0"`
 - `dashboard.ocp/release: v1`
 - `app.kubernetes.io/part-of: kubernetes-dashboard-glass`
 
@@ -305,8 +305,8 @@ kubectl -n kubernetes-dashboard logs deploy/kubernetes-dashboard
 
 | File | Meaning |
 |------|---------|
-| `RELEASE` | Product release channel / major label (`v1`) |
-| `VERSION` | Semver of this Glass UI packaging (`1.0.0`) |
+| `RELEASE` | Product release label (`v1.1`) |
+| `VERSION` | Semver of this Glass UI packaging (`1.1.0`) |
 | Upstream | Kubernetes Dashboard tag via `DASHBOARD_VERSION` |
 
 This repository versions the **Glass UI packaging and docs**, not a fork of the Dashboard application code.
