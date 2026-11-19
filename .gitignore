@@ -1,0 +1,17 @@
+# Local TLS material — never commit private keys
+*.key
+*.crt
+*.pem
+certs/
+*.p12
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local kubeconfig copies
+*.kubeconfig
+kubeconfig

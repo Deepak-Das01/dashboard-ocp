@@ -1,0 +1,138 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  --glass: rgba(255, 255, 255, 0.1);
+  --glass-2: rgba(255, 255, 255, 0.14);
+  --stroke: rgba(255, 255, 255, 0.28);
+  --text: rgba(255, 255, 255, 0.94);
+  --muted: rgba(255, 255, 255, 0.62);
+  --blur: 36px;
+}
+
+html, body, kd-root { height: 100% !important; margin: 0 !important; }
+
+body, body.kd-glass-theme {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  color: var(--text) !important;
+  /* Vivid mac-like wallpaper so frost is obvious */
+  background-color: #0a0c12 !important;
+  background-image:
+    radial-gradient(ellipse 900px 600px at 10% 0%, rgba(96, 165, 250, 0.55), transparent 60%),
+    radial-gradient(ellipse 700px 500px at 90% 15%, rgba(167, 243, 208, 0.35), transparent 55%),
+    radial-gradient(ellipse 800px 500px at 50% 100%, rgba(125, 211, 252, 0.4), transparent 55%),
+    radial-gradient(ellipse 600px 400px at 80% 70%, rgba(186, 230, 253, 0.25), transparent 50%),
+    linear-gradient(160deg, #07090f 0%, #10141c 50%, #080a10 100%) !important;
+  background-attachment: fixed !important;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  backdrop-filter: blur(0px);
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  opacity: 0.4;
+}
+
+kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidenav-container,
+.kd-bg-background {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--text) !important;
+}
+
+/* Frosted top bar */
+.kd-primary-toolbar, .mat-toolbar.mat-primary, .mat-toolbar, header.mat-toolbar {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(var(--blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%) !important;
+  border-bottom: 1px solid var(--stroke) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25) !important;
+  color: var(--text) !important;
+}
+
+/* Frosted sidebar */
+.kd-nav, .mat-drawer, .mat-sidenav, .mat-drawer.mat-drawer-side {
+  background: rgba(10, 12, 18, 0.35) !important;
+  backdrop-filter: blur(var(--blur)) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%) !important;
+  border-right: 1px solid var(--stroke) !important;
+}
+
+.kd-nav-item-button, .mat-list-item {
+  border-radius: 12px !important;
+  margin: 2px 8px !important;
+  color: var(--muted) !important;
+}
+.kd-nav-item-button:hover, .mat-list-item:hover {
+  background: rgba(255,255,255,0.1) !important;
+  color: var(--text) !important;
+}
+.kd-nav-item-button-active {
+  background: rgba(147, 197, 253, 0.22) !important;
+  color: #eff6ff !important;
+  border: 1px solid rgba(147, 197, 253, 0.35) !important;
+}
+
+.mat-drawer-content, .mat-sidenav-content { background: transparent !important; }
+
+/* Frosted cards */
+.mat-card, mat-card, .kd-bg-card-dark, .kd-card-content, .kd-minimized-card,
+.kd-minimized-card-header, kd-login .mat-card, kd-login mat-card {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(48px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(190%) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: 20px !important;
+  box-shadow:
+    0 24px 64px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  color: var(--text) !important;
+}
+
+.mat-table, .mat-header-row, .mat-row { background: transparent !important; }
+.mat-header-cell, .mat-cell { color: var(--text) !important; border-bottom-color: rgba(255,255,255,0.1) !important; }
+.mat-header-row { background: rgba(255,255,255,0.05) !important; }
+.mat-row:hover { background: rgba(255,255,255,0.07) !important; }
+
+.kd-search, .kd-search-input, .mat-form-field-flex, .mat-input-element, input,
+.kd-namespace-select-input, .kd-namespace-select-input-container {
+  background: rgba(255,255,255,0.1) !important;
+  color: var(--text) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+.mat-chip { background: rgba(255,255,255,0.12) !important; color: var(--text) !important; border: 1px solid var(--stroke) !important; }
+
+.mat-raised-button.mat-primary, .mat-flat-button.mat-primary {
+  background: rgba(147, 197, 253, 0.35) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(147, 197, 253, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+.mat-dialog-container, .mat-menu-panel, .kd-notifications-panel, .kd-user-panel, .mat-select-panel {
+  background: rgba(20, 24, 32, 0.55) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 1px solid var(--stroke) !important;
+  border-radius: 16px !important;
+  color: var(--text) !important;
+}
+
+.kd-muted, .kd-muted-light { color: var(--muted) !important; }
+.kd-success { color: #86efac !important; }
+.kd-error { color: #fca5a5 !important; }
+.kd-primary, .kd-accent { color: #93c5fd !important; }
+
+.mat-elevation-z1, .mat-elevation-z2, .mat-elevation-z3, .mat-elevation-z4, .mat-elevation-z6, .mat-elevation-z8 {
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+}
+
+*::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
+*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22) !important; border-radius: 8px !important; }
