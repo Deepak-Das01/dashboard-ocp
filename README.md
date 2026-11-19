@@ -9,8 +9,8 @@ A translucent, macOS-inspired **glass theme** for the official [Kubernetes Dashb
 | Release | **v1** |
 | Version | **1.0.0** |
 | Upstream Dashboard | `v2.7.0` (configurable) |
-| Glass HTTP NodePort | `30080` |
-| Glass HTTPS NodePort | `30443` |
+| Glass HTTPS NodePort | **`30443`** (use this) |
+| Glass HTTP NodePort | `30080` (redirects to HTTPS only) |
 | Namespace | `kubernetes-dashboard` |
 
 Repository: [https://github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp)
@@ -35,16 +35,16 @@ The original Dashboard Service (typically NodePort / ClusterIP on 443) remains a
 ```
 Browser
    │
-   ├─ http://<node>:30080  ─┐
-   └─ https://<node>:30443 ─┤
-                            ▼
-                   dashboard-glass (nginx)
-                    │  injects glass CSS
-                    ▼
-           kubernetes-dashboard:443
-                    │
-                    ▼
-              Kubernetes API
+   ├─ http://<node>:30080  ──301──► https://<node>:30443/
+   └─ https://<node>:30443/ ──────────────────┐
+                                              ▼
+                                   dashboard-glass (nginx TLS)
+                                    │  injects glass CSS
+                                    ▼
+                           kubernetes-dashboard:443
+                                    │
+                                    ▼
+                              Kubernetes API
 ```
 
 ---
@@ -104,12 +104,14 @@ chmod +x scripts/*.sh
 ./scripts/install.sh
 ```
 
-When finished, the script prints NodePort URLs. Example:
+When finished, open the **HTTPS** glass UI:
 
 ```text
-HTTP : http://<node-ip>:30080/
-HTTPS: https://<node-ip>:30443/
+https://<node-ip>:30443/
 ```
+
+HTTP on `:30080` only redirects to HTTPS so Dashboard login does not show
+“Insecure access detected.” Accept the self-signed certificate warning once.
 
 ### Login token
 
@@ -119,14 +121,12 @@ HTTPS: https://<node-ip>:30443/
 
 Paste the token into the Dashboard **Token** login form.
 
-### Recommended local access (no browser TLS warning)
+### Local access via port-forward
 
 ```bash
 kubectl -n kubernetes-dashboard port-forward svc/dashboard-glass 8443:443
 # open https://127.0.0.1:8443/  (accept self-signed cert once)
 ```
-
-Using `127.0.0.1` / `localhost` also avoids the Dashboard “Insecure access detected” block that appears on plain HTTP over a LAN IP.
 
 ---
 
