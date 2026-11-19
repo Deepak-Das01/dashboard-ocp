@@ -136,3 +136,27 @@ kd-root, .kd-dark-theme, .mat-app-background, .mat-drawer-container, .mat-sidena
 
 *::-webkit-scrollbar { width: 8px !important; height: 8px !important; }
 *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.22) !important; border-radius: 8px !important; }
+
+/* Header brand wordmark — force white on blue toolbar */
+.kd-primary-toolbar .kd-toolbar-logo-text,
+.kd-primary-toolbar .kd-toolbar-logo-text *,
+.mat-toolbar.mat-primary .kd-toolbar-logo-text,
+.mat-toolbar .kd-toolbar-logo-text,
+.kd-toolbar-logo-text,
+.kd-primary-toolbar a,
+.kd-primary-toolbar .kd-accent,
+.mat-toolbar.mat-primary .kd-accent,
+.kd-primary-toolbar .mat-toolbar-row,
+.kd-primary-toolbar span {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.kd-primary-toolbar svg,
+.kd-primary-toolbar img,
+.mat-toolbar.mat-primary svg {
+  filter: none !important;
+}
+
