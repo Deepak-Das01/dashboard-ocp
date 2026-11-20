@@ -3,6 +3,7 @@ package oidc
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
+	"github.com/Deepak-Das01/dashboard-ocp/operator/internal/assets"
 	opstatus "github.com/Deepak-Das01/dashboard-ocp/operator/internal/status"
 	"golang.org/x/crypto/bcrypt"
 	appsv1 "k8s.io/api/apps/v1"
@@ -90,7 +92,11 @@ func (r *ClusterOIDCReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return r.fail(ctx, co, err)
 	}
 
-	if err := r.ensureDex(ctx, co); err != nil {
+	themeHash, err := r.ensureDexTheme(ctx, co.Spec.Namespace)
+	if err != nil {
+		return r.fail(ctx, co, err)
+	}
+	if err := r.ensureDex(ctx, co, themeHash); err != nil {
 		return r.fail(ctx, co, err)
 	}
 	if err := r.ensureOIDCRBAC(ctx, co.Spec.BootstrapAdmin.Username); err != nil {
@@ -273,7 +279,35 @@ func (r *ClusterOIDCReconciler) ensureOIDCRBAC(ctx context.Context, username str
 	return err
 }
 
-func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1alpha1.ClusterOIDC) error {
+func (r *ClusterOIDCReconciler) ensureDexTheme(ctx context.Context, ns string) (string, error) {
+	files := map[string]string{
+		"styles.css":    "auth/dex/themes/kube-dashboard/styles.css",
+		"header.html":   "auth/dex/templates/header.html",
+		"password.html": "auth/dex/templates/password.html",
+		"login.html":    "auth/dex/templates/login.html",
+	}
+	data := make(map[string]string, len(files))
+	h := sha256.New()
+	for key, path := range files {
+		raw, err := assets.FS.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("embedded dex %s: %w", path, err)
+		}
+		data[key] = string(raw)
+		_, _ = h.Write([]byte(key))
+		_, _ = h.Write(raw)
+	}
+	hash := hex.EncodeToString(h.Sum(nil)[:8])
+	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "dex-theme", Namespace: ns}}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
+		cm.Labels = map[string]string{"app": "dex", "app.kubernetes.io/component": "theme"}
+		cm.Data = data
+		return nil
+	})
+	return hash, err
+}
+
+func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1alpha1.ClusterOIDC, themeHash string) error {
 	ns := co.Spec.Namespace
 	labels := map[string]string{"app": "dex", "app.kubernetes.io/name": "dex"}
 	deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "dex", Namespace: ns}}
@@ -283,24 +317,60 @@ func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1al
 		deploy.Spec.Replicas = &replicas
 		deploy.Spec.Selector = &metav1.LabelSelector{MatchLabels: map[string]string{"app": "dex"}}
 		deploy.Spec.Template.ObjectMeta.Labels = labels
+		if deploy.Spec.Template.ObjectMeta.Annotations == nil {
+			deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+		}
+		deploy.Spec.Template.ObjectMeta.Annotations["kubeops.io/dex-theme-hash"] = themeHash
+		// Seed theme logos + overlay glass CSS and custom login templates.
+		deploy.Spec.Template.Spec.InitContainers = []corev1.Container{{
+			Name:  "theme-seed",
+			Image: co.Spec.DexImage,
+			Command: []string{"/bin/sh", "-c", strings.Join([]string{
+				"cp -r /srv/dex/web/themes/dark/. /theme/",
+				"cp /theme-in/styles.css /theme/styles.css",
+				"cp -r /srv/dex/web/templates/. /templates/",
+				"cp /theme-in/header.html /templates/header.html",
+				"cp /theme-in/password.html /templates/password.html",
+				"cp /theme-in/login.html /templates/login.html",
+			}, " && ")},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "theme", MountPath: "/theme"},
+				{Name: "templates", MountPath: "/templates"},
+				{Name: "theme-css", MountPath: "/theme-in", ReadOnly: true},
+			},
+		}}
 		deploy.Spec.Template.Spec.Containers = []corev1.Container{{
 			Name:  "dex",
 			Image: co.Spec.DexImage,
 			Args:  []string{"dex", "serve", "/etc/dex/config.yaml"},
 			Ports: []corev1.ContainerPort{{Name: "http", ContainerPort: 5556}},
-			VolumeMounts: []corev1.VolumeMount{{
-				Name: "config", MountPath: "/etc/dex", ReadOnly: true,
-			}},
-		}}
-		deploy.Spec.Template.Spec.Volumes = []corev1.Volume{{
-			Name: "config",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{Name: "dex"},
-					Items:                []corev1.KeyToPath{{Key: "config.yaml", Path: "config.yaml"}},
-				},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "config", MountPath: "/etc/dex", ReadOnly: true},
+				{Name: "theme", MountPath: "/srv/dex/web/themes/kube-dashboard", ReadOnly: true},
+				{Name: "templates", MountPath: "/srv/dex/web/templates", ReadOnly: true},
 			},
 		}}
+		deploy.Spec.Template.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "config",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "dex"},
+						Items:                []corev1.KeyToPath{{Key: "config.yaml", Path: "config.yaml"}},
+					},
+				},
+			},
+			{
+				Name: "theme-css",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: "dex-theme"},
+					},
+				},
+			},
+			{Name: "theme", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+			{Name: "templates", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
+		}
 		return nil
 	})
 	if err != nil {
@@ -325,6 +395,10 @@ storage:
   type: memory
 web:
   http: 0.0.0.0:5556
+frontend:
+  dir: /srv/dex/web
+  theme: kube-dashboard
+  issuer: Sign in
 oauth2:
   skipApprovalScreen: true
 staticClients:
