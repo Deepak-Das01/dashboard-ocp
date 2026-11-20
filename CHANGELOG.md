@@ -1,17 +1,23 @@
 # Changelog
 
-## main — metrics packaging (post v1.2.2)
+## v1.3.0 — 1.3.0 (stable)
 
-### Added
-- Vendored **metrics-server v0.7.2** (`deploy/metrics-server/components.yaml`, lab `--kubelet-insecure-tls`)
-- Vendored Dashboard **v2.7.0** recommended manifest (`deploy/upstream/`)
-- Offline image helpers: `download-images.sh`, `load-images.sh`, `export-images.sh`
-- GitHub Release **`images-v1.2.2`** hosting amd64 image archives + checksums
-- `install.sh` / `uninstall.sh` wired for metrics-server and local/Release images
-- `docs/METRICS_AND_IMAGES.md`
+Stable **kube-dashboard** packaging: one console pod, themed UI, metrics-server, offline images.
+
+### Changed
+- Single Deployment/Service **`kube-dashboard`** (NGINX TLS front + Dashboard v2.7.0 sidecar on loopback `:9090`)
+- Support-only upstream manifest (`dashboard-support-v2.7.0.yaml`) — no separate `kubernetes-dashboard` Deployment/Service
+- Product naming uses **Kube Dashboard** / **kube-dashboard** (no glass / Liquid Glass resource names)
+- Removed local CSS rollback snapshots and legacy `deploy/glass/` packaging tree
+
+### Included from post-v1.2.2 main
+- Vendored **metrics-server v0.7.2** and offline image helpers
+- Image archives still published under Release **`images-v1.2.2`** (unchanged container images)
+- Login theme, About branding overlays, sidebar accordion UX
 
 ### Notes
-- Product cosmetic tag **`v1.2.2`** remains frozen; use **`main`** for metrics-inclusive installs
+- Tag **`v1.3.0`** is the current stable install line
+- Upstream application remains Kubernetes Dashboard **v2.7.0**
 
 ## v1.2.2 — 1.2.2
 

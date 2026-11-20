@@ -2,7 +2,7 @@
 
 Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-dashboard` pod (NGINX + Dashboard sidecar) with metrics-server support.
 
-[![Release](https://img.shields.io/badge/release-v1.2.2-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/dashboard-ocp/releases/tag/v1.2.2)
+[![Release](https://img.shields.io/badge/release-v1.3.0-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/dashboard-ocp/releases/tag/v1.3.0)
 [![Upstream Dashboard](https://img.shields.io/badge/Kubernetes%20Dashboard-v2.7.0-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://github.com/kubernetes/dashboard/releases/tag/v2.7.0)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34%20lab--tested-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](#prerequisites)
 [![NGINX](https://img.shields.io/badge/NGINX-1.27--alpine-009639?style=flat-square&logo=nginx&logoColor=white)](deploy/kube-dashboard/deployment.yaml)
@@ -15,8 +15,8 @@ Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-d
 | Item | Value |
 |------|--------|
 | Product | Kube Dashboard |
-| Release | **v1.2.2** |
-| Version | **1.2.2** |
+| Release | **v1.3.0** (stable) |
+| Version | **1.3.0** |
 | Upstream Dashboard | `kubernetesui/dashboard:v2.7.0` |
 | Metrics scraper | `kubernetesui/metrics-scraper:v1.0.8` |
 | Console image (proxy) | `nginx:1.27-alpine` |
@@ -86,9 +86,9 @@ Operators often want a clearer, more modern cluster UI while keeping familiar Da
 
 ## Screenshots
 
-Screenshots of the live **v1.2.2** Kube Dashboard interface should live under `docs/screenshots/` and be linked with relative Markdown paths.
+Screenshots of the live **v1.3.0** Kube Dashboard interface should live under `docs/screenshots/` and be linked with relative Markdown paths.
 
-> **Documentation note:** PNG assets are not yet committed in this repository. Capture them from a running v1.2.2 deployment (hard-refresh the browser first) and save the following filenames before linking them in this section:
+> **Documentation note:** PNG assets are not yet committed in this repository. Capture them from a running v1.3.0 deployment (hard-refresh the browser first) and save the following filenames before linking them in this section:
 
 | Suggested file | Subject |
 |----------------|---------|
@@ -294,7 +294,7 @@ Generate a login token (optional helper ServiceAccount shipped with this package
 Node CPU/Memory charts need a few minutes of scraper samples after first install (`Waiting for more data…` is expected briefly).
 
 > [!NOTE]
-> Cosmetic theme baseline remains tag **`v1.2.2`**. Metrics-server packaging, vendored manifests, and offline image helpers live on **`main`** with image assets on Release **`images-v1.2.2`**. See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
+> Stable product tag **`v1.3.0`**. Offline image archives remain on Release **`images-v1.2.2`** (same container images). See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
 
 > [!WARNING]
 > Dashboard runs with `--enable-insecure-login` on loopback only; metrics-server includes `--kubelet-insecure-tls` for lab convenience. Prefer proper TLS and review both for shared/production environments.
@@ -416,7 +416,7 @@ Not provided as built-in product manifests. Operators may publish `kube-dashboar
 
 Kube Dashboard does not replace Dashboard authentication.
 
-1. Open the Glass HTTPS URL.
+1. Open the HTTPS URL.
 2. Sign in with a Kubernetes ServiceAccount bearer token (or other methods supported by upstream Dashboard).
 3. Authorization is enforced by **Kubernetes RBAC** for that identity.
 
@@ -441,7 +441,7 @@ Never commit, paste into issues, or publish real tokens.
 |---------|----------------|
 | HTTP 401 | Missing/invalid/expired token |
 | HTTP 403 | Token valid but RBAC denies the API request |
-| Login page loops / errors | Wrong URL scheme/port; use HTTPS Glass endpoint |
+| Login page loops / errors | Wrong URL scheme/port; use the HTTPS NodePort endpoint |
 
 ---
 
@@ -552,7 +552,7 @@ Then hard-refresh the browser (CSS is served with `Cache-Control: no-cache`, but
 | Load/download images | `true` | `LOAD_IMAGES` / `scripts/download-images.sh` |
 | Image release tag | `images-v1.2.2` | `IMAGE_RELEASE_TAG` |
 | Enable insecure login patch | `true` | `ENABLE_INSECURE_LOGIN` in `install.sh` |
-| Glass Deployment image | `nginx:1.27-alpine` | `deploy/kube-dashboard/deployment.yaml` |
+| Console proxy image | `nginx:1.27-alpine` | `deploy/kube-dashboard/deployment.yaml` |
 | Dashboard image | `kubernetesui/dashboard:v2.7.0` | Vendored upstream manifest |
 | Metrics scraper image | `kubernetesui/metrics-scraper:v1.0.8` | Vendored upstream manifest |
 | metrics-server image | `registry.k8s.io/metrics-server/metrics-server:v0.7.2` | `deploy/metrics-server/components.yaml` |
@@ -562,9 +562,9 @@ Then hard-refresh the browser (CSS is served with `Cache-Control: no-cache`, but
 | TLS secret name | `kube-dashboard-tls` | `scripts/create-tls-secret.sh` / Deployment volume |
 | Theme stylesheet | `deploy/kube-dashboard/theme.css` | ConfigMap `kube-dashboard-css` |
 | NGINX config | `deploy/kube-dashboard/nginx.conf` | ConfigMap `kube-dashboard-nginx` |
-| Glass CPU/memory | requests `20m`/`32Mi`, limits `200m`/`128Mi` | `deploy/kube-dashboard/deployment.yaml` |
+| Proxy CPU/memory | requests `20m`/`32Mi`, limits `200m`/`128Mi` | `deploy/kube-dashboard/deployment.yaml` |
 | Login helper SA | `dashboard-admin` | `deploy/rbac/dashboard-admin.yaml` |
-| Product labels | `app.kubernetes.io/version: "1.2.2"`, `dashboard.ocp/release: v1.2.2` | Glass + RBAC manifests |
+| Product labels | `app.kubernetes.io/version: "1.3.0"`, `dashboard.ocp/release: v1.3.0` | kube-dashboard + RBAC manifests |
 
 This repository does **not** ship a Helm chart or invented values files.
 
@@ -576,14 +576,14 @@ This repository does **not** ship a Helm chart or invented values files.
 |---------|--------|
 | Pods `Pending` | `kubectl -n kubernetes-dashboard describe pod <pod>`; node resources / taints |
 | `ImagePullBackOff` | Registry access; preload images; `describe pod` events |
-| `CrashLoopBackOff` (Glass) | Missing `kube-dashboard-tls`; NGINX config errors — check Glass logs |
+| `CrashLoopBackOff` (kube-dashboard) | Missing `kube-dashboard-tls`; NGINX config errors — check kube-dashboard logs |
 | URL not reachable | NodePort firewall/security groups; try port-forward |
 | TLS warning | Expected for self-signed cert; replace secret or trust explicitly |
 | HTTP 401 | Regenerate token: `./scripts/get-token.sh` |
 | HTTP 403 | Inspect RBAC for the authenticated identity |
 | Expired token | Create a new token (`DURATION` / `kubectl create token`) |
 | Theme missing | Confirm HTML includes `/theme.css`; `curl -skI` the stylesheet |
-| Old CSS after update | Rollout restart Glass Deployment; hard-refresh browser |
+| Old CSS after update | Rollout restart kube-dashboard Deployment; hard-refresh browser |
 | NGINX proxy errors | `logs deploy/kube-dashboard`; confirm upstream Service `kubernetes-dashboard` |
 | Metrics empty / charts waiting | `kubectl top nodes`; metrics-server + scraper logs; wait ~2–5 min for samples |
 | Overlay/dropdown styling | Hard-refresh; confirm served CSS matches repo file |
@@ -644,7 +644,7 @@ Supported script:
 
 Removes:
 
-- Resources from `kubectl delete -k deploy/` (Glass Deployment/Service, ConfigMaps, `dashboard-admin` SA/RBAC/secret)
+- Resources from `kubectl delete -k deploy/` (kube-dashboard Deployment/Service, ConfigMaps, `dashboard-admin` SA/RBAC/secret)
 - Secret `kube-dashboard-tls`
 
 Optional removal of upstream Dashboard and/or metrics-server:
@@ -656,7 +656,7 @@ REMOVE_UPSTREAM=true REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
 ```
 
 > [!WARNING]
-> Do not delete the `kubernetes-dashboard` namespace if it contains unrelated workloads you still need. The uninstall script does not blindly wipe arbitrary cluster objects beyond the Glass kustomization (and optional upstream / metrics-server manifests when enabled).
+> Do not delete the `kubernetes-dashboard` namespace if it contains unrelated workloads you still need. The uninstall script does not blindly wipe arbitrary cluster objects beyond the kube-dashboard kustomization (and optional upstream / metrics-server manifests when enabled).
 
 ---
 
@@ -666,11 +666,11 @@ REMOVE_UPSTREAM=true REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
 dashboard-ocp/
 ├── README.md                 # Product documentation (this file)
 ├── CHANGELOG.md              # Release notes
-├── VERSION                   # 1.2.2
-├── RELEASE                   # v1.2.2
+├── VERSION                   # 1.3.0
+├── RELEASE                   # v1.3.0
 ├── deploy/
-│   ├── kustomization.yaml    # Glass ConfigMaps + resources
-│   ├── glass/                # Kube Dashboard proxy + theme
+│   ├── kustomization.yaml    # kube-dashboard ConfigMaps + resources
+│   ├── kube-dashboard/       # NGINX + Dashboard sidecar + theme
 │   ├── rbac/                 # dashboard-admin helper
 │   ├── metrics-server/       # vendored metrics-server v0.7.2
 │   ├── upstream/             # vendored Dashboard recommended.yaml
@@ -705,7 +705,7 @@ This tree reflects the supported product packaging. Experimental or local rollba
 
 ## Roadmap
 
-### Delivered in v1.2.2
+### Delivered in v1.3.0
 
 - Kube Dashboard cosmetic modernization
 - Component consistency (tables, pagination, overlays, forms, sidebar)
@@ -730,9 +730,9 @@ No delivery dates are promised.
 - Tags / releases: [github.com/Deepak-Das01/dashboard-ocp/tags](https://github.com/Deepak-Das01/dashboard-ocp/tags)
 - Detailed notes: [`CHANGELOG.md`](CHANGELOG.md)
 
-### v1.2.2 highlights
+### v1.3.0 highlights
 
-Stable Kube Dashboard cosmetic baseline: premium glass materials, refined header/namespace controls, consistent sidebar selection, polished tables and pagination, notification stacking/empty state, form alignment, editor/dropdown styling, emerald status colours, and Events text containment.
+Stable single-pod **kube-dashboard** console (NGINX + Dashboard sidecar), themed UI, metrics-server packaging, and offline image helpers. No separate upstream dashboard or glass proxy Deployment.
 
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 
@@ -745,7 +745,7 @@ Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 3. Prefer small, reviewable cosmetic or packaging changes.
 4. For CSS work, edit `deploy/kube-dashboard/theme.css`, apply the ConfigMap workflow, and hard-refresh the browser.
 5. Open a pull request with a clear summary and test notes.
-6. File bugs with: Kubernetes version, Dashboard/Glass versions, browser, steps to reproduce, and redacted screenshots.
+6. File bugs with: Kubernetes version, kube-dashboard version, browser, steps to reproduce, and redacted screenshots.
 
 Do **not** include tokens, kubeconfigs, or secrets in issues or PRs.
 

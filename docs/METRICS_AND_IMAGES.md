@@ -6,8 +6,8 @@ This packaging installs **metrics-server v0.7.2** together with Kube Dashboard s
 
 | Component | Source in repo |
 |-----------|----------------|
-| Dashboard + metrics-scraper | `deploy/upstream/dashboard-recommended-v2.7.0.yaml` |
-| Kube Dashboard proxy | `deploy/` (kustomize) |
+| Support RBAC + metrics-scraper | `deploy/upstream/dashboard-support-v2.7.0.yaml` |
+| kube-dashboard console | `deploy/` (kustomize) |
 | metrics-server | `deploy/metrics-server/components.yaml` (includes `--kubelet-insecure-tls` for lab kubelets) |
 
 ## Images (linux/amd64)
@@ -30,7 +30,7 @@ git checkout main
 
 ./scripts/download-images.sh   # from GitHub Release images-v1.2.2
 ./scripts/load-images.sh       # import into containerd
-./scripts/install.sh           # metrics-server + Dashboard + Glass
+./scripts/install.sh           # metrics-server + support + kube-dashboard
 ```
 
 Skip image download if archives already exist in `artifacts/images/`:

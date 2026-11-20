@@ -2178,7 +2178,7 @@ kd-about .kd-h1 > span::before {
 }
 
 kd-about .kd-h1 > span::after {
-  content: "Release v1.2.2  ·  Upstream Dashboard v2.7.0" !important;
+  content: "Release v1.3.0  ·  Upstream Dashboard v2.7.0" !important;
   display: block !important;
   margin-top: 8px !important;
   font-size: 13px !important;

@@ -19,3 +19,8 @@ kubeconfig
 # Large image archives (published via GitHub Release tag images-v1.2.2)
 artifacts/images/*.tar
 artifacts/images/*.tar.gz
+
+# Local CSS/theme rollback snapshots (never publish)
+.rollback/
+*.rollback
+*.rollback.*
