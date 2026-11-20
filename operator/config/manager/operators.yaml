@@ -1,0 +1,136 @@
+# kubeops-console (role: console) + kubeops-authentication (role: oidc)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeops-console
+  namespace: kubeops-console
+  labels:
+    app.kubernetes.io/name: kubeops-console
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: console
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeops-console
+  template:
+    metadata:
+      labels:
+        app: kubeops-console
+        app.kubernetes.io/name: kubeops-console
+        app.kubernetes.io/part-of: kube-dashboard
+        app.kubernetes.io/component: console
+    spec:
+      serviceAccountName: kubeops-console
+      containers:
+        - name: manager
+          image: kubeops-console:1.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-elect=false
+            - --health-probe-bind-address=:18081
+            - --metrics-bind-address=:18080
+          ports:
+            - name: health
+              containerPort: 18081
+            - name: metrics
+              containerPort: 18080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeops-authentication
+  namespace: kubeops-authentication
+  labels:
+    app.kubernetes.io/name: kubeops-authentication
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: oidc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeops-authentication
+  template:
+    metadata:
+      labels:
+        app: kubeops-authentication
+        app.kubernetes.io/name: kubeops-authentication
+        app.kubernetes.io/part-of: kube-dashboard
+        app.kubernetes.io/component: oidc
+    spec:
+      serviceAccountName: kubeops-authentication
+      containers:
+        - name: manager
+          image: kubeops-authentication:1.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-elect=false
+            - --health-probe-bind-address=:18083
+            - --metrics-bind-address=:18082
+          ports:
+            - name: health
+              containerPort: 18083
+            - name: metrics
+              containerPort: 18082
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux

@@ -1,0 +1,13 @@
+# OIDC operator — Dex lives in kubeops-authentication (same ns as the operator).
+apiVersion: dashboard.ocp/v1alpha1
+kind: ClusterOIDC
+metadata:
+  name: cluster
+spec:
+  namespace: kubeops-authentication
+  provider: dex
+  clientID: kube-dashboard
+  bootstrapAdmin:
+    username: kubeadmin
+    passwordLength: 16
+  configureAPIServer: false

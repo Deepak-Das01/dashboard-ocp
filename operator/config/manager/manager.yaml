@@ -1,0 +1,7 @@
+# Legacy pointer — prefer operator/config/manager/operators.yaml
+# Operators:
+#   kubeops-console          (ns: kubeops-console,          role: console)
+#   kubeops-authentication   (ns: kubeops-authentication,   role: oidc)
+apiVersion: v1
+kind: List
+items: []

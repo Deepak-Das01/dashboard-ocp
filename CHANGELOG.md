@@ -1,5 +1,21 @@
 # Changelog
 
+## main — kubeops operators + OIDC (post v1.3.0)
+
+### Added
+- **kubeops-console** / **kubeops-authentication** operators (name = namespace; roles `console` / `oidc`)
+- CRDs: `KubeDashboard`, `ClusterOIDC`, `Operator` — `kubectl get ops`
+- Single install: `./scripts/install-operators.sh` (default `AUTH_MODE=oidc`)
+- Dex IdP in `kubeops-authentication`; console UI + scraper in `kubeops-console`
+- Scripts: `install-operators.sh`, `pack-static-image.py`, `install-phase-c-oidc.sh`, `configure-apiserver-oidc.sh`
+- Docs: `docs/OPERATOR_AND_AUTH.md`
+
+### Notes
+- GUI: https://\<node\>:30443/ → Dex → `kubeadmin`
+- Password: `kubectl -n kubeops-authentication get secret kubeadmin-oidc-bootstrap -o jsonpath='{.data.password}' | base64 -d`
+- Escape hatch: `AUTH_MODE=secret ./scripts/install-operators.sh`
+- Classic kustomize **v1.3.0** install remains available via `./scripts/install.sh`
+
 ## v1.3.0 — 1.3.0 (stable)
 
 Stable **kube-dashboard** packaging: one console pod, themed UI, metrics-server, offline images.

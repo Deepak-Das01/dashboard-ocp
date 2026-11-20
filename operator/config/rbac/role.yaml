@@ -1,0 +1,70 @@
+# Per-operator namespaces (name matches operator).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeops-console
+  labels:
+    app.kubernetes.io/name: kubeops-console
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: console
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeops-authentication
+  labels:
+    app.kubernetes.io/name: kubeops-authentication
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: oidc
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeops-console
+  namespace: kubeops-console
+  labels:
+    app.kubernetes.io/name: kubeops-console
+    app.kubernetes.io/part-of: kube-dashboard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeops-authentication
+  namespace: kubeops-authentication
+  labels:
+    app.kubernetes.io/name: kubeops-authentication
+    app.kubernetes.io/part-of: kube-dashboard
+---
+# Operators apply upstream Dashboard RBAC and metrics-server; bind to cluster-admin
+# so RBAC escalation checks pass when granting Role rules.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeops-console
+  labels:
+    app.kubernetes.io/name: kubeops-console
+    app.kubernetes.io/part-of: kube-dashboard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: kubeops-console
+    namespace: kubeops-console
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeops-authentication
+  labels:
+    app.kubernetes.io/name: kubeops-authentication
+    app.kubernetes.io/part-of: kube-dashboard
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: kubeops-authentication
+    namespace: kubeops-authentication

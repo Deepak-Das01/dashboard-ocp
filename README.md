@@ -22,8 +22,37 @@ Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-d
 | Console image (proxy) | `nginx:1.27-alpine` |
 | Default HTTPS NodePort | **30443** |
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
-| Namespace | `kubernetes-dashboard` |
+| Namespace (operator path) | `kubeops-console` (UI + console operator) |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
+
+---
+
+## Operators (two-operator model)
+
+See [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
+
+All operators are named **`kubeops-*`** (name = namespace). Role is `console` or `oidc`.
+
+| Operator | Namespace | Role | CR |
+|----------|-----------|------|-----|
+| **kubeops-console** | `kubeops-console` | `console` | `KubeDashboard` |
+| **kubeops-authentication** | `kubeops-authentication` | `oidc` | `ClusterOIDC` |
+
+**One script** (default = persistent **OIDC** wiring). CLI stays on your kubeconfig:
+
+```bash
+./scripts/install-operators.sh
+
+kubectl get operators
+kubectl get kubedashboard,clusteroidc
+kubectl -n kubeops-console get pods
+kubectl -n kubeops-authentication get pods
+# Browser: https://<node-ip>:30443/ → Dex → kubeadmin
+# Password: kubectl -n kubeops-authentication get secret kubeadmin-oidc-bootstrap \
+#             -o jsonpath='{.data.password}' | base64 -d; echo
+
+# Basic auth only: AUTH_MODE=secret ./scripts/install-operators.sh
+```
 
 ---
 

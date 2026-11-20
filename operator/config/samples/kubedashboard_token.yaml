@@ -1,0 +1,12 @@
+# Console operator — token auth (no NGINX basic auth gate)
+apiVersion: dashboard.ocp/v1alpha1
+kind: KubeDashboard
+metadata:
+  name: kube-dashboard
+spec:
+  namespace: kubeops-console
+  version: "1.3.0"
+  metricsServer:
+    enabled: true
+  auth:
+    mode: token
