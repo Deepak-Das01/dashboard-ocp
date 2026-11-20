@@ -570,12 +570,11 @@ kd-nav .kd-nav-items,
 }
 
 /* ---------- Cards / elevated glass ---------- */
+/* Login card material is defined in the dedicated kd-login section below. */
 .mat-card,
 mat-card,
 .kd-bg-card-dark,
-.kd-minimized-card,
-kd-login .mat-card,
-kd-login mat-card {
+.kd-minimized-card {
   background: var(--glass-surface) !important;
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)) !important;
@@ -1336,5 +1335,588 @@ kd-text-input .ace_editor {
   *::before,
   *::after {
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Login page — minimalist Liquid Glass (kd-login only)
+   Cosmetic only. Does not alter auth methods or bindings.
+   ============================================================ */
+
+kd-login {
+  display: flex !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  position: relative !important;
+  isolation: isolate !important;
+}
+
+/* Restrained ambient background — login only */
+kd-login > .kd-bg-background {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  /* Card centre ≈ 30vw — stronger left offset with open space on the right */
+  padding: 40px 24px 40px max(24px, calc(30vw - 255px)) !important;
+  background-color: #071222 !important;
+  background-image:
+    radial-gradient(ellipse at 8% 12%, rgba(35, 89, 190, 0.28), transparent 48%),
+    radial-gradient(ellipse at 92% 18%, rgba(0, 160, 155, 0.16), transparent 44%),
+    radial-gradient(ellipse at 12% 92%, rgba(20, 90, 200, 0.18), transparent 42%),
+    linear-gradient(145deg, #0A1832 0%, #071222 52%, #072430 100%) !important;
+  background-attachment: fixed !important;
+}
+
+kd-login > .kd-bg-background::before,
+kd-login > .kd-bg-background::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+kd-login > .kd-bg-background::before {
+  background:
+    radial-gradient(ellipse 75% 40% at 82% 22%, rgba(40, 200, 210, 0.08), transparent 60%),
+    radial-gradient(ellipse 55% 38% at 0% 75%, rgba(23, 77, 181, 0.20), transparent 58%) !important;
+}
+
+kd-login > .kd-bg-background::after {
+  background: linear-gradient(118deg, transparent 44%, rgba(120, 180, 255, 0.04) 52%, transparent 62%) !important;
+  opacity: 0.85 !important;
+}
+
+kd-login > .kd-bg-background > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+/* Compact glass card — override upstream kd-card min-width: 1160px */
+kd-login kd-card {
+  display: block !important;
+  width: min(510px, calc(100vw - 48px)) !important;
+  max-width: 510px !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+kd-login kd-card > .mat-card,
+kd-login mat-card.mat-card,
+kd-login kd-card .mat-card {
+  position: relative !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 510px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #F0F5FC !important;
+  border-radius: 24px !important;
+  border: 1px solid rgba(220, 240, 255, 0.24) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(220, 235, 255, 0.13),
+    rgba(160, 185, 215, 0.055) 50%,
+    rgba(100, 205, 205, 0.09)
+  ) !important;
+  backdrop-filter: blur(28px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(145%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    0 20px 55px rgba(0, 0, 0, 0.28) !important;
+}
+
+kd-login kd-card > .mat-card::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.14) 0%, transparent 34%) !important;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.06) !important;
+}
+
+kd-login kd-card > .mat-card > * {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  kd-login kd-card > .mat-card,
+  kd-login mat-card.mat-card {
+    background: rgba(22, 32, 48, 0.94) !important;
+  }
+}
+
+/* Typographic heading — no logo, no solid bar, no divider */
+kd-login mat-card-title.kd-card-top-radius,
+kd-login mat-card-title.kd-bg-primary,
+kd-login mat-card-title.kd-accent {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: #F0F5FC !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  border-radius: 24px 24px 0 0 !important;
+  margin: 0 !important;
+  padding: 30px 30px 0 !important;
+  min-height: 0 !important;
+}
+
+kd-login mat-card-title .kd-card-title {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+kd-login mat-card-title .kd-card-title > div {
+  display: block !important;
+  color: #F0F5FC !important;
+  font-size: 28px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.5px !important;
+  line-height: 1.25 !important;
+  margin: 0 0 20px !important;
+  padding: 0 !important;
+}
+
+/* Remove any previous logo pseudo-element */
+kd-login mat-card-title .kd-card-title > div::before,
+kd-login mat-card-title .kd-card-title > div::after {
+  content: none !important;
+  display: none !important;
+}
+
+/* Single content padding boundary for all controls */
+kd-login form {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+kd-login .kd-card-content,
+kd-login mat-card-content.kd-card-content,
+kd-login mat-card-content {
+  background: transparent !important;
+  box-sizing: border-box !important;
+  padding: 0 30px 8px !important;
+  margin: 0 !important;
+  color: #F0F5FC !important;
+}
+
+kd-login mat-card-footer {
+  background: transparent !important;
+  box-sizing: border-box !important;
+  padding: 0 30px 28px !important;
+  margin: 0 !important;
+  border: none !important;
+  min-height: 0 !important;
+}
+
+/* Compact horizontal auth segmented control (native radios preserved).
+   Track chrome is ::before on row 1 only — guidance text sits in the card body below. */
+kd-login .mat-radio-group {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 4px !important;
+  row-gap: 14px !important;
+  margin: 0 0 14px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Recessed glass track behind Token / Kubeconfig only */
+kd-login .mat-radio-group::before {
+  content: "" !important;
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  margin: 0 !important;
+  border-radius: 12px !important;
+  background: rgba(8, 14, 26, 0.28) !important;
+  border: 1px solid rgba(210, 230, 255, 0.14) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+kd-login .mat-radio-group > div {
+  display: contents !important;
+}
+
+kd-login .mat-radio-group > div:nth-child(1) > .mat-radio-button {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  z-index: 1 !important;
+  position: relative !important;
+  padding: 3px 3px 3px 3px !important;
+}
+
+kd-login .mat-radio-group > div:nth-child(2) > .mat-radio-button {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  z-index: 1 !important;
+  position: relative !important;
+  padding: 3px 3px 3px 3px !important;
+}
+
+kd-login .mat-radio-group > div:nth-child(1) > .kd-login-mode-description,
+kd-login .mat-radio-group > div:nth-child(2) > .kd-login-mode-description {
+  grid-column: 1 / -1 !important;
+  grid-row: 2 !important;
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+kd-login .mat-radio-button {
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+kd-login .mat-radio-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+}
+
+kd-login .mat-radio-container {
+  display: none !important;
+}
+
+kd-login .mat-radio-label-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 9px 12px !important;
+  border-radius: 9px !important;
+  color: rgba(220, 232, 245, 0.72) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  transition:
+    background-color 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+kd-login .mat-radio-button.mat-radio-checked .mat-radio-label-content {
+  color: #F0F5FC !important;
+  background: rgba(220, 235, 255, 0.14) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 6px rgba(0, 0, 0, 0.12) !important;
+}
+
+kd-login .mat-radio-button .mat-radio-ripple {
+  display: none !important;
+}
+
+kd-login .mat-radio-button.cdk-keyboard-focused .mat-radio-label-content,
+kd-login .mat-radio-button.cdk-program-focused .mat-radio-label-content {
+  outline: 2px solid rgba(141, 196, 255, 0.75) !important;
+  outline-offset: 1px !important;
+}
+
+/* Guidance under the segment — only the selected mode (CSS :has) */
+kd-login .mat-radio-group > div:has(.mat-radio-button:not(.mat-radio-checked)) > .kd-login-mode-description {
+  display: none !important;
+}
+
+kd-login .kd-login-mode-description {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: rgba(210, 224, 240, 0.78) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+kd-login .kd-login-mode-description a {
+  color: #8DC4FF !important;
+  text-decoration: none !important;
+  border-bottom: 1px solid rgba(141, 196, 255, 0.28) !important;
+  font-size: 12.5px !important;
+  transition: color 170ms cubic-bezier(0.22, 1, 0.36, 1), border-color 170ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+kd-login .kd-login-mode-description a:hover,
+kd-login .kd-login-mode-description a:focus-visible {
+  color: #B8DCFF !important;
+  border-bottom-color: rgba(184, 220, 255, 0.65) !important;
+}
+
+/* Shared horizontal boundary for inputs + button */
+kd-login .kd-login-input.mat-form-field,
+kd-login kd-upload-file,
+kd-login .kd-login-button.mat-raised-button,
+kd-login button.kd-login-button {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+kd-login .kd-login-input.mat-form-field,
+kd-login kd-upload-file .mat-form-field {
+  display: block !important;
+  margin-top: 14px !important;
+  margin-bottom: 6px !important;
+  padding: 0 !important;
+}
+
+kd-login .kd-login-input .mat-form-field-wrapper,
+kd-login kd-upload-file .mat-form-field-wrapper {
+  padding: 0 0 0.35em !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+kd-login .kd-login-input .mat-form-field-flex,
+kd-login kd-upload-file .mat-form-field-flex {
+  display: flex !important;
+  background: rgba(200, 225, 255, 0.06) !important;
+  border: 1px solid rgba(210, 235, 255, 0.20) !important;
+  border-radius: 10px !important;
+  min-height: 46px !important;
+  height: auto !important;
+  align-items: center !important;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  transition: border-color 170ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+kd-login .kd-login-input.mat-focused .mat-form-field-flex,
+kd-login kd-upload-file .mat-form-field.mat-focused .mat-form-field-flex {
+  border-color: rgba(100, 170, 255, 0.55) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.10),
+    0 0 0 3px rgba(55, 140, 255, 0.18) !important;
+}
+
+kd-login .kd-login-input .mat-form-field-infix,
+kd-login kd-upload-file .mat-form-field-infix {
+  background: transparent !important;
+  border: none !important;
+  padding: 10px 0 !important;
+  width: auto !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+kd-login .kd-login-input .mat-input-element,
+kd-login kd-upload-file .mat-input-element {
+  color: #F0F5FC !important;
+  caret-color: #8DC4FF !important;
+  font-size: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+kd-login .kd-login-input .mat-form-field-label,
+kd-login kd-upload-file .mat-form-field-label,
+kd-login .kd-login-input .mat-form-field-placeholder {
+  color: rgba(190, 210, 230, 0.72) !important;
+  font-size: 14px !important;
+}
+
+kd-login .kd-login-input .mat-form-field-underline,
+kd-login kd-upload-file .mat-form-field-underline,
+kd-login .kd-login-input .mat-form-field-ripple,
+kd-login kd-upload-file .mat-form-field-ripple {
+  display: none !important;
+}
+
+kd-login kd-upload-file {
+  display: block !important;
+  margin-top: 14px !important;
+  margin-bottom: 6px !important;
+}
+
+kd-login kd-upload-file > div[fxlayout="row"] {
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+}
+
+kd-login kd-upload-file .kd-upload-button {
+  align-self: center !important;
+  margin: 0 !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  border-radius: 10px !important;
+  background: rgba(200, 225, 255, 0.08) !important;
+  border: 1px solid rgba(210, 235, 255, 0.20) !important;
+  color: #F0F5FC !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+}
+
+/* Subdued sapphire Sign In — aligned to same 100% width */
+kd-login .kd-login-button.mat-raised-button,
+kd-login button.kd-login-button {
+  height: 46px !important;
+  min-height: 46px !important;
+  margin-top: 14px !important;
+  margin-bottom: 0 !important;
+  padding: 0 14px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #3899EA, #2868D9) !important;
+  background-color: transparent !important;
+  border: 1px solid rgba(170, 220, 255, 0.35) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.23),
+    0 4px 14px rgba(25, 95, 215, 0.18) !important;
+  transition:
+    filter 170ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 170ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+kd-login .kd-login-button.mat-raised-button:not([disabled]):hover,
+kd-login button.kd-login-button:not([disabled]):hover {
+  filter: brightness(1.04) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 6px 18px rgba(25, 95, 215, 0.24) !important;
+}
+
+kd-login .kd-login-button.mat-raised-button:not([disabled]):active,
+kd-login button.kd-login-button:not([disabled]):active {
+  filter: brightness(0.97) !important;
+}
+
+kd-login .kd-login-button.mat-raised-button[disabled],
+kd-login button.kd-login-button[disabled] {
+  opacity: 0.42 !important;
+  filter: grayscale(0.2) !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+}
+
+kd-login .kd-login-button .mat-button-focus-overlay {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+kd-login .kd-login-button:focus-visible {
+  outline: 2px solid rgba(141, 196, 255, 0.85) !important;
+  outline-offset: 2px !important;
+}
+
+/* Auth errors remain visible */
+kd-login .mat-error,
+kd-login .kd-error,
+kd-login .mat-form-field-subscript-wrapper,
+kd-login .mat-hint {
+  color: #FCA5A5 !important;
+  font-size: 12.5px !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+}
+
+kd-login .mat-form-field.mat-form-field-invalid .mat-form-field-flex {
+  border-color: rgba(252, 165, 165, 0.50) !important;
+  background: rgba(120, 40, 50, 0.14) !important;
+}
+
+kd-login .mat-progress-spinner circle,
+kd-login .mat-spinner circle {
+  stroke: #8DC4FF !important;
+}
+
+@media (max-width: 1024px) {
+  kd-login > .kd-bg-background {
+    justify-content: center !important;
+    padding: 28px 20px !important;
+  }
+
+  kd-login > .kd-bg-background::after {
+    opacity: 0.5 !important;
+  }
+
+  kd-login mat-card-title.kd-card-top-radius,
+  kd-login mat-card-title.kd-bg-primary {
+    padding: 26px 26px 0 !important;
+  }
+
+  kd-login .kd-card-content,
+  kd-login mat-card-content {
+    padding: 0 26px 8px !important;
+  }
+
+  kd-login mat-card-footer {
+    padding: 0 26px 24px !important;
+  }
+
+  kd-login mat-card-title .kd-card-title > div {
+    font-size: 26px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  kd-login > .kd-bg-background {
+    padding: 18px 14px !important;
+  }
+
+  kd-login kd-card {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  kd-login kd-card > .mat-card,
+  kd-login mat-card.mat-card {
+    border-radius: 20px !important;
+    max-width: 100% !important;
   }
 }
