@@ -1,0 +1,12 @@
+# Container image archives for offline / GitHub-hosted installs (linux/amd64)
+# Release asset tag: images-v1.2.2
+#
+# nginx-1.27-alpine-amd64.tar                  <- docker.io/library/nginx:1.27-alpine
+# kubernetesui-dashboard-v2.7.0-amd64.tar       <- docker.io/kubernetesui/dashboard:v2.7.0
+# kubernetesui-metrics-scraper-v1.0.8-amd64.tar <- docker.io/kubernetesui/metrics-scraper:v1.0.8
+# metrics-server-v0.7.2-amd64.tar              <- registry.k8s.io/metrics-server/metrics-server:v0.7.2
+
+bb03b2c98d9def024494c1be43c8acd1a564bac12611fe2f15e532613baa475d  kubernetesui-dashboard-v2.7.0-amd64.tar
+afdc27d0400cda82fc9fe81906e4037283f3c8763f6b6ea792227593bf1eb836  kubernetesui-metrics-scraper-v1.0.8-amd64.tar
+66ba8b5f5a698c5d303d5f031236312f71cc00a10c54abba8eb0d507373d4219  metrics-server-v0.7.2-amd64.tar
+adb6bb8780162081f65c576634cea4dac84aa161ce917318ca7c76d4881b7a45  nginx-1.27-alpine-amd64.tar

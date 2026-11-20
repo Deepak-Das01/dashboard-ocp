@@ -1,5 +1,18 @@
 # Changelog
 
+## main — metrics packaging (post v1.2.2)
+
+### Added
+- Vendored **metrics-server v0.7.2** (`deploy/metrics-server/components.yaml`, lab `--kubelet-insecure-tls`)
+- Vendored Dashboard **v2.7.0** recommended manifest (`deploy/upstream/`)
+- Offline image helpers: `download-images.sh`, `load-images.sh`, `export-images.sh`
+- GitHub Release **`images-v1.2.2`** hosting amd64 image archives + checksums
+- `install.sh` / `uninstall.sh` wired for metrics-server and local/Release images
+- `docs/METRICS_AND_IMAGES.md`
+
+### Notes
+- Product cosmetic tag **`v1.2.2`** remains frozen; use **`main`** for metrics-inclusive installs
+
 ## v1.2.2 — 1.2.2
 
 Stable cosmetic baseline for the Liquid Glass Kubernetes Dashboard packaging.

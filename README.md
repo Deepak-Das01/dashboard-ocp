@@ -258,21 +258,23 @@ Exact clone URL from the configured Git remote:
 ```bash
 git clone https://github.com/Deepak-Das01/dashboard-ocp.git
 cd dashboard-ocp
-git fetch --tags
-git checkout v1.2.2
+git checkout main
 ```
 
-Verify context, then install with the repository script (applies upstream Dashboard v2.7.0, creates TLS, applies Glass manifests):
+Verify context, then install (loads images, metrics-server, vendored Dashboard v2.7.0, TLS, Liquid Glass):
 
 ```bash
 kubectl config current-context
 ./scripts/install.sh
 ```
 
+`install.sh` will download image archives from GitHub Release **`images-v1.2.2`** when `artifacts/images/*.tar` are missing, then import them into containerd. For a fully offline node, copy the tars first or run `./scripts/download-images.sh` on a networked host.
+
 Wait for the script to finish rollout checks, then discover access:
 
 ```bash
 kubectl -n kubernetes-dashboard get svc dashboard-glass
+kubectl top nodes
 kubectl get nodes -o wide
 ```
 
@@ -288,11 +290,13 @@ Generate a login token (optional helper ServiceAccount shipped with this package
 ./scripts/get-token.sh
 ```
 
+Node CPU/Memory charts need a few minutes of scraper samples after first install (`Waiting for more data…` is expected briefly).
+
 > [!NOTE]
-> Installation instructions are validated **statically** against the committed scripts and manifests, and match the lab install workflow previously used for this repository. This documentation update does **not** re-run a live install.
+> Cosmetic Glass baseline remains tag **`v1.2.2`**. Metrics-server packaging, vendored manifests, and offline image helpers live on **`main`** with image assets on Release **`images-v1.2.2`**. See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
 
 > [!WARNING]
-> `scripts/install.sh` defaults `ENABLE_INSECURE_LOGIN=true` for lab convenience (patches upstream Dashboard args). Prefer HTTPS access and review that setting for shared environments.
+> `scripts/install.sh` defaults `ENABLE_INSECURE_LOGIN=true` and metrics-server includes `--kubelet-insecure-tls` for lab convenience. Prefer proper TLS and review both for shared/production environments.
 
 ---
 
@@ -300,12 +304,20 @@ Generate a login token (optional helper ServiceAccount shipped with this package
 
 Use this when you want explicit control over each step. Namespace for Glass resources: **`kubernetes-dashboard`**.
 
-### 1. Upstream Dashboard + metrics scraper (cluster + namespace resources)
-
-Applies the official recommended manifest for Dashboard **v2.7.0** (namespace, Deployments, Services, upstream RBAC, metrics scraper):
+### 0. Images (optional if already on the node)
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+./scripts/download-images.sh   # GitHub Release images-v1.2.2
+./scripts/load-images.sh
+```
+
+### 1. metrics-server + upstream Dashboard (vendored)
+
+```bash
+kubectl apply -f deploy/metrics-server/components.yaml
+kubectl -n kube-system rollout status deploy/metrics-server --timeout=180s
+
+kubectl apply -f deploy/upstream/dashboard-recommended-v2.7.0.yaml
 kubectl -n kubernetes-dashboard rollout status deploy/kubernetes-dashboard --timeout=180s
 kubectl -n kubernetes-dashboard rollout status deploy/dashboard-metrics-scraper --timeout=180s
 ```
@@ -533,12 +545,16 @@ Then hard-refresh the browser (CSS is served with `Cache-Control: no-cache`, but
 |-----------|---------|------------------|
 | Namespace | `kubernetes-dashboard` | `deploy/kustomization.yaml`, scripts `NS` |
 | Upstream Dashboard version | `v2.7.0` | `scripts/install.sh` `DASHBOARD_VERSION` |
-| Upstream manifest URL | Kubernetes Dashboard `recommended.yaml` | `scripts/install.sh` `DASHBOARD_URL` |
+| Upstream manifest | `deploy/upstream/dashboard-recommended-v2.7.0.yaml` | `DASHBOARD_MANIFEST` |
 | Skip upstream install | `false` | `SKIP_UPSTREAM=true` |
+| Install metrics-server | `true` | `INSTALL_METRICS_SERVER` |
+| Load/download images | `true` | `LOAD_IMAGES` / `scripts/download-images.sh` |
+| Image release tag | `images-v1.2.2` | `IMAGE_RELEASE_TAG` |
 | Enable insecure login patch | `true` | `ENABLE_INSECURE_LOGIN` in `install.sh` |
 | Glass Deployment image | `nginx:1.27-alpine` | `deploy/glass/deployment.yaml` |
-| Dashboard image | `kubernetesui/dashboard:v2.7.0` | Upstream recommended manifest |
-| Metrics scraper image | `kubernetesui/metrics-scraper:v1.0.8` | Upstream recommended manifest |
+| Dashboard image | `kubernetesui/dashboard:v2.7.0` | Vendored upstream manifest |
+| Metrics scraper image | `kubernetesui/metrics-scraper:v1.0.8` | Vendored upstream manifest |
+| metrics-server image | `registry.k8s.io/metrics-server/metrics-server:v0.7.2` | `deploy/metrics-server/components.yaml` |
 | Service type | `NodePort` | `deploy/glass/service.yaml` |
 | HTTPS NodePort | `30443` | `deploy/glass/service.yaml` |
 | HTTP NodePort | `30080` | `deploy/glass/service.yaml` |
@@ -568,7 +584,7 @@ This repository does **not** ship a Helm chart or invented values files.
 | Theme missing | Confirm HTML includes `/glass-theme.css`; `curl -skI` the stylesheet |
 | Old CSS after update | Rollout restart Glass Deployment; hard-refresh browser |
 | NGINX proxy errors | `logs deploy/dashboard-glass`; confirm upstream Service `kubernetes-dashboard` |
-| Metrics empty | Metrics scraper logs; cluster metrics availability (not guaranteed) |
+| Metrics empty / charts waiting | `kubectl top nodes`; metrics-server + scraper logs; wait ~2–5 min for samples |
 | Overlay/dropdown styling | Hard-refresh; confirm served CSS matches repo file |
 | Missing permissions | Dashboard features require RBAC; install rights ≠ view/edit rights |
 
@@ -582,12 +598,11 @@ Publishing a Git tag does **not** update a live cluster automatically.
 
 ```bash
 cd dashboard-ocp
-git fetch --tags origin
-git checkout v1.2.2
+git pull origin main
 # Preserve local theme edits if you customized glass-theme.css
 ./scripts/install.sh
-# or, if upstream is already present:
-# SKIP_UPSTREAM=true ./scripts/install.sh
+# or, if upstream + metrics-server are already present:
+# SKIP_UPSTREAM=true INSTALL_METRICS_SERVER=false ./scripts/install.sh
 # or: kubectl apply -k deploy/ && kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass
 ```
 
@@ -631,14 +646,16 @@ Removes:
 - Resources from `kubectl delete -k deploy/` (Glass Deployment/Service, ConfigMaps, `dashboard-admin` SA/RBAC/secret)
 - Secret `dashboard-glass-tls`
 
-Optional removal of upstream Dashboard:
+Optional removal of upstream Dashboard and/or metrics-server:
 
 ```bash
 REMOVE_UPSTREAM=true ./scripts/uninstall.sh
+REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
+REMOVE_UPSTREAM=true REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
 ```
 
 > [!WARNING]
-> Do not delete the `kubernetes-dashboard` namespace if it contains unrelated workloads you still need. The uninstall script does not blindly wipe arbitrary cluster objects beyond the Glass kustomization (and optional upstream recommended manifest when enabled).
+> Do not delete the `kubernetes-dashboard` namespace if it contains unrelated workloads you still need. The uninstall script does not blindly wipe arbitrary cluster objects beyond the Glass kustomization (and optional upstream / metrics-server manifests when enabled).
 
 ---
 
@@ -652,19 +669,18 @@ dashboard-ocp/
 ├── RELEASE                   # v1.2.2
 ├── deploy/
 │   ├── kustomization.yaml    # Glass ConfigMaps + resources
-│   ├── glass/
-│   │   ├── glass-theme.css   # Liquid Glass stylesheet
-│   │   ├── nginx.conf        # Reverse proxy + CSS injection
-│   │   ├── deployment.yaml   # dashboard-glass
-│   │   └── service.yaml      # NodePorts 30443 / 30080
-│   └── rbac/
-│       └── dashboard-admin.yaml
+│   ├── glass/                # Liquid Glass proxy + theme
+│   ├── rbac/                 # dashboard-admin helper
+│   ├── metrics-server/       # vendored metrics-server v0.7.2
+│   ├── upstream/             # vendored Dashboard recommended.yaml
+│   └── images/               # SHA256SUMS + manifest (tars via Release)
 ├── scripts/
-│   ├── install.sh
-│   ├── uninstall.sh
+│   ├── install.sh / uninstall.sh
+│   ├── download-images.sh / load-images.sh / export-images.sh
 │   ├── create-tls-secret.sh
 │   └── get-token.sh
-└── docs/                     # Additional notes / future screenshots
+├── artifacts/images/         # local *.tar (gitignored; from Release)
+└── docs/                     # METRICS_AND_IMAGES.md, notes, screenshots
 ```
 
 This tree reflects the supported product packaging. Experimental or local rollback artifacts should not be treated as install inputs.

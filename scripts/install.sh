@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Install Kubernetes Dashboard (upstream) + Glass UI v1 on any cluster.
+# Install Kubernetes Dashboard + Liquid Glass UI + metrics-server.
+# Prefers vendored manifests and locally loaded / GitHub-hosted image archives.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NS="${NS:-kubernetes-dashboard}"
 DASHBOARD_VERSION="${DASHBOARD_VERSION:-v2.7.0}"
-DASHBOARD_URL="${DASHBOARD_URL:-https://raw.githubusercontent.com/kubernetes/dashboard/${DASHBOARD_VERSION}/aio/deploy/recommended.yaml}"
+DASHBOARD_MANIFEST="${DASHBOARD_MANIFEST:-$ROOT/deploy/upstream/dashboard-recommended-${DASHBOARD_VERSION}.yaml}"
 SKIP_UPSTREAM="${SKIP_UPSTREAM:-false}"
+INSTALL_METRICS_SERVER="${INSTALL_METRICS_SERVER:-true}"
+LOAD_IMAGES="${LOAD_IMAGES:-true}"
 EXTRA_SAN="${EXTRA_SAN:-}"
 
-echo "==> kubernetes-dashboard Glass UI v1 (1.0.0)"
+echo "==> Kubernetes Dashboard Liquid Glass + metrics-server"
 echo "    namespace: ${NS}"
-echo "    upstream: ${DASHBOARD_URL}"
+echo "    dashboard manifest: ${DASHBOARD_MANIFEST}"
+echo "    metrics-server: ${INSTALL_METRICS_SERVER}"
 
 command -v kubectl >/dev/null || { echo "kubectl is required"; exit 1; }
 command -v openssl >/dev/null || { echo "openssl is required"; exit 1; }
@@ -23,9 +27,27 @@ if [[ -n "$NODE_IP" && -z "$EXTRA_SAN" ]]; then
 fi
 export EXTRA_SAN
 
+if [[ "$LOAD_IMAGES" == "true" ]]; then
+  echo "==> Loading container images (local archives or GitHub Release assets)"
+  "$ROOT/scripts/load-images.sh" || {
+    echo "WARNING: image load failed; continuing (cluster must already have required images)" >&2
+  }
+fi
+
+if [[ "$INSTALL_METRICS_SERVER" == "true" ]]; then
+  echo "==> Applying metrics-server (vendored components + lab kubelet TLS skip)"
+  kubectl apply -f "$ROOT/deploy/metrics-server/components.yaml"
+  echo "==> Waiting for metrics-server rollout"
+  kubectl -n kube-system rollout status deploy/metrics-server --timeout=180s
+fi
+
 if [[ "$SKIP_UPSTREAM" != "true" ]]; then
-  echo "==> Applying official Kubernetes Dashboard ${DASHBOARD_VERSION}"
-  kubectl apply -f "$DASHBOARD_URL"
+  if [[ ! -f "$DASHBOARD_MANIFEST" ]]; then
+    echo "Missing vendored Dashboard manifest: $DASHBOARD_MANIFEST" >&2
+    exit 1
+  fi
+  echo "==> Applying vendored Kubernetes Dashboard ${DASHBOARD_VERSION}"
+  kubectl apply -f "$DASHBOARD_MANIFEST"
   echo "==> Waiting for upstream dashboard rollout"
   kubectl -n "$NS" rollout status deploy/kubernetes-dashboard --timeout=180s
   kubectl -n "$NS" rollout status deploy/dashboard-metrics-scraper --timeout=180s || true
@@ -49,26 +71,38 @@ fi
 echo "==> Creating TLS secret for Glass UI"
 NS="$NS" EXTRA_SAN="$EXTRA_SAN" "$ROOT/scripts/create-tls-secret.sh"
 
-echo "==> Applying Glass UI v1 manifests (kustomize)"
+echo "==> Applying Liquid Glass manifests (kustomize)"
 kubectl apply -k "$ROOT/deploy"
 
 echo "==> Waiting for Glass UI rollout"
 kubectl -n "$NS" rollout status deploy/dashboard-glass --timeout=120s
 
+if [[ "$INSTALL_METRICS_SERVER" == "true" ]]; then
+  echo "==> Checking metrics API (kubectl top nodes)"
+  # metrics can take a short time to populate after first install
+  for i in 1 2 3 4 5 6; do
+    if kubectl top nodes >/dev/null 2>&1; then
+      kubectl top nodes
+      break
+    fi
+    echo "    waiting for metrics.k8s.io (${i}/6)..."
+    sleep 10
+  done
+fi
+
 HTTP_PORT="$(kubectl -n "$NS" get svc dashboard-glass -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')"
 HTTPS_PORT="$(kubectl -n "$NS" get svc dashboard-glass -o jsonpath='{.spec.ports[?(@.name=="https")].nodePort}')"
 echo
-echo "Glass UI v1 is ready."
+echo "Liquid Glass Dashboard is ready."
 echo "  HTTP : http://<node-ip>:${HTTP_PORT}/"
 echo "  HTTPS: https://<node-ip>:${HTTPS_PORT}/   (self-signed; accept browser warning)"
 if [[ -n "$NODE_IP" ]]; then
-  echo "  Example: http://${NODE_IP}:${HTTP_PORT}/"
-  echo "           https://${NODE_IP}:${HTTPS_PORT}/"
+  echo "  Example: https://${NODE_IP}:${HTTPS_PORT}/"
 fi
 echo
 echo "Get a login token:"
 echo "  ${ROOT}/scripts/get-token.sh"
 echo
-echo "Port-forward (recommended for local login without TLS warnings):"
+echo "Port-forward:"
 echo "  kubectl -n ${NS} port-forward svc/dashboard-glass 8443:443"
 echo "  open https://127.0.0.1:8443/"
