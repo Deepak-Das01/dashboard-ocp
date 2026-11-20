@@ -68,6 +68,36 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /operators.js {
+      alias /usr/share/nginx/html/operators.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /operators.html {
+      alias /usr/share/nginx/html/operators.html;
+      default_type text/html;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /operators {
+      return 302 /operators.html;
+    }
+
+    location = /operators/ {
+      return 302 /operators.html;
+    }
+
+    location = /kubeops/api/operators {
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/operators;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+%s
+    }
+
     location / {
       proxy_pass http://kd;
       proxy_http_version 1.1;
@@ -78,13 +108,13 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=kube-dashboard-1.3.0"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-8"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=kube-dashboard-1.3.0" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-8" defer></script><script src="/operators.js?v=ops-embed-8" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader)
+`, authBlock, authzHeader, authzHeader)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
@@ -174,6 +204,42 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /operators.js {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/operators.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /operators.html {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/operators.html;
+      default_type text/html;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /operators {
+      return 302 /operators.html;
+    }
+
+    location = /operators/ {
+      return 302 /operators.html;
+    }
+
+    location = /kubeops/api/operators {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/operators;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Authorization "Bearer %s";
+    }
+
     location / {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -187,11 +253,11 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=kube-dashboard-oidc"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-8"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=kube-dashboard-oidc" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-8" defer></script><script src="/operators.js?v=ops-embed-8" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok)
+`, port, port, port, port, port, port, tok, tok)
 }

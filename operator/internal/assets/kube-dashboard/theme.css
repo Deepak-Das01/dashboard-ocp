@@ -2233,3 +2233,302 @@ kd-about [footer].kd-muted::after {
   line-height: 1.55 !important;
   color: var(--text-muted) !important;
 }
+
+/* ---------- In-console Operators view (match native kd-card pages) ---------- */
+.kd-scroll-container.lg-operators-active > *:not(#lg-operators-view) {
+  display: none !important;
+}
+
+.lg-operators-view {
+  display: block;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+}
+
+.lg-operators-view[hidden] {
+  display: none !important;
+}
+
+.lg-ops-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* Match kd-card / mat-card spacing used by other resource pages */
+.lg-ops-panel {
+  display: block;
+  width: auto;
+  margin: 20px;
+  background: var(--glass-surface) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+.lg-ops-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+  box-sizing: border-box;
+  min-height: 57px;
+}
+
+.lg-ops-title {
+  flex: 1 1 auto;
+  margin: 0 8px 0 0;
+  padding: 16px 0 16px 16px;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.2;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.lg-ops-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 0;
+  flex: 0 0 auto;
+}
+
+.lg-ops-sub {
+  display: none; /* native pages do not use a subtitle under the card title */
+}
+
+.lg-ops-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--ease-glass), color var(--ease-glass);
+}
+
+.lg-ops-btn .material-icons {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.lg-ops-btn:hover {
+  background: var(--glass-surface-hover);
+  color: var(--text-primary);
+}
+
+.lg-ops-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.lg-ops-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.lg-ops-table td,
+.lg-ops-table th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lg-ops-url,
+.lg-ops-msg {
+  word-break: break-word;
+  white-space: normal;
+}
+
+.lg-ops-table th:nth-child(1),
+.lg-ops-table td:nth-child(1) { width: 18%; }
+.lg-ops-table th:nth-child(2),
+.lg-ops-table td:nth-child(2) { width: 10%; }
+.lg-ops-table th:nth-child(3),
+.lg-ops-table td:nth-child(3) { width: 8%; }
+.lg-ops-table th:nth-child(4),
+.lg-ops-table td:nth-child(4) { width: 10%; }
+.lg-ops-table th:nth-child(5),
+.lg-ops-table td:nth-child(5) { width: 22%; }
+.lg-ops-table th:nth-child(6),
+.lg-ops-table td:nth-child(6) { width: 32%; }
+
+.lg-ops-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-secondary);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  white-space: nowrap;
+}
+
+.lg-ops-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(225, 240, 255, 0.08);
+  vertical-align: top;
+}
+
+.lg-ops-table tr:last-child td {
+  border-bottom: none;
+}
+
+.lg-ops-table tr:hover td {
+  background: var(--glass-surface-hover);
+}
+
+.lg-ops-name {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lg-ops-name a {
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
+.lg-ops-name a:hover {
+  color: var(--link-color) !important;
+}
+
+.lg-ops-meta {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.lg-ops-phase {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--glass-radius-pill);
+  border: 1px solid var(--glass-border);
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--glass-surface-recessed);
+}
+
+.lg-ops-phase::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.lg-ops-phase.is-ready {
+  color: var(--status-success);
+  border-color: rgba(67, 214, 160, 0.35);
+}
+
+.lg-ops-phase.is-ready::before {
+  background: var(--status-success);
+}
+
+.lg-ops-phase.is-pending {
+  color: var(--status-warning);
+  border-color: rgba(252, 211, 77, 0.35);
+}
+
+.lg-ops-phase.is-pending::before {
+  background: var(--status-warning);
+}
+
+.lg-ops-phase.is-error {
+  color: var(--status-error);
+  border-color: rgba(252, 165, 165, 0.35);
+}
+
+.lg-ops-phase.is-error::before {
+  background: var(--status-error);
+}
+
+.lg-ops-url a {
+  color: var(--link-color) !important;
+  text-decoration: none !important;
+  word-break: break-all;
+}
+
+.lg-ops-url a:hover {
+  text-decoration: underline !important;
+}
+
+.lg-ops-msg {
+  color: var(--text-muted);
+  max-width: none;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lg-ops-url {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lg-ops-loading,
+.lg-ops-empty,
+.lg-ops-error {
+  padding: 24px 16px;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lg-ops-error {
+  color: var(--status-error);
+}
+
+.lg-ops-breadcrumbs {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.lg-ops-breadcrumbs a.kd-faded-breadcrumb {
+  color: inherit !important;
+  text-decoration: none !important;
+  font-size: 18px;
+}
+
+.lg-ops-breadcrumbs .kd-breadcrumb-divider {
+  font-size: 24px !important;
+  width: 32px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.lg-ops-breadcrumbs .kd-current-breadcrumb {
+  font-size: 18px;
+  color: var(--text-primary);
+}

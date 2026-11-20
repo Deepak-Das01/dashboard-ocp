@@ -45,9 +45,100 @@
 
   function isChild(el) {
     if (!el) return false;
+    if (el.classList && el.classList.contains("lg-nav-injected")) return true;
     if (el.tagName === "KD-PINNER-NAV") return true;
     if (el.tagName === "KD-NAV-ITEM") return !isGroup(el);
     return false;
+  }
+
+  var OPERATORS_ID = "nav-operators";
+  // Use a real Cluster route + query flag so Angular does not bounce the hash.
+  var OPERATORS_HREF = "#/cluster?view=operators";
+
+  function onOperatorsHash() {
+    var h = location.hash || "";
+    return h.indexOf("#/cluster") === 0 && /(?:[?&])view=operators(?:&|$)/.test(h);
+  }
+
+  function operatorsHref() {
+    var ns = "default";
+    try {
+      var m = (location.hash || "").match(/[?&]namespace=([^&]*)/);
+      if (m && m[1]) ns = decodeURIComponent(m[1]);
+    } catch (e) {
+      /* ignore */
+    }
+    if (!ns) ns = "default";
+    return "#/cluster?namespace=" + encodeURIComponent(ns) + "&view=operators";
+  }
+
+  function ensureOperatorsNav(root) {
+    if (!root) return;
+    var existing = document.getElementById(OPERATORS_ID);
+    if (existing && existing.parentElement === root) {
+      // Keep active state in sync with location.
+      var link = existing.querySelector("a.kd-nav-item-button");
+      if (link) {
+        link.href = operatorsHref();
+        link.classList.toggle("kd-nav-item-button-active", onOperatorsHash());
+      }
+      return;
+    }
+    if (existing) existing.remove();
+
+    var cluster = root.querySelector("#nav-cluster");
+    if (!cluster) return;
+    // Prefer after Nodes; fall back to last Cluster child before next group.
+    var after = root.querySelector("#nav-node") || cluster;
+    var probe = after.nextElementSibling;
+    while (probe && !isGroup(probe) && probe.tagName !== "MAT-DIVIDER") {
+      if (isChild(probe) && probe.id !== OPERATORS_ID) after = probe;
+      else break;
+      probe = after.nextElementSibling;
+    }
+
+    var item = document.createElement("kd-nav-item");
+    item.id = OPERATORS_ID;
+    item.className = "kd-nav-item lg-nav-injected";
+    item.setAttribute("data-lg-operators", "1");
+
+    var a = document.createElement("a");
+    a.className = "kd-nav-item-button mat-button";
+    a.href = operatorsHref();
+    a.setAttribute("aria-label", "Operators");
+    if (onOperatorsHash()) {
+      a.classList.add("kd-nav-item-button-active");
+    }
+    a.addEventListener("click", function (evt) {
+      evt.preventDefault();
+      var next = operatorsHref();
+      if (location.hash !== next) {
+        location.hash = next;
+      } else {
+        try {
+          window.dispatchEvent(new Event("hashchange"));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      // Ensure Cluster group stays expanded.
+      if (!cluster.classList.contains("lg-nav-open")) {
+        setOpen(cluster, true);
+        syncStorageFromDom(root);
+      }
+    });
+
+    var wrap = document.createElement("span");
+    wrap.className = "mat-button-wrapper";
+    wrap.textContent = "Operators";
+    a.appendChild(wrap);
+    item.appendChild(a);
+
+    if (after.nextSibling) {
+      root.insertBefore(item, after.nextSibling);
+    } else {
+      root.appendChild(item);
+    }
   }
 
   function childrenOf(group) {
@@ -272,6 +363,7 @@
     var roots = document.querySelectorAll(".kd-nav-items");
     var ok = false;
     for (var i = 0; i < roots.length; i++) {
+      ensureOperatorsNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
     return ok;
