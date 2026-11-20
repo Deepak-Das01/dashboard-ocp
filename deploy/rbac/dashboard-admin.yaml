@@ -6,7 +6,7 @@ metadata:
   name: dashboard-admin
   namespace: kubernetes-dashboard
   labels:
-    app.kubernetes.io/part-of: kubernetes-dashboard-glass
+    app.kubernetes.io/part-of: kube-dashboard
     app.kubernetes.io/version: "1.2.2"
     dashboard.ocp/release: v1.2.2
 ---
@@ -15,7 +15,7 @@ kind: ClusterRoleBinding
 metadata:
   name: dashboard-admin
   labels:
-    app.kubernetes.io/part-of: kubernetes-dashboard-glass
+    app.kubernetes.io/part-of: kube-dashboard
     app.kubernetes.io/version: "1.2.2"
     dashboard.ocp/release: v1.2.2
 roleRef:
@@ -36,7 +36,7 @@ metadata:
   annotations:
     kubernetes.io/service-account.name: dashboard-admin
   labels:
-    app.kubernetes.io/part-of: kubernetes-dashboard-glass
+    app.kubernetes.io/part-of: kube-dashboard
     app.kubernetes.io/version: "1.2.2"
     dashboard.ocp/release: v1.2.2
 type: kubernetes.io/service-account-token

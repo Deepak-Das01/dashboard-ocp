@@ -1,0 +1,111 @@
+# kube-dashboard — single pod: nginx front + Dashboard sidecar
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-dashboard
+  namespace: kubernetes-dashboard
+  labels:
+    app: kube-dashboard
+    app.kubernetes.io/name: kube-dashboard
+    app.kubernetes.io/component: console
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/version: "1.2.2"
+    dashboard.ocp/release: v1.2.2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-dashboard
+  template:
+    metadata:
+      labels:
+        app: kube-dashboard
+        app.kubernetes.io/name: kube-dashboard
+        app.kubernetes.io/version: "1.2.2"
+        dashboard.ocp/release: v1.2.2
+    spec:
+      serviceAccountName: kubernetes-dashboard
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: proxy
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 8443
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: ui-assets
+              mountPath: /usr/share/nginx/html/theme.css
+              subPath: theme.css
+            - name: ui-assets
+              mountPath: /usr/share/nginx/html/nav-accordion.js
+              subPath: nav-accordion.js
+            - name: tls
+              mountPath: /etc/nginx/certs
+              readOnly: true
+          readinessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+        - name: dashboard
+          image: kubernetesui/dashboard:v2.7.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: app
+              containerPort: 9090
+              protocol: TCP
+          args:
+            - --namespace=kubernetes-dashboard
+            - --enable-insecure-login
+            - --insecure-bind-address=127.0.0.1
+            - --insecure-port=9090
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+          # App listens on loopback only; kubelet probes the proxy instead.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsUser: 1001
+            runAsGroup: 2001
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+            limits:
+              cpu: 500m
+              memory: 300Mi
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: kube-dashboard-nginx
+        - name: ui-assets
+          configMap:
+            name: kube-dashboard-ui
+        - name: tls
+          secret:
+            secretName: kube-dashboard-tls
+        - name: tmp-volume
+          emptyDir: {}
+      nodeSelector:
+        kubernetes.io/os: linux

@@ -1,13 +1,13 @@
 # Metrics Server and offline images
 
-This packaging installs **metrics-server v0.7.2** together with Kubernetes Dashboard Liquid Glass so workload charts and `kubectl top` can work out of the box.
+This packaging installs **metrics-server v0.7.2** together with Kube Dashboard so workload charts and `kubectl top` can work out of the box.
 
 ## What gets installed
 
 | Component | Source in repo |
 |-----------|----------------|
 | Dashboard + metrics-scraper | `deploy/upstream/dashboard-recommended-v2.7.0.yaml` |
-| Liquid Glass proxy | `deploy/` (kustomize) |
+| Kube Dashboard proxy | `deploy/` (kustomize) |
 | metrics-server | `deploy/metrics-server/components.yaml` (includes `--kubelet-insecure-tls` for lab kubelets) |
 
 ## Images (linux/amd64)

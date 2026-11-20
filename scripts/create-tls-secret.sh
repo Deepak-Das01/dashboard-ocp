@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Generate a self-signed TLS secret for the Glass UI (HTTPS NodePort).
+# Generate a self-signed TLS secret for kube-dashboard (HTTPS NodePort).
 set -euo pipefail
 
 NS="${NS:-kubernetes-dashboard}"
-SECRET_NAME="${SECRET_NAME:-dashboard-glass-tls}"
+SECRET_NAME="${SECRET_NAME:-kube-dashboard-tls}"
 DAYS="${DAYS:-825}"
-CN="${CN:-dashboard-glass}"
+CN="${CN:-kube-dashboard}"
 
-# Optional: pass extra SANs as env EXTRA_SAN="IP:10.0.0.1,DNS:dashboard.example.com"
+# Optional: EXTRA_SAN="IP:10.0.0.1,DNS:dashboard.example.com"
 EXTRA_SAN="${EXTRA_SAN:-}"
 
 TMP="$(mktemp -d)"
@@ -21,7 +21,7 @@ fi
 openssl req -x509 -nodes -days "$DAYS" -newkey rsa:2048 \
   -keyout "$TMP/tls.key" \
   -out "$TMP/tls.crt" \
-  -subj "/CN=${CN}/O=kubernetes-dashboard-glass" \
+  -subj "/CN=${CN}/O=kube-dashboard" \
   -addext "subjectAltName=${SAN}" >/dev/null 2>&1
 
 kubectl -n "$NS" create secret tls "$SECRET_NAME" \

@@ -1,25 +1,25 @@
-# Kubernetes Dashboard — Liquid Glass
+# Kube Dashboard
 
-A beautifully refined Kubernetes Dashboard featuring a premium macOS-inspired Liquid Glass interface, designed for a modern cluster management experience.
+Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-dashboard` pod (NGINX + Dashboard sidecar) with metrics-server support.
 
 [![Release](https://img.shields.io/badge/release-v1.2.2-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/dashboard-ocp/releases/tag/v1.2.2)
 [![Upstream Dashboard](https://img.shields.io/badge/Kubernetes%20Dashboard-v2.7.0-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://github.com/kubernetes/dashboard/releases/tag/v2.7.0)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34%20lab--tested-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](#prerequisites)
-[![NGINX](https://img.shields.io/badge/NGINX-1.27--alpine-009639?style=flat-square&logo=nginx&logoColor=white)](deploy/glass/deployment.yaml)
-[![Theme](https://img.shields.io/badge/UI-Liquid%20Glass-7DD3C0?style=flat-square)](deploy/glass/glass-theme.css)
+[![NGINX](https://img.shields.io/badge/NGINX-1.27--alpine-009639?style=flat-square&logo=nginx&logoColor=white)](deploy/kube-dashboard/deployment.yaml)
+[![Theme](https://img.shields.io/badge/UI-kube--dashboard-7DD3C0?style=flat-square)](deploy/kube-dashboard/theme.css)
 [![Contributions](https://img.shields.io/badge/contributions-welcome-2EA44F?style=flat-square)](#contributing)
 [![License](https://img.shields.io/badge/license-see%20acknowledgements-lightgrey?style=flat-square)](#license-and-acknowledgements)
 
-> **Independent project.** Liquid Glass is a community packaging and cosmetic customization of the official [Kubernetes Dashboard](https://github.com/kubernetes/dashboard). It is **not** an official Kubernetes, CNCF, or Apple product, and is not affiliated with or endorsed by those organizations.
+> **Independent project.** kube-dashboard is a community packaging and cosmetic customization of the official [Kubernetes Dashboard](https://github.com/kubernetes/dashboard). It is **not** an official Kubernetes, CNCF, or Apple product.
 
 | Item | Value |
 |------|--------|
-| Product | Kubernetes Dashboard — Liquid Glass |
+| Product | Kube Dashboard |
 | Release | **v1.2.2** |
 | Version | **1.2.2** |
 | Upstream Dashboard | `kubernetesui/dashboard:v2.7.0` |
 | Metrics scraper | `kubernetesui/metrics-scraper:v1.0.8` |
-| Glass proxy image | `nginx:1.27-alpine` |
+| Console image (proxy) | `nginx:1.27-alpine` |
 | Default HTTPS NodePort | **30443** |
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
 | Namespace | `kubernetes-dashboard` |
@@ -57,17 +57,17 @@ A beautifully refined Kubernetes Dashboard featuring a premium macOS-inspired Li
 
 ## Product overview
 
-**Kubernetes Dashboard — Liquid Glass** delivers a premium, macOS-inspired visual theme for the official Kubernetes Dashboard **without rebuilding** the upstream Angular application.
+**Kube Dashboard** delivers a refined visual theme for the official Kubernetes Dashboard **without rebuilding** the upstream Angular application.
 
-The original Dashboard remains the application of record. This project adds a small **NGINX reverse-proxy** (`dashboard-glass`) that:
+The Dashboard binary runs as a **sidecar** in the `kube-dashboard` pod. NGINX:
 
 1. Terminates TLS for a convenient NodePort HTTPS endpoint.
-2. Proxies traffic to the in-cluster Dashboard service.
-3. Injects `glass-theme.css` into Dashboard HTML responses.
+2. Proxies to the Dashboard sidecar on loopback (`127.0.0.1:9090`).
+3. Injects `theme.css` and `nav-accordion.js` into HTML responses.
 
 ### Why this project exists
 
-Operators often want a clearer, more modern cluster UI while keeping the familiar Kubernetes Dashboard workflows. Liquid Glass focuses on **cosmetic modernization**—gradients, frosted glass materials, refined controls, and consistent overlays—while preserving upstream routes, APIs, authentication, and RBAC behaviour.
+Operators often want a clearer, more modern cluster UI while keeping familiar Dashboard workflows. This packaging focuses on **cosmetic modernization** and a single-pod install, while preserving upstream routes, APIs, authentication, and RBAC behaviour.
 
 ### What you get
 
@@ -86,7 +86,7 @@ Operators often want a clearer, more modern cluster UI while keeping the familia
 
 ## Screenshots
 
-Screenshots of the live **v1.2.2** Liquid Glass interface should live under `docs/screenshots/` and be linked with relative Markdown paths.
+Screenshots of the live **v1.2.2** Kube Dashboard interface should live under `docs/screenshots/` and be linked with relative Markdown paths.
 
 > **Documentation note:** PNG assets are not yet committed in this repository. Capture them from a running v1.2.2 deployment (hard-refresh the browser first) and save the following filenames before linking them in this section:
 
@@ -114,11 +114,11 @@ Do **not** include authentication tokens, kubeconfig material, or private cluste
 
 ## Features
 
-### Liquid Glass visual enhancements
+### Visual enhancements
 
-Cosmetic improvements delivered by `deploy/glass/glass-theme.css`:
+Cosmetic improvements delivered by `deploy/kube-dashboard/theme.css`:
 
-- Premium macOS-inspired Liquid Glass interface
+- Premium macOS-inspired Kube Dashboard interface
 - Sapphire-blue, charcoal, and teal ambient gradients
 - Translucent glass surfaces with backdrop blur where supported
 - Reflective borders and layered visual depth
@@ -137,7 +137,7 @@ Cosmetic improvements delivered by `deploy/glass/glass-theme.css`:
 
 ### Existing Kubernetes management capabilities
 
-Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by Liquid Glass). Availability depends on Kubernetes RBAC and cluster services:
+Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by Kube Dashboard). Availability depends on Kubernetes RBAC and cluster services:
 
 - Workload overview and status charts
 - Pods, Deployments, StatefulSets, DaemonSets, ReplicaSets, Replication Controllers
@@ -154,7 +154,7 @@ Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by Liqui
 - Pod logs and terminal access (when permitted)
 - Metrics visualization when the metrics scraper and cluster metrics stack are available
 
-Liquid Glass does **not** add new Kubernetes management APIs or controllers.
+Kube Dashboard does **not** add new Kubernetes management APIs or controllers.
 
 ---
 
@@ -164,14 +164,14 @@ Liquid Glass does **not** add new Kubernetes management APIs or controllers.
 |-----------|------------|
 | Base application | Kubernetes Dashboard **v2.7.0** (`kubernetesui/dashboard:v2.7.0`) |
 | UI framework | Upstream Angular + Angular Material (bundled in Dashboard image) |
-| Custom theme | CSS (`deploy/glass/glass-theme.css`) |
+| Custom theme | CSS (`deploy/kube-dashboard/theme.css`) |
 | Reverse proxy | NGINX **1.27-alpine** (`nginx:1.27-alpine`) |
 | Deployment | Kubernetes manifests + Kustomize (`deploy/`) |
-| Configuration | ConfigMaps `dashboard-glass-css`, `dashboard-glass-nginx` |
+| Configuration | ConfigMaps `kube-dashboard-ui`, `kube-dashboard-nginx` |
 | Metrics | Dashboard metrics scraper `kubernetesui/metrics-scraper:v1.0.8` |
 | Authentication | Upstream Dashboard token / kubeconfig login flows |
 | Authorization | Kubernetes RBAC |
-| TLS for Glass UI | Secret `dashboard-glass-tls` (self-signed via `scripts/create-tls-secret.sh`) |
+| TLS for console | Secret `kube-dashboard-tls` (self-signed via `scripts/create-tls-secret.sh`) |
 
 ---
 
@@ -185,11 +185,13 @@ Browser
   ├─ http://<node>:30080  ──301──► https://<node>:30443/
   └─ https://<node>:30443/ ──────────────┐
                                          ▼
-                              dashboard-glass (NGINX TLS)
-                               │  serves /glass-theme.css
-                               │  injects stylesheet into HTML
-                               ▼
-                    kubernetes-dashboard:443
+                         kube-dashboard pod
+                    ┌────────────────────────────┐
+                    │  NGINX (TLS :8443)         │
+                    │   → inject theme.css / JS  │
+                    │   → 127.0.0.1:9090         │
+                    │  Dashboard sidecar v2.7.0  │
+                    └────────────────────────────┘
                                │
                                ▼
                          Kubernetes API
@@ -198,21 +200,20 @@ Browser
                     (metrics for Dashboard charts)
 ```
 
-The Glass proxy preserves the original Dashboard application. Standard installs **do not require** custom frontend compilation.
+Standard installs **do not require** custom frontend compilation.
 
 ### Mermaid diagram
 
 ```mermaid
 flowchart LR
-  Browser -->|HTTPS NodePort 30443| Glass["dashboard-glass<br/>NGINX 1.27-alpine"]
+  Browser -->|HTTPS NodePort 30443| KD["kube-dashboard<br/>NGINX + Dashboard sidecar"]
   Browser -->|HTTP NodePort 30080| Redirect["301 → HTTPS :30443"]
-  Glass -->|proxy TLS| KD["kubernetes-dashboard<br/>v2.7.0"]
   KD --> API["Kubernetes API Server"]
   Scraper["dashboard-metrics-scraper<br/>v1.0.8"] --> API
   KD -.->|metrics| Scraper
-  Glass --- CSS["ConfigMap<br/>dashboard-glass-css"]
-  Glass --- Conf["ConfigMap<br/>dashboard-glass-nginx"]
-  Glass --- TLS["Secret<br/>dashboard-glass-tls"]
+  KD --- CSS["ConfigMap<br/>kube-dashboard-ui"]
+  KD --- Conf["ConfigMap<br/>kube-dashboard-nginx"]
+  KD --- TLS["Secret<br/>kube-dashboard-tls"]
 ```
 
 ---
@@ -261,7 +262,7 @@ cd dashboard-ocp
 git checkout main
 ```
 
-Verify context, then install (loads images, metrics-server, vendored Dashboard v2.7.0, TLS, Liquid Glass):
+Verify context, then install (loads images, metrics-server, vendored Dashboard v2.7.0, TLS, Kube Dashboard):
 
 ```bash
 kubectl config current-context
@@ -273,7 +274,7 @@ kubectl config current-context
 Wait for the script to finish rollout checks, then discover access:
 
 ```bash
-kubectl -n kubernetes-dashboard get svc dashboard-glass
+kubectl -n kubernetes-dashboard get svc kube-dashboard
 kubectl top nodes
 kubectl get nodes -o wide
 ```
@@ -293,16 +294,16 @@ Generate a login token (optional helper ServiceAccount shipped with this package
 Node CPU/Memory charts need a few minutes of scraper samples after first install (`Waiting for more data…` is expected briefly).
 
 > [!NOTE]
-> Cosmetic Glass baseline remains tag **`v1.2.2`**. Metrics-server packaging, vendored manifests, and offline image helpers live on **`main`** with image assets on Release **`images-v1.2.2`**. See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
+> Cosmetic theme baseline remains tag **`v1.2.2`**. Metrics-server packaging, vendored manifests, and offline image helpers live on **`main`** with image assets on Release **`images-v1.2.2`**. See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
 
 > [!WARNING]
-> `scripts/install.sh` defaults `ENABLE_INSECURE_LOGIN=true` and metrics-server includes `--kubelet-insecure-tls` for lab convenience. Prefer proper TLS and review both for shared/production environments.
+> Dashboard runs with `--enable-insecure-login` on loopback only; metrics-server includes `--kubelet-insecure-tls` for lab convenience. Prefer proper TLS and review both for shared/production environments.
 
 ---
 
 ## Detailed manual installation
 
-Use this when you want explicit control over each step. Namespace for Glass resources: **`kubernetes-dashboard`**.
+Use this when you want explicit control over each step. Namespace: **`kubernetes-dashboard`**.
 
 ### 0. Images (optional if already on the node)
 
@@ -311,22 +312,22 @@ Use this when you want explicit control over each step. Namespace for Glass reso
 ./scripts/load-images.sh
 ```
 
-### 1. metrics-server + upstream Dashboard (vendored)
+### 1. metrics-server + Dashboard support resources (vendored)
 
 ```bash
 kubectl apply -f deploy/metrics-server/components.yaml
 kubectl -n kube-system rollout status deploy/metrics-server --timeout=180s
 
-kubectl apply -f deploy/upstream/dashboard-recommended-v2.7.0.yaml
-kubectl -n kubernetes-dashboard rollout status deploy/kubernetes-dashboard --timeout=180s
+# RBAC, secrets, metrics-scraper only — no separate kubernetes-dashboard Deployment
+kubectl apply -f deploy/upstream/dashboard-support-v2.7.0.yaml
 kubectl -n kubernetes-dashboard rollout status deploy/dashboard-metrics-scraper --timeout=180s
 ```
 
-### 2. TLS secret for the Glass proxy (namespace-scoped)
+### 2. TLS secret for kube-dashboard (namespace-scoped)
 
 ```bash
 ./scripts/create-tls-secret.sh
-# Creates/updates Secret kubernetes-dashboard/dashboard-glass-tls
+# Creates/updates Secret kubernetes-dashboard/kube-dashboard-tls
 ```
 
 Optional SAN override:
@@ -335,20 +336,20 @@ Optional SAN override:
 EXTRA_SAN="IP:10.0.0.10,DNS:dashboard.example.com" ./scripts/create-tls-secret.sh
 ```
 
-### 3. Glass UI + optional login ServiceAccount (Kustomize)
+### 3. kube-dashboard + optional login ServiceAccount (Kustomize)
 
 ```bash
 kubectl apply -k deploy/
-kubectl -n kubernetes-dashboard rollout status deploy/dashboard-glass --timeout=120s
+kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard --timeout=120s
 ```
 
 This applies:
 
 | Resource | Scope | Purpose |
 |----------|-------|---------|
-| ConfigMap `dashboard-glass-css` | Namespace | Liquid Glass stylesheet |
-| ConfigMap `dashboard-glass-nginx` | Namespace | NGINX config |
-| Deployment/Service `dashboard-glass` | Namespace | Glass proxy |
+| ConfigMap `kube-dashboard-ui` | Namespace | Theme CSS + nav accordion JS |
+| ConfigMap `kube-dashboard-nginx` | Namespace | NGINX config |
+| Deployment/Service `kube-dashboard` | Namespace | Console (NGINX + Dashboard sidecar) |
 | ServiceAccount `dashboard-admin` | Namespace | Optional token login helper |
 | Secret `dashboard-admin-token` | Namespace | SA token secret (compatibility) |
 | ClusterRoleBinding `dashboard-admin` | Cluster | Binds SA to **`cluster-admin`** |
@@ -369,7 +370,7 @@ kubectl get clusterrolebinding dashboard-admin
 
 ### NodePort (default)
 
-Committed defaults in `deploy/glass/service.yaml`:
+Committed defaults in `deploy/kube-dashboard/service.yaml`:
 
 | Port name | Service port | NodePort |
 |-----------|--------------|----------|
@@ -379,7 +380,7 @@ Committed defaults in `deploy/glass/service.yaml`:
 Discover values and a node address:
 
 ```bash
-kubectl -n kubernetes-dashboard get svc dashboard-glass -o wide
+kubectl -n kubernetes-dashboard get svc kube-dashboard -o wide
 kubectl get nodes -o wide
 ```
 
@@ -394,26 +395,26 @@ Do not treat any single lab node IP as a public product URL.
 ### Port-forward
 
 ```bash
-kubectl -n kubernetes-dashboard port-forward svc/dashboard-glass 8443:443
+kubectl -n kubernetes-dashboard port-forward svc/kube-dashboard 8443:443
 ```
 
 Then open `https://127.0.0.1:8443/`.
 
 ### TLS certificates
 
-Glass HTTPS uses Secret **`dashboard-glass-tls`**. The helper script generates a **self-signed** certificate. Browsers will show a trust warning until you replace the secret with a certificate your environment trusts.
+HTTPS uses Secret **`kube-dashboard-tls`**. The helper script generates a **self-signed** certificate. Browsers will show a trust warning until you replace the secret with a certificate your environment trusts.
 
 Do not globally disable TLS verification as standard guidance.
 
 ### Ingress / LoadBalancer
 
-Not provided as built-in product manifests. Operators may publish `dashboard-glass` through their own Ingress or LoadBalancer configuration.
+Not provided as built-in product manifests. Operators may publish `kube-dashboard` through their own Ingress or LoadBalancer configuration.
 
 ---
 
 ## Authentication and authorization
 
-Liquid Glass does not replace Dashboard authentication.
+Kube Dashboard does not replace Dashboard authentication.
 
 1. Open the Glass HTTPS URL.
 2. Sign in with a Kubernetes ServiceAccount bearer token (or other methods supported by upstream Dashboard).
@@ -450,17 +451,17 @@ Never commit, paste into issues, or publish real tokens.
 # Workloads
 kubectl -n kubernetes-dashboard get deploy
 kubectl -n kubernetes-dashboard get pods
-kubectl -n kubernetes-dashboard rollout status deploy/dashboard-glass
+kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard
 kubectl -n kubernetes-dashboard rollout status deploy/kubernetes-dashboard
 kubectl -n kubernetes-dashboard rollout status deploy/dashboard-metrics-scraper
 
 # Networking & config
-kubectl -n kubernetes-dashboard get svc dashboard-glass kubernetes-dashboard dashboard-metrics-scraper
-kubectl -n kubernetes-dashboard get cm dashboard-glass-css dashboard-glass-nginx
-kubectl -n kubernetes-dashboard get endpoints dashboard-glass
+kubectl -n kubernetes-dashboard get svc kube-dashboard kubernetes-dashboard dashboard-metrics-scraper
+kubectl -n kubernetes-dashboard get cm kube-dashboard-css kube-dashboard-nginx
+kubectl -n kubernetes-dashboard get endpoints kube-dashboard
 
 # Logs
-kubectl -n kubernetes-dashboard logs deploy/dashboard-glass --tail=100
+kubectl -n kubernetes-dashboard logs deploy/kube-dashboard --tail=100
 kubectl -n kubernetes-dashboard logs deploy/kubernetes-dashboard --tail=100
 kubectl -n kubernetes-dashboard logs deploy/dashboard-metrics-scraper --tail=100
 ```
@@ -469,14 +470,14 @@ Expected success signals:
 
 - Deployments show desired replicas available
 - Pods are `Running` and Ready
-- Service `dashboard-glass` exposes NodePorts `30443` / `30080` (unless customized)
+- Service `kube-dashboard` exposes NodePorts `30443` / `30080` (unless customized)
 
-### Confirm Liquid Glass CSS is served
+### Confirm Kube Dashboard CSS is served
 
 ```bash
-curl -skI https://127.0.0.1:30443/glass-theme.css
+curl -skI https://127.0.0.1:30443/theme.css
 # or via port-forward:
-# curl -skI https://127.0.0.1:8443/glass-theme.css
+# curl -skI https://127.0.0.1:8443/theme.css
 ```
 
 Expect HTTP `200` and `Content-Type` including `text/css`. Hard-refresh the browser after CSS updates.
@@ -488,7 +489,7 @@ Expect HTTP `200` and `Content-Type` including `text/css`. Hard-refresh the brow
 Stylesheet path:
 
 ```text
-deploy/glass/glass-theme.css
+deploy/kube-dashboard/theme.css
 ```
 
 ### Useful CSS variables (`:root`)
@@ -522,17 +523,17 @@ Using Kustomize (regenerates ConfigMaps from files):
 
 ```bash
 kubectl apply -k deploy/
-kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass
-kubectl -n kubernetes-dashboard rollout status deploy/dashboard-glass
+kubectl -n kubernetes-dashboard rollout restart deploy/kube-dashboard
+kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard
 ```
 
 Or update only the CSS ConfigMap:
 
 ```bash
-kubectl create configmap dashboard-glass-css \
-  --from-file=glass-theme.css=deploy/glass/glass-theme.css \
+kubectl create configmap kube-dashboard-css \
+  --from-file=theme.css=deploy/kube-dashboard/theme.css \
   -n kubernetes-dashboard --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass
+kubectl -n kubernetes-dashboard rollout restart deploy/kube-dashboard
 ```
 
 Then hard-refresh the browser (CSS is served with `Cache-Control: no-cache`, but clients may still cache aggressively).
@@ -551,17 +552,17 @@ Then hard-refresh the browser (CSS is served with `Cache-Control: no-cache`, but
 | Load/download images | `true` | `LOAD_IMAGES` / `scripts/download-images.sh` |
 | Image release tag | `images-v1.2.2` | `IMAGE_RELEASE_TAG` |
 | Enable insecure login patch | `true` | `ENABLE_INSECURE_LOGIN` in `install.sh` |
-| Glass Deployment image | `nginx:1.27-alpine` | `deploy/glass/deployment.yaml` |
+| Glass Deployment image | `nginx:1.27-alpine` | `deploy/kube-dashboard/deployment.yaml` |
 | Dashboard image | `kubernetesui/dashboard:v2.7.0` | Vendored upstream manifest |
 | Metrics scraper image | `kubernetesui/metrics-scraper:v1.0.8` | Vendored upstream manifest |
 | metrics-server image | `registry.k8s.io/metrics-server/metrics-server:v0.7.2` | `deploy/metrics-server/components.yaml` |
-| Service type | `NodePort` | `deploy/glass/service.yaml` |
-| HTTPS NodePort | `30443` | `deploy/glass/service.yaml` |
-| HTTP NodePort | `30080` | `deploy/glass/service.yaml` |
-| TLS secret name | `dashboard-glass-tls` | `scripts/create-tls-secret.sh` / Deployment volume |
-| Theme stylesheet | `deploy/glass/glass-theme.css` | ConfigMap `dashboard-glass-css` |
-| NGINX config | `deploy/glass/nginx.conf` | ConfigMap `dashboard-glass-nginx` |
-| Glass CPU/memory | requests `20m`/`32Mi`, limits `200m`/`128Mi` | `deploy/glass/deployment.yaml` |
+| Service type | `NodePort` | `deploy/kube-dashboard/service.yaml` |
+| HTTPS NodePort | `30443` | `deploy/kube-dashboard/service.yaml` |
+| HTTP NodePort | `30080` | `deploy/kube-dashboard/service.yaml` |
+| TLS secret name | `kube-dashboard-tls` | `scripts/create-tls-secret.sh` / Deployment volume |
+| Theme stylesheet | `deploy/kube-dashboard/theme.css` | ConfigMap `kube-dashboard-css` |
+| NGINX config | `deploy/kube-dashboard/nginx.conf` | ConfigMap `kube-dashboard-nginx` |
+| Glass CPU/memory | requests `20m`/`32Mi`, limits `200m`/`128Mi` | `deploy/kube-dashboard/deployment.yaml` |
 | Login helper SA | `dashboard-admin` | `deploy/rbac/dashboard-admin.yaml` |
 | Product labels | `app.kubernetes.io/version: "1.2.2"`, `dashboard.ocp/release: v1.2.2` | Glass + RBAC manifests |
 
@@ -575,15 +576,15 @@ This repository does **not** ship a Helm chart or invented values files.
 |---------|--------|
 | Pods `Pending` | `kubectl -n kubernetes-dashboard describe pod <pod>`; node resources / taints |
 | `ImagePullBackOff` | Registry access; preload images; `describe pod` events |
-| `CrashLoopBackOff` (Glass) | Missing `dashboard-glass-tls`; NGINX config errors — check Glass logs |
+| `CrashLoopBackOff` (Glass) | Missing `kube-dashboard-tls`; NGINX config errors — check Glass logs |
 | URL not reachable | NodePort firewall/security groups; try port-forward |
 | TLS warning | Expected for self-signed cert; replace secret or trust explicitly |
 | HTTP 401 | Regenerate token: `./scripts/get-token.sh` |
 | HTTP 403 | Inspect RBAC for the authenticated identity |
 | Expired token | Create a new token (`DURATION` / `kubectl create token`) |
-| Theme missing | Confirm HTML includes `/glass-theme.css`; `curl -skI` the stylesheet |
+| Theme missing | Confirm HTML includes `/theme.css`; `curl -skI` the stylesheet |
 | Old CSS after update | Rollout restart Glass Deployment; hard-refresh browser |
-| NGINX proxy errors | `logs deploy/dashboard-glass`; confirm upstream Service `kubernetes-dashboard` |
+| NGINX proxy errors | `logs deploy/kube-dashboard`; confirm upstream Service `kubernetes-dashboard` |
 | Metrics empty / charts waiting | `kubectl top nodes`; metrics-server + scraper logs; wait ~2–5 min for samples |
 | Overlay/dropdown styling | Hard-refresh; confirm served CSS matches repo file |
 | Missing permissions | Dashboard features require RBAC; install rights ≠ view/edit rights |
@@ -599,18 +600,18 @@ Publishing a Git tag does **not** update a live cluster automatically.
 ```bash
 cd dashboard-ocp
 git pull origin main
-# Preserve local theme edits if you customized glass-theme.css
+# Preserve local theme edits if you customized theme.css
 ./scripts/install.sh
 # or, if upstream + metrics-server are already present:
 # SKIP_UPSTREAM=true INSTALL_METRICS_SERVER=false ./scripts/install.sh
-# or: kubectl apply -k deploy/ && kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass
+# or: kubectl apply -k deploy/ && kubectl -n kubernetes-dashboard rollout restart deploy/kube-dashboard
 ```
 
 Then verify pods and hard-refresh the browser. Compare stylesheets if needed:
 
 ```bash
-curl -sk https://127.0.0.1:30443/glass-theme.css | sha256sum
-sha256sum deploy/glass/glass-theme.css
+curl -sk https://127.0.0.1:30443/theme.css | sha256sum
+sha256sum deploy/kube-dashboard/theme.css
 ```
 
 ---
@@ -623,8 +624,8 @@ Git tags available include `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 git fetch --tags
 git checkout v1.2.1
 kubectl apply -k deploy/
-kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass
-kubectl -n kubernetes-dashboard rollout status deploy/dashboard-glass
+kubectl -n kubernetes-dashboard rollout restart deploy/kube-dashboard
+kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard
 ```
 
 Checking out an older Git revision alone does **not** roll back running workloads until manifests/ConfigMaps are re-applied.
@@ -644,7 +645,7 @@ Supported script:
 Removes:
 
 - Resources from `kubectl delete -k deploy/` (Glass Deployment/Service, ConfigMaps, `dashboard-admin` SA/RBAC/secret)
-- Secret `dashboard-glass-tls`
+- Secret `kube-dashboard-tls`
 
 Optional removal of upstream Dashboard and/or metrics-server:
 
@@ -669,7 +670,7 @@ dashboard-ocp/
 ├── RELEASE                   # v1.2.2
 ├── deploy/
 │   ├── kustomization.yaml    # Glass ConfigMaps + resources
-│   ├── glass/                # Liquid Glass proxy + theme
+│   ├── glass/                # Kube Dashboard proxy + theme
 │   ├── rbac/                 # dashboard-admin helper
 │   ├── metrics-server/       # vendored metrics-server v0.7.2
 │   ├── upstream/             # vendored Dashboard recommended.yaml
@@ -690,7 +691,7 @@ This tree reflects the supported product packaging. Experimental or local rollba
 ## Security and known limitations
 
 - Base application is **Kubernetes Dashboard v2.7.0** (legacy upstream release).
-- Liquid Glass is a **cosmetic** customization, not a security modernization.
+- Kube Dashboard is a **cosmetic** customization, not a security modernization.
 - Upstream maintenance, CVEs, and dependency age must be evaluated before any sensitive use.
 - **Production security readiness has not been established.**
 - Comprehensive cross-browser validation has not been completed.
@@ -706,7 +707,7 @@ This tree reflects the supported product packaging. Experimental or local rollba
 
 ### Delivered in v1.2.2
 
-- Liquid Glass cosmetic modernization
+- Kube Dashboard cosmetic modernization
 - Component consistency (tables, pagination, overlays, forms, sidebar)
 - Packaging via NGINX + ConfigMap CSS injection
 - Retention of upstream Dashboard functionality
@@ -731,7 +732,7 @@ No delivery dates are promised.
 
 ### v1.2.2 highlights
 
-Stable Liquid Glass cosmetic baseline: premium glass materials, refined header/namespace controls, consistent sidebar selection, polished tables and pagination, notification stacking/empty state, form alignment, editor/dropdown styling, emerald status colours, and Events text containment.
+Stable Kube Dashboard cosmetic baseline: premium glass materials, refined header/namespace controls, consistent sidebar selection, polished tables and pagination, notification stacking/empty state, form alignment, editor/dropdown styling, emerald status colours, and Events text containment.
 
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 
@@ -742,7 +743,7 @@ Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 1. Fork the repository.
 2. Create a feature branch from `main` or a release tag.
 3. Prefer small, reviewable cosmetic or packaging changes.
-4. For CSS work, edit `deploy/glass/glass-theme.css`, apply the ConfigMap workflow, and hard-refresh the browser.
+4. For CSS work, edit `deploy/kube-dashboard/theme.css`, apply the ConfigMap workflow, and hard-refresh the browser.
 5. Open a pull request with a clear summary and test notes.
 6. File bugs with: Kubernetes version, Dashboard/Glass versions, browser, steps to reproduce, and redacted screenshots.
 

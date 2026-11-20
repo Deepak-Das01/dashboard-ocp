@@ -1,44 +1,14 @@
-Paste this entire block into a new Cursor chat on the next account:
+Continue work on the kube-dashboard packaging repo (github.com/Deepak-Das01/dashboard-ocp).
 
-================================================================================
-You are continuing work on the Liquid Glass Kubernetes Dashboard packaging repo.
+Product: Kube Dashboard (single pod `kube-dashboard`: nginx + Dashboard sidecar)
+Namespace: kubernetes-dashboard
+NodePorts: HTTPS 30443, HTTP 30080
+Theme: deploy/kube-dashboard/theme.css + nav-accordion.js (injected by nginx)
+Do NOT use the names "glass" or "Liquid Glass" for product/resources.
 
-## Project
-- Repo: https://github.com/Deepak-Das01/dashboard-ocp
-- Branch: main (HEAD should be e88825f or later)
-- Local lab path if same machine: /root/dashboard-ocp
-- Full handoff doc: docs/HANDOFF_PROGRESS_REPORT.md — READ IT FIRST end-to-end
+Current architecture:
+- Support RBAC + metrics-scraper from deploy/upstream/dashboard-support-v2.7.0.yaml
+- App runs only in deploy/kube-dashboard (no separate kubernetes-dashboard Deployment)
+- metrics-server via deploy/metrics-server/
 
-## Product
-- Cosmetic NGINX+CSS packaging over Kubernetes Dashboard v2.7.0
-- Product: Kubernetes Dashboard — Liquid Glass
-- Frozen cosmetic tag: v1.2.2 — do NOT move/force-push that tag
-- Metrics-server + offline images + sidebar accordion + About branding already on main
-
-## Lab access
-- Cluster: K8s 1.34.13, node kube-node, IP 192.168.222.141
-- UI: https://192.168.222.141:30443/
-- Token: ./scripts/get-token.sh  (must refresh after reinstall)
-- Install: ./scripts/install.sh
-- Docs: README.md, docs/METRICS_AND_IMAGES.md, docs/HANDOFF_PROGRESS_REPORT.md
-
-## Architecture constraints
-- Prefer changes in deploy/glass/glass-theme.css, nav-accordion.js, nginx.conf, kustomize packaging
-- Do not rebuild upstream Angular for cosmetics
-- Keep Liquid Glass visual identity; alignment/layout refinements OK
-- metrics-server lab flag --kubelet-insecure-tls is intentional for this lab
-
-## Already done (do not redo unless broken)
-1. Liquid Glass theme + login redesign
-2. metrics-server packaging + images-v1.2.2 GitHub Release + install.sh wiring
-3. About page product overlay (CSS)
-4. Sidebar accordion: tile opens page+submenu; chevron toggles; flex alignment (parent 40px / child 36px)
-5. Verified clean reinstall + kubectl top + charts eventually populate
-
-## Your job
-1. Read docs/HANDOFF_PROGRESS_REPORT.md and confirm git HEAD / cluster pods
-2. Ask me what to build next, OR continue suggested backlog in that doc
-3. Keep commits focused; no rollback artifacts; no force-push to main/v1.2.2
-
-Start by confirming: git log -1, kubectl -n kubernetes-dashboard get deploy, and that https://192.168.222.141:30443/ loads.
-================================================================================
+Prefer changes under deploy/kube-dashboard/; keep CSS cosmetic-only.
