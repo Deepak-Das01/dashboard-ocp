@@ -9,6 +9,7 @@ configMapGenerator:
   - name: dashboard-glass-css
     files:
       - glass/glass-theme.css
+      - glass/nav-accordion.js
   - name: dashboard-glass-nginx
     files:
       - glass/nginx.conf

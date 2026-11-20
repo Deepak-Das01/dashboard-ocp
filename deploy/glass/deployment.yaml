@@ -41,6 +41,9 @@ spec:
             - name: glass-css
               mountPath: /usr/share/nginx/html/glass-theme.css
               subPath: glass-theme.css
+            - name: glass-css
+              mountPath: /usr/share/nginx/html/nav-accordion.js
+              subPath: nav-accordion.js
             - name: tls
               mountPath: /etc/nginx/certs
               readOnly: true

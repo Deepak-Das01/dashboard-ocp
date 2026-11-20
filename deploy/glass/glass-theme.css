@@ -466,11 +466,45 @@ kd-namespace-selector .mat-select-arrow {
   color: rgba(240, 245, 252, 0.72) !important;
 }
 
-/* ---------- Smoked-glass sidebar ---------- */
+/* ---------- Smoked-glass sidebar (layout / alignment only) ---------- */
+/*
+  Root causes previously:
+  1) Absolute-positioned chevrons outside the flex row
+  2) Active 1px border vs idle 0px border → layout shift
+  3) mat-button-wrapper stayed display:block → badge/chevron drift
+  4) Mixed width calc() / padding overrides per state
+  Fix: one flex row contract scoped to .kd-nav —
+  [label flex] [N badge] [chevron]
+*/
+/* Layout tokens available app-wide so nav descendants always resolve them */
+body.kd-glass-theme {
+  --nav-pad-x: 14px;
+  --nav-row-pad-x: 12px;
+  --nav-parent-h: 40px;
+  --nav-child-h: 36px;
+  --nav-child-indent: 16px;
+  --nav-section-gap: 8px;
+  --nav-row-gap: 2px;
+  --nav-chevron: 28px;
+  --nav-badge: 16px;
+  --nav-radius: 10px;
+}
+
 .kd-nav,
-.mat-drawer,
-.mat-sidenav,
-.mat-drawer.mat-drawer-side {
+.kd-nav-container .kd-nav,
+.mat-drawer.kd-nav,
+.mat-drawer.mat-drawer-side.kd-nav {
+  --nav-pad-x: 14px;
+  --nav-row-pad-x: 12px;
+  --nav-parent-h: 40px;
+  --nav-child-h: 36px;
+  --nav-child-indent: 16px;
+  --nav-section-gap: 8px;
+  --nav-row-gap: 2px;
+  --nav-chevron: 28px;
+  --nav-badge: 16px;
+  --nav-radius: 10px;
+
   background: rgba(12, 18, 28, 0.42) !important;
   backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturation)) !important;
@@ -479,13 +513,13 @@ kd-namespace-selector .mat-select-arrow {
     inset -1px 0 0 rgba(255, 255, 255, 0.04),
     8px 0 28px rgba(0, 0, 0, 0.16) !important;
   overflow-x: hidden !important;
+  box-sizing: border-box !important;
 }
 
 .kd-nav .mat-nav-list,
 .kd-nav mat-nav-list,
 .kd-nav .mat-list-base {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
   max-width: 100% !important;
 }
@@ -500,36 +534,96 @@ kd-namespace-selector .mat-select-arrow {
   opacity: 0.9 !important;
 }
 
-/*
-  Nav clip root cause: stock button width:100% + our horizontal margins overflow
-  the nav scroller (right padding is only ~3px). Use width:calc instead of 100%.
-*/
 .kd-nav-items,
 .kd-nav .kd-nav-items,
 kd-nav .kd-nav-items,
 .kd-nav-container .kd-nav-items {
-  padding-right: 12px !important;
-  box-sizing: border-box !important;
-  overflow-x: visible !important;
-}
+  /* Local tokens so rows resolve even if drawer class wiring differs */
+  --nav-pad-x: 14px;
+  --nav-row-pad-x: 12px;
+  --nav-parent-h: 40px;
+  --nav-child-h: 36px;
+  --nav-child-indent: 16px;
+  --nav-section-gap: 8px;
+  --nav-row-gap: 2px;
+  --nav-chevron: 28px;
+  --nav-badge: 16px;
+  --nav-radius: 10px;
 
-.kd-nav,
-.kd-nav-container .kd-nav {
+  padding: 12px 14px 16px !important;
+  box-sizing: border-box !important;
   overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 2px !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
-.kd-nav-item-button,
-.kd-nav .mat-list-item,
-.kd-nav a.kd-nav-item-button {
-  border-radius: 12px !important;
-  margin: 2px 0 2px 0 !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
+.kd-nav-items > kd-nav-item,
+.kd-nav-items > .kd-nav-item,
+.kd-nav-items > .kd-nav-group-item,
+.kd-nav-items > kd-pinner-nav,
+.kd-nav-items > mat-divider {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
-  width: calc(100% - 8px) !important;
-  max-width: none !important;
   display: block !important;
+  position: static !important;
+  min-width: 0 !important;
+}
+
+.kd-nav-items > .kd-nav-group-item {
+  margin-top: var(--nav-section-gap, 8px) !important;
+}
+
+.kd-nav-items > .kd-nav-group-item:first-child {
+  margin-top: 0 !important;
+}
+
+.kd-nav-items > mat-divider {
+  margin: 10px 0 6px !important;
+  border-top-color: rgba(225, 240, 255, 0.10) !important;
+}
+
+/* Host must not clip focus rings or row backgrounds */
+.kd-nav kd-nav-item,
+.kd-nav .kd-nav-item,
+.kd-nav .kd-nav-group-item {
+  overflow: visible !important;
+}
+
+/*
+  Shared nav row contract (parent + child).
+  Transparent border reserved so active/hover never change geometry.
+*/
+.kd-nav a.kd-nav-item-button,
+.kd-nav .kd-nav-item-button {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: var(--nav-parent-h, 40px) !important;
+  min-height: var(--nav-parent-h, 40px) !important;
+  max-height: var(--nav-parent-h, 40px) !important;
+  margin: 0 !important;
+  padding: 0 var(--nav-row-pad-x, 12px) !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--nav-radius, 10px) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  text-align: left !important;
+  line-height: 1.25 !important;
+  font-weight: 600 !important;
   color: var(--text-secondary) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
   transition:
     background-color var(--ease-glass),
     border-color var(--ease-glass),
@@ -537,36 +631,154 @@ kd-nav .kd-nav-items,
     box-shadow var(--ease-glass) !important;
 }
 
-.kd-nav-item .kd-nav-item-button,
-.kd-nav-item a.kd-nav-item-button {
-  width: calc(100% - 4px) !important;
+/* Label + badge column — flexible, truncates long names */
+.kd-nav a.kd-nav-item-button .mat-button-wrapper {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  width: auto !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.25 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-.kd-nav-item-button:hover,
-.kd-nav .mat-list-item:hover {
+/* Hide Material ripple/focus overlay from affecting flex metrics */
+.kd-nav a.kd-nav-item-button > .mat-button-ripple,
+.kd-nav a.kd-nav-item-button > .mat-ripple,
+.kd-nav a.kd-nav-item-button > .mat-button-focus-overlay {
+  display: none !important;
+}
+
+/* Namespace badge — fixed trailing slot before chevron */
+.kd-nav a.kd-nav-item-button .kd-namespaced-item,
+.kd-nav .mat-button-wrapper .kd-namespaced-item {
+  flex: 0 0 var(--nav-badge, 16px) !important;
+  width: var(--nav-badge, 16px) !important;
+  height: var(--nav-badge, 16px) !important;
+  min-width: var(--nav-badge, 16px) !important;
+  margin: 0 0 0 auto !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  font-size: 10px !important;
+  border-radius: 50% !important;
+}
+
+/* Child rows — shorter, indented, same geometry contract */
+.kd-nav .kd-nav-items > kd-nav-item:not(.kd-nav-group-item) a.kd-nav-item-button,
+.kd-nav .kd-nav-items > .kd-nav-item:not(.kd-nav-group-item) a.kd-nav-item-button,
+.kd-nav-items > kd-nav-item:not(.kd-nav-group-item) a.kd-nav-item-button,
+.kd-nav-items > .kd-nav-item:not(.kd-nav-group-item) a.kd-nav-item-button,
+.kd-nav kd-nav-item:not(.kd-nav-group-item) > a.kd-nav-item-button {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  padding-left: 28px !important;
+  padding-right: 12px !important;
+  font-weight: 400 !important;
+}
+
+.kd-nav a.kd-nav-item-button:hover {
   background: var(--glass-surface-hover) !important;
   color: var(--text-primary) !important;
 }
 
-/* Active nav chip — full rounded corners, no parent clip */
-.kd-nav-item-button-active,
-.kd-nav a.kd-nav-item-button-active {
+.kd-nav a.kd-nav-item-button:focus-visible {
+  outline: 2px solid rgba(141, 196, 255, 0.55) !important;
+  outline-offset: -2px !important;
+}
+
+/* Active — colours only; size locked by transparent border + fixed height */
+.kd-nav a.kd-nav-item-button-active,
+.kd-nav a.kd-nav-item-button.kd-nav-item-button-active {
   background: linear-gradient(
     135deg,
     rgba(160, 205, 255, 0.26) 0%,
     rgba(120, 170, 230, 0.14) 100%
   ) !important;
   color: #ffffff !important;
-  border: 1px solid rgba(180, 215, 255, 0.36) !important;
-  border-radius: 12px !important;
-  margin: 2px 0 !important;
-  width: calc(100% - 8px) !important;
-  max-width: none !important;
-  box-sizing: border-box !important;
+  border-color: rgba(180, 215, 255, 0.36) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.20),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
-  overflow: visible !important;
+}
+
+/* Accordion: hide collapsed children */
+.kd-nav .kd-nav-item.lg-nav-hidden,
+.kd-nav kd-nav-item.lg-nav-hidden,
+.kd-nav kd-pinner-nav.lg-nav-hidden {
+  display: none !important;
+}
+
+/* Expanded parent — distinct from selected child, same box */
+.kd-nav .kd-nav-group-item.lg-nav-open > a.kd-nav-item-button:not(.kd-nav-item-button-active) {
+  background: rgba(160, 205, 255, 0.10) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Chevron — flex trailing control (not absolute) */
+.kd-nav .kd-nav-group-item a.kd-nav-item-button .lg-nav-chevron,
+.kd-nav .lg-nav-chevron {
+  position: static !important;
+  flex: 0 0 var(--nav-chevron, 28px) !important;
+  width: var(--nav-chevron, 28px) !important;
+  height: var(--nav-chevron, 28px) !important;
+  min-width: var(--nav-chevron, 28px) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: inherit !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  align-self: center !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  transform: none !important;
+  z-index: 1 !important;
+}
+
+.kd-nav .lg-nav-chevron:hover {
+  background: rgba(210, 228, 255, 0.12) !important;
+}
+
+.kd-nav .lg-nav-chevron:focus-visible {
+  outline: 2px solid rgba(141, 196, 255, 0.55) !important;
+  outline-offset: 0 !important;
+}
+
+.kd-nav .lg-nav-chevron::before {
+  content: "" !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-right: 2px solid rgba(240, 245, 252, 0.78) !important;
+  border-bottom: 2px solid rgba(240, 245, 252, 0.78) !important;
+  transform: translateY(-1px) rotate(45deg) !important;
+  transition: transform var(--ease-glass) !important;
+  opacity: 0.9 !important;
+}
+
+.kd-nav .kd-nav-group-item.lg-nav-open .lg-nav-chevron::before {
+  transform: translateY(1px) rotate(225deg) !important;
+}
+
+/* Settings / About share parent geometry (no chevron) */
+.kd-nav-items > .kd-nav-group-item:not(.lg-nav-toggleable) a.kd-nav-item-button {
+  padding-right: var(--nav-row-pad-x) !important;
 }
 
 /* ---------- Cards / elevated glass ---------- */
@@ -1919,4 +2131,105 @@ kd-login .mat-spinner circle {
     border-radius: 20px !important;
     max-width: 100% !important;
   }
+}
+
+/* ============================================================
+   About page — Liquid Glass product information (kd-about)
+   Cosmetic text overlay; upstream Angular About module unchanged.
+   ============================================================ */
+
+kd-about kd-card > .mat-card,
+kd-about mat-card.mat-card {
+  max-width: 720px !important;
+}
+
+kd-about mat-card-title .kd-card-title > div {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+kd-about mat-card-title .kd-card-title > div::before {
+  content: "About Liquid Glass" !important;
+  display: inline-block !important;
+  font-size: 18px !important;
+  line-height: 1.3 !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+kd-about .kd-about-logo-icon {
+  filter: drop-shadow(0 8px 18px rgba(11, 95, 255, 0.28)) !important;
+}
+
+kd-about .kd-h1 > span {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  color: transparent !important;
+}
+
+kd-about .kd-h1 > span::before {
+  content: "Kubernetes Dashboard — Liquid Glass" !important;
+  display: block !important;
+  font-size: 26px !important;
+  line-height: 1.25 !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--text-primary) !important;
+}
+
+kd-about .kd-h1 > span::after {
+  content: "Release v1.2.2  ·  Upstream Dashboard v2.7.0" !important;
+  display: block !important;
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em !important;
+  color: var(--text-secondary) !important;
+}
+
+kd-about .kd-h3 {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  margin-top: 10px !important;
+}
+
+kd-about .kd-h3::before {
+  content: "A premium macOS-inspired Liquid Glass interface for modern Kubernetes cluster management." !important;
+  display: block !important;
+  font-size: 15px !important;
+  line-height: 1.5 !important;
+  font-weight: 400 !important;
+  color: var(--text-secondary) !important;
+  max-width: 36rem !important;
+}
+
+kd-about .kd-muted[footer],
+kd-about [footer].kd-muted {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+kd-about .kd-muted[footer] > *,
+kd-about [footer].kd-muted > * {
+  display: none !important;
+}
+
+kd-about .kd-muted[footer]::before,
+kd-about [footer].kd-muted::before {
+  content: "Independent community packaging. Not an official Kubernetes, CNCF, or Apple product." !important;
+  display: block !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 6px !important;
+}
+
+kd-about .kd-muted[footer]::after,
+kd-about [footer].kd-muted::after {
+  content: "Based on upstream Kubernetes Dashboard v2.7.0  ·  github.com/Deepak-Das01/dashboard-ocp" !important;
+  display: block !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: var(--text-muted) !important;
 }
