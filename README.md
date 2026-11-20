@@ -1,6 +1,6 @@
 # Kube Dashboard
 
-Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-dashboard` pod (NGINX + Dashboard sidecar) with metrics-server support.
+Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` operators**, with Dex OIDC login by default.
 
 [![Release](https://img.shields.io/badge/release-v1.3.0-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/dashboard-ocp/releases/tag/v1.3.0)
 [![Upstream Dashboard](https://img.shields.io/badge/Kubernetes%20Dashboard-v2.7.0-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://github.com/kubernetes/dashboard/releases/tag/v2.7.0)
@@ -15,56 +15,103 @@ Themed Kubernetes console packaging based on Dashboard v2.7.0 — single `kube-d
 | Item | Value |
 |------|--------|
 | Product | Kube Dashboard |
-| Release | **v1.3.0** (stable) |
+| Release | **v1.3.0** (stable packaging) + **kubeops operators** on `main` |
 | Version | **1.3.0** |
 | Upstream Dashboard | `kubernetesui/dashboard:v2.7.0` |
 | Metrics scraper | `kubernetesui/metrics-scraper:v1.0.8` |
 | Console image (proxy) | `nginx:1.27-alpine` |
+| Auth (default) | **OIDC via Dex** (`kubeadmin`) |
 | Default HTTPS NodePort | **30443** |
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
-| Namespace (operator path) | `kubeops-console` (UI + console operator) |
+| Dex NodePort | **32056** |
+| Namespaces | `kubeops-console`, `kubeops-authentication` |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
 
 ---
 
-## Operators (two-operator model)
+## Quick start (recommended)
 
-See [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
-
-All operators are named **`kubeops-*`** (name = namespace). Role is `console` or `oidc`.
-
-| Operator | Namespace | Role | CR |
-|----------|-----------|------|-----|
-| **kubeops-console** | `kubeops-console` | `console` | `KubeDashboard` |
-| **kubeops-authentication** | `kubeops-authentication` | `oidc` | `ClusterOIDC` |
-
-**One script** (default = persistent **OIDC** wiring). CLI stays on your kubeconfig:
+Requires: `kubectl`, `go`, `python3`, `ctr` (containerd), cluster-admin kubeconfig.
 
 ```bash
+git clone https://github.com/Deepak-Das01/dashboard-ocp.git
+cd dashboard-ocp
+git checkout main
+
 ./scripts/install-operators.sh
+```
 
-kubectl get operators
+```bash
+kubectl get ops
 kubectl get kubedashboard,clusteroidc
-kubectl -n kubeops-console get pods
-kubectl -n kubeops-authentication get pods
-# Browser: https://<node-ip>:30443/ → Dex → kubeadmin
-# Password: kubectl -n kubeops-authentication get secret kubeadmin-oidc-bootstrap \
-#             -o jsonpath='{.data.password}' | base64 -d; echo
+kubectl get pods -n kubeops-console
+kubectl get pods -n kubeops-authentication
+```
 
-# Basic auth only: AUTH_MODE=secret ./scripts/install-operators.sh
+**Browser:** `https://<node-ip>:30443/` → Dex → sign in as `kubeadmin`
+
+```bash
+kubectl -n kubeops-authentication get secret kubeadmin-oidc-bootstrap \
+  -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+Use a private window if old cookies interfere. CLI stays on your existing kubeconfig.
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `AUTH_MODE` | `oidc` | `oidc` \| `secret` \| `token` |
+| `LOAD_IMAGES` | `true` | Load dashboard/metrics image tars |
+| `LOAD_IMAGES=false` | — | Skip image download/import if already present |
+
+```bash
+LOAD_IMAGES=false ./scripts/install-operators.sh
+AUTH_MODE=secret ./scripts/install-operators.sh   # NGINX basic auth instead of Dex
+```
+
+Full operator docs: [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
+
+---
+
+## Operators (`kubeops-*`)
+
+Name = namespace. Role (`spec.component`) is `console` or `oidc`.
+
+| Operator | Namespace | Role | Owns |
+|----------|-----------|------|------|
+| **kubeops-console** | `kubeops-console` | `console` | Operator + `kube-dashboard` UI + metrics-scraper |
+| **kubeops-authentication** | `kubeops-authentication` | `oidc` | Operator + Dex IdP + OIDC secrets |
+
+```text
+kubeops-console/
+  kubeops-console          # operator
+  kube-dashboard           # NGINX + Dashboard + oauth2-proxy
+  dashboard-metrics-scraper
+
+kubeops-authentication/
+  kubeops-authentication   # operator
+  dex                      # OIDC login (NodePort 32056)
+```
+
+```bash
+kubectl get ops
+# NAME                     COMPONENT   PHASE
+# kubeops-console          console     Ready
+# kubeops-authentication   oidc        Ready
 ```
 
 ---
 
 ## Table of contents
 
+- [Quick start (recommended)](#quick-start-recommended)
+- [Operators (kubeops-)](#operators-kubeops-)
 - [Product overview](#product-overview)
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Technology stack](#technology-stack)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
+- [Classic install (scripts/install.sh)](#classic-install-scriptsinstallsh)
 - [Detailed manual installation](#detailed-manual-installation)
 - [Accessing the dashboard](#accessing-the-dashboard)
 - [Authentication and authorization](#authentication-and-authorization)
@@ -198,7 +245,7 @@ Kube Dashboard does **not** add new Kubernetes management APIs or controllers.
 | Deployment | Kubernetes manifests + Kustomize (`deploy/`) |
 | Configuration | ConfigMaps `kube-dashboard-ui`, `kube-dashboard-nginx` |
 | Metrics | Dashboard metrics scraper `kubernetesui/metrics-scraper:v1.0.8` |
-| Authentication | Upstream Dashboard token / kubeconfig login flows |
+| Authentication | OIDC (Dex + oauth2-proxy) by default; secret/token modes available |
 | Authorization | Kubernetes RBAC |
 | TLS for console | Secret `kube-dashboard-tls` (self-signed via `scripts/create-tls-secret.sh`) |
 
@@ -206,43 +253,43 @@ Kube Dashboard does **not** add new Kubernetes management APIs or controllers.
 
 ## Architecture
 
-### Request flow
+### Operator path (default)
 
 ```text
 Browser
   │
   ├─ http://<node>:30080  ──301──► https://<node>:30443/
-  └─ https://<node>:30443/ ──────────────┐
-                                         ▼
-                         kube-dashboard pod
-                    ┌────────────────────────────┐
-                    │  NGINX (TLS :8443)         │
-                    │   → inject theme.css / JS  │
-                    │   → 127.0.0.1:9090         │
-                    │  Dashboard sidecar v2.7.0  │
-                    └────────────────────────────┘
-                               │
-                               ▼
-                         Kubernetes API
-                               ▲
-                    dashboard-metrics-scraper
-                    (metrics for Dashboard charts)
+  └─ https://<node>:30443/
+           │
+           ▼  auth_request (unauthenticated → /oauth2/start)
+     kube-dashboard (kubeops-console ns)
+     ┌─────────────────────────────────────┐
+     │ NGINX → oauth2-proxy → Dex (:32056) │
+     │ On success: inject SA bearer        │
+     │ → Dashboard sidecar :9090           │
+     └─────────────────────────────────────┘
+           │
+           ▼
+     Kubernetes API
 ```
 
-Standard installs **do not require** custom frontend compilation.
+| Piece | Namespace | Job |
+|-------|-----------|-----|
+| `kubeops-console` | `kubeops-console` | Reconciles `KubeDashboard` |
+| `kube-dashboard` | `kubeops-console` | UI (NGINX + Dashboard + oauth2-proxy) |
+| `kubeops-authentication` | `kubeops-authentication` | Reconciles `ClusterOIDC` |
+| `dex` | `kubeops-authentication` | OIDC IdP / login form |
 
 ### Mermaid diagram
 
 ```mermaid
 flowchart LR
-  Browser -->|HTTPS NodePort 30443| KD["kube-dashboard<br/>NGINX + Dashboard sidecar"]
-  Browser -->|HTTP NodePort 30080| Redirect["301 → HTTPS :30443"]
-  KD --> API["Kubernetes API Server"]
-  Scraper["dashboard-metrics-scraper<br/>v1.0.8"] --> API
-  KD -.->|metrics| Scraper
-  KD --- CSS["ConfigMap<br/>kube-dashboard-ui"]
-  KD --- Conf["ConfigMap<br/>kube-dashboard-nginx"]
-  KD --- TLS["Secret<br/>kube-dashboard-tls"]
+  Browser -->|HTTPS :30443| NGINX["NGINX + oauth2-proxy"]
+  NGINX -->|login| Dex["Dex :32056"]
+  NGINX --> Dash["Dashboard sidecar"]
+  Dash --> API["Kubernetes API"]
+  OpC["kubeops-console"] -.->|owns| NGINX
+  OpA["kubeops-authentication"] -.->|owns| Dex
 ```
 
 ---
@@ -281,49 +328,20 @@ kubectl get nodes
 
 ---
 
-## Quick start
+## Classic install (`scripts/install.sh`)
 
-Exact clone URL from the configured Git remote:
-
-```bash
-git clone https://github.com/Deepak-Das01/dashboard-ocp.git
-cd dashboard-ocp
-git checkout main
-```
-
-Verify context, then install (loads images, metrics-server, vendored Dashboard v2.7.0, TLS, Kube Dashboard):
+Script/kustomize path **without** operators (namespace `kubernetes-dashboard`, token login). Prefer [Quick start](#quick-start-recommended) for the kubeops + OIDC path.
 
 ```bash
 kubectl config current-context
 ./scripts/install.sh
-```
 
-`install.sh` will download image archives from GitHub Release **`images-v1.2.2`** when `artifacts/images/*.tar` are missing, then import them into containerd. For a fully offline node, copy the tars first or run `./scripts/download-images.sh` on a networked host.
-
-Wait for the script to finish rollout checks, then discover access:
-
-```bash
 kubectl -n kubernetes-dashboard get svc kube-dashboard
-kubectl top nodes
-kubectl get nodes -o wide
-```
-
-Open:
-
-```text
-https://<NODE_IP>:30443/
-```
-
-Generate a login token (optional helper ServiceAccount shipped with this package):
-
-```bash
 ./scripts/get-token.sh
+# Open https://<NODE_IP>:30443/
 ```
 
-Node CPU/Memory charts need a few minutes of scraper samples after first install (`Waiting for more data…` is expected briefly).
-
-> [!NOTE]
-> Stable product tag **`v1.3.0`**. Offline image archives remain on Release **`images-v1.2.2`** (same container images). See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
+`install.sh` downloads image archives from GitHub Release **`images-v1.2.2`** when `artifacts/images/*.tar` are missing. See [docs/METRICS_AND_IMAGES.md](docs/METRICS_AND_IMAGES.md).
 
 > [!WARNING]
 > Dashboard runs with `--enable-insecure-login` on loopback only; metrics-server includes `--kubelet-insecure-tls` for lab convenience. Prefer proper TLS and review both for shared/production environments.
@@ -443,13 +461,18 @@ Not provided as built-in product manifests. Operators may publish `kube-dashboar
 
 ## Authentication and authorization
 
-Kube Dashboard does not replace Dashboard authentication.
+### Operator path (default OIDC)
 
-1. Open the HTTPS URL.
-2. Sign in with a Kubernetes ServiceAccount bearer token (or other methods supported by upstream Dashboard).
-3. Authorization is enforced by **Kubernetes RBAC** for that identity.
+1. Open `https://<node-ip>:30443/` (accept self-signed cert if prompted).
+2. You are redirected to **Dex** (`:32056`).
+3. Sign in as **`kubeadmin`** with the password from `kubeops-authentication/kubeadmin-oidc-bootstrap`.
+4. After login, NGINX injects a `dashboard-admin` SA bearer so the UI has cluster-admin API access.
 
-### Token helper (optional)
+CLI access continues to use your existing kubeconfig (not the browser OIDC session).
+
+Optional: wire apiserver OIDC for kubectl-as-kubeadmin — see [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
+
+### Classic / token path
 
 ```bash
 ./scripts/get-token.sh
@@ -665,18 +688,26 @@ Do not use `git reset --hard` on shared `main` or force-push as a rollback proce
 
 ## Uninstallation
 
-Supported script:
+### Operator path
+
+```bash
+kubectl delete kubedashboard --all
+kubectl delete clusteroidc --all
+kubectl delete operators --all
+kubectl delete ns kubeops-console kubeops-authentication
+kubectl delete crd kubedashboards.dashboard.ocp clusteroidcs.dashboard.ocp operators.dashboard.ocp
+kubectl delete clusterrolebinding kubeops-console kubeops-authentication dashboard-admin oidc-kubeadmin --ignore-not-found
+```
+
+### Classic path
 
 ```bash
 ./scripts/uninstall.sh
 ```
 
-Removes:
+Removes classic `deploy/` resources and Secret `kube-dashboard-tls`.
 
-- Resources from `kubectl delete -k deploy/` (kube-dashboard Deployment/Service, ConfigMaps, `dashboard-admin` SA/RBAC/secret)
-- Secret `kube-dashboard-tls`
-
-Optional removal of upstream Dashboard and/or metrics-server:
+Optional:
 
 ```bash
 REMOVE_UPSTREAM=true ./scripts/uninstall.sh
@@ -693,27 +724,25 @@ REMOVE_UPSTREAM=true REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
 
 ```text
 dashboard-ocp/
-├── README.md                 # Product documentation (this file)
-├── CHANGELOG.md              # Release notes
-├── VERSION                   # 1.3.0
-├── RELEASE                   # v1.3.0
-├── deploy/
-│   ├── kustomization.yaml    # kube-dashboard ConfigMaps + resources
-│   ├── kube-dashboard/       # NGINX + Dashboard sidecar + theme
-│   ├── rbac/                 # dashboard-admin helper
-│   ├── metrics-server/       # vendored metrics-server v0.7.2
-│   ├── upstream/             # vendored Dashboard recommended.yaml
-│   └── images/               # SHA256SUMS + manifest (tars via Release)
+├── README.md
+├── CHANGELOG.md
+├── VERSION / RELEASE
+├── operator/                 # kubeops-console + kubeops-authentication
+│   ├── cmd/console|oidc/
+│   ├── config/crd|rbac|manager|samples/
+│   └── internal/…
+├── deploy/                   # classic kustomize packaging (install.sh)
 ├── scripts/
+│   ├── install-operators.sh  # recommended (kubeops + OIDC)
+│   ├── pack-static-image.py
+│   ├── install-phase-c-oidc.sh / configure-apiserver-oidc.sh
 │   ├── install.sh / uninstall.sh
-│   ├── download-images.sh / load-images.sh / export-images.sh
-│   ├── create-tls-secret.sh
-│   └── get-token.sh
-├── artifacts/images/         # local *.tar (gitignored; from Release)
-└── docs/                     # METRICS_AND_IMAGES.md, notes, screenshots
+│   └── download-images.sh / load-images.sh / get-token.sh
+├── artifacts/images/         # local *.tar (gitignored)
+└── docs/
+    ├── OPERATOR_AND_AUTH.md
+    └── METRICS_AND_IMAGES.md
 ```
-
-This tree reflects the supported product packaging. Experimental or local rollback artifacts should not be treated as install inputs.
 
 ---
 
@@ -734,19 +763,19 @@ This tree reflects the supported product packaging. Experimental or local rollba
 
 ## Roadmap
 
-### Delivered in v1.3.0
+### Delivered
 
-- Kube Dashboard cosmetic modernization
-- Component consistency (tables, pagination, overlays, forms, sidebar)
+- Kube Dashboard cosmetic modernization (v1.3.0)
 - Packaging via NGINX + ConfigMap CSS injection
-- Retention of upstream Dashboard functionality
+- **kubeops-console** / **kubeops-authentication** operators
+- Single-script OIDC install (`./scripts/install-operators.sh`)
+- Dex login + oauth2-proxy gate for the console
 
 ### Possible future work (not implemented)
 
+- Published operator container images on a registry
 - Additional theme options
 - Improved responsive layouts
-- More compact workload visualization
-- Enhanced monitoring presentation
 - Broader accessibility testing
 - Security / dependency modernization of the base stack
 
