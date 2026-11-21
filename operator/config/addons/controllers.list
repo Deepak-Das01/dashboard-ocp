@@ -1,0 +1,13 @@
+# Addon controllers shipped by scripts/install-operators.sh
+# All run in namespace kubeops-addon-controller.
+#
+# Columns (whitespace-separated):
+#   addon_id   go_cmd_pkg   image_name    deploy_name              component
+#
+# To add a future controller:
+#   1. Add ./cmd/<go_cmd_pkg>
+#   2. Add Deployment+SA+CRB under config/manager/addons/ and config/rbac/addons/
+#   3. Append a row here
+#   4. Add Operator sample row (component column) in config/samples/operators.yaml
+#
+nfs   nfs   kubeops-nfs   kubeops-nfs-controller   nfs

@@ -94,6 +94,10 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 	if err != nil {
 		return err
 	}
+	addonsJS, err := assets.FS.ReadFile("kube-dashboard/addons.js")
+	if err != nil {
+		return err
+	}
 
 	labels := map[string]string{
 		"app.kubernetes.io/name":    "kube-dashboard",
@@ -107,6 +111,7 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		"nav-accordion.js": string(nav),
 		"operators.html":   string(opsHTML),
 		"operators.js":     string(opsJS),
+		"addons.js":        string(addonsJS),
 	}, labels); err != nil {
 		return err
 	}
@@ -160,6 +165,7 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/nav-accordion.js", SubPath: "nav-accordion.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.html", SubPath: "operators.html"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.js", SubPath: "operators.js"},
+			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/addons.js", SubPath: "addons.js"},
 			{Name: "tls", MountPath: "/etc/nginx/certs", ReadOnly: true},
 		}
 		vols := []corev1.Volume{

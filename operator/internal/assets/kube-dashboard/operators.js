@@ -48,7 +48,7 @@
   function phaseClass(phase) {
     var p = String(phase || "").toLowerCase();
     if (p === "ready" || p === "running") return "is-ready";
-    if (p === "error" || p === "failed" || p === "degraded") return "is-error";
+    if (p === "error" || p === "failed" || p === "degraded" || p === "unavailable") return "is-error";
     return "is-pending";
   }
 

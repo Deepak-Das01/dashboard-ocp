@@ -1,4 +1,5 @@
-# kubeops-console (role: console) + kubeops-authentication (role: oidc)
+# Core product operators only (console + oidc).
+# Addon controllers: config/manager/addons/ (see config/addons/controllers.list).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

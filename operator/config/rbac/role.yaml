@@ -37,6 +37,7 @@ metadata:
 ---
 # Operators apply upstream Dashboard RBAC and metrics-server; bind to cluster-admin
 # so RBAC escalation checks pass when granting Role rules.
+# Addon controller SA/CRB live in config/rbac/addons/ (applied by install-operators.sh).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:

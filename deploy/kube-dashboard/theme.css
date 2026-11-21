@@ -2542,3 +2542,345 @@ kd-about [footer].kd-muted::after {
   font-size: 18px;
   color: var(--text-primary);
 }
+
+/* ---------- In-console Addons view ---------- */
+.kd-scroll-container.lg-addons-active > *:not(#lg-addons-view) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.kd-scroll-container.lg-addons-active {
+  background-image: none !important;
+}
+
+/* Hide Angular Settings cards that can sit outside the scroll host */
+html.lg-addons-route kd-settings,
+html.lg-addons-route .kd-settings,
+body.lg-addons-route kd-settings,
+body.lg-addons-route .kd-settings {
+  display: none !important;
+}
+
+.lg-addons-view {
+  display: block;
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  min-height: calc(100% - 8px);
+}
+
+.lg-addons-view[hidden] {
+  display: none !important;
+}
+
+.lg-addons-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.lg-addons-panel {
+  display: block;
+  width: auto;
+  margin: 20px;
+  background: var(--glass-surface) !important;
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+
+.lg-addons-top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
+  flex-wrap: nowrap;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--glass-border);
+  box-sizing: border-box;
+  min-height: 57px;
+}
+
+.lg-addons-title {
+  flex: 1 1 auto;
+  margin: 0 8px 0 0;
+  padding: 16px 0 16px 16px;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.2;
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.lg-addons-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 0;
+  flex: 0 0 auto;
+}
+
+.lg-addons-body {
+  padding: 16px 20px 24px;
+}
+
+.lg-addons-loading,
+.lg-addons-error {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lg-addons-error {
+  color: var(--status-error);
+}
+
+.lg-addons-catalog {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.lg-addon-tile {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-radius);
+  padding: 16px;
+  background: transparent;
+}
+
+.lg-addon-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lg-addon-tile-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.lg-addon-tile-desc,
+.lg-addon-tile-msg {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.lg-addon-tile-cta {
+  display: flex;
+  gap: 8px;
+}
+
+.lg-addon-btn {
+  appearance: none;
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lg-addon-btn.primary {
+  background: var(--accent, #326ce5);
+  border-color: transparent;
+  color: #fff;
+}
+
+.lg-addon-btn.danger {
+  color: var(--status-error);
+  border-color: var(--status-error);
+}
+
+.lg-addon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lg-addon-back {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin: 0 0 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.lg-addon-back .material-icons {
+  font-size: 18px;
+}
+
+.lg-addon-form-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.lg-addon-callout {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.lg-addon-callout.is-error {
+  color: var(--status-error);
+  border-color: var(--status-error);
+}
+
+.lg-addon-status {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lg-addon-status-msg {
+  flex: 1 1 220px;
+  line-height: 1.4;
+}
+
+.lg-addon-status-link {
+  color: var(--accent, #326ce5) !important;
+  text-decoration: none !important;
+  font-size: 13px;
+}
+
+.lg-addon-status-link:hover {
+  text-decoration: underline !important;
+}
+
+.lg-addon-form {
+  display: grid;
+  gap: 14px;
+  max-width: 520px;
+}
+
+.lg-addon-field {
+  display: grid;
+  gap: 6px;
+}
+
+.lg-addon-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.lg-addon-req {
+  color: var(--status-error);
+}
+
+.lg-addon-input {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--glass-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 14px;
+}
+
+.lg-addon-input.is-invalid {
+  border-color: var(--status-error);
+}
+
+.lg-addon-error {
+  font-size: 12px;
+  color: var(--status-error);
+}
+
+.lg-addon-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.lg-addon-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lg-addon-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lg-addon-form-msg {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.lg-addon-form-msg.is-error {
+  color: var(--status-error);
+}
+
+.lg-ops-phase.is-idle {
+  color: var(--text-muted);
+}
+
+.lg-ops-phase.is-idle::before {
+  background: var(--text-muted);
+}
+
+.lg-addons-breadcrumbs {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.lg-addons-breadcrumbs a.kd-faded-breadcrumb {
+  color: inherit !important;
+  text-decoration: none !important;
+  font-size: 18px;
+}
+
+.lg-addons-breadcrumbs .kd-breadcrumb-divider {
+  font-size: 24px !important;
+  width: 32px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.lg-addons-breadcrumbs .kd-current-breadcrumb {
+  font-size: 18px;
+  color: var(--text-primary);
+}

@@ -2,6 +2,7 @@
 # Operators:
 #   kubeops-console          (ns: kubeops-console,          role: console)
 #   kubeops-authentication   (ns: kubeops-authentication,   role: oidc)
+# Addon controllers: config/manager/addons/ + config/addons/controllers.list
 apiVersion: v1
 kind: List
 items: []

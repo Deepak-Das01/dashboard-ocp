@@ -74,6 +74,12 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /addons.js {
+      alias /usr/share/nginx/html/addons.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /operators.html {
       alias /usr/share/nginx/html/operators.html;
       default_type text/html;
@@ -88,13 +94,24 @@ http {
       return 302 /operators.html;
     }
 
-    location = /kubeops/api/operators {
+    location /kubeops/api/operators {
       proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/operators;
       proxy_http_version 1.1;
       proxy_ssl_server_name on;
       proxy_ssl_verify off;
       proxy_set_header Host kubernetes.default.svc;
       proxy_set_header Accept application/json;
+%s
+    }
+
+    location /kubeops/api/nfsprovisioners {
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/nfsprovisioners;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
 %s
     }
 
@@ -108,13 +125,13 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-10"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-5"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-10" defer></script><script src="/operators.js?v=ops-embed-10" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-5" defer></script><script src="/operators.js?v=addons-embed-5" defer></script><script src="/addons.js?v=addons-embed-5" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader, authzHeader)
+`, authBlock, authzHeader, authzHeader, authzHeader)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
@@ -212,6 +229,14 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /addons.js {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/addons.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /operators.html {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -228,7 +253,7 @@ http {
       return 302 /operators.html;
     }
 
-    location = /kubeops/api/operators {
+    location /kubeops/api/operators {
       auth_request /oauth2/auth;
       error_page 401 = @login;
       proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/operators;
@@ -237,6 +262,19 @@ http {
       proxy_ssl_verify off;
       proxy_set_header Host kubernetes.default.svc;
       proxy_set_header Accept application/json;
+      proxy_set_header Authorization "Bearer %s";
+    }
+
+    location /kubeops/api/nfsprovisioners {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/nfsprovisioners;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
       proxy_set_header Authorization "Bearer %s";
     }
 
@@ -253,11 +291,12 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-10"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-5"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-10" defer></script><script src="/operators.js?v=ops-embed-10" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-5" defer></script><script src="/operators.js?v=addons-embed-5" defer></script><script src="/addons.js?v=addons-embed-5" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok, tok)
+`, port, port, port, port, port, port, tok, tok, tok)
 }
+

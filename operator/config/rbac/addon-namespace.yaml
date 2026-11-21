@@ -1,0 +1,9 @@
+# Shared home for all addon controllers (kubeops-*-controller).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeops-addon-controller
+  labels:
+    app.kubernetes.io/name: kubeops-addon-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: addons

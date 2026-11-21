@@ -1,7 +1,8 @@
-# kubeops image build (TARGET=console → kubeops-console, TARGET=oidc → kubeops-authentication).
+# kubeops image build (TARGET=console|oidc|nfs → kubeops-console|authentication|nfs).
 # Example:
 #   docker build --build-arg TARGET=console -t kubeops-console:1.3.0 .
 #   docker build --build-arg TARGET=oidc -t kubeops-authentication:1.3.0 .
+#   docker build --build-arg TARGET=nfs -t kubeops-nfs:1.3.0 .
 ARG TARGET=console
 FROM golang:1.22-alpine AS builder
 ARG TARGET

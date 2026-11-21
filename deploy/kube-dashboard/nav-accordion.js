@@ -81,11 +81,18 @@
   }
 
   var OPERATORS_ID = "nav-operators";
+  var ADDONS_ID = "nav-addons";
 
   /** Exact Cluster overview only — not clusterrole / clusterrolebinding. */
   function onOperatorsHash() {
     var h = location.hash || "";
     return /^#\/cluster(?:\?|$)/.test(h) && /(?:[?&])view=operators(?:&|$)/.test(h);
+  }
+
+  /** Exact Settings path only — overlay #/settings?view=addons. */
+  function onAddonsHash() {
+    var h = location.hash || "";
+    return /^#\/settings(?:\?|$)/.test(h) && /(?:[?&])view=addons(?:&|$)/.test(h);
   }
 
   function operatorsHref() {
@@ -98,6 +105,10 @@
     }
     if (!ns) ns = "default";
     return "#/cluster?namespace=" + encodeURIComponent(ns) + "&view=operators";
+  }
+
+  function addonsHref() {
+    return "#/settings?view=addons";
   }
 
   function syncClusterGroupActive(opsActive) {
@@ -182,6 +193,75 @@
       root.appendChild(item);
     }
     syncClusterGroupActive(opsActive);
+  }
+
+  function syncSettingsActive(addonsActive) {
+    var settingsLink = document.querySelector("#nav-settings > a.kd-nav-item-button");
+    if (!settingsLink) return;
+    if (addonsActive) {
+      if (settingsLink.classList.contains("kd-nav-item-button-active")) {
+        settingsLink.classList.remove("kd-nav-item-button-active");
+        settingsLink.setAttribute("data-lg-addons-suppressed-active", "1");
+      }
+    } else if (settingsLink.getAttribute("data-lg-addons-suppressed-active") === "1") {
+      settingsLink.removeAttribute("data-lg-addons-suppressed-active");
+    }
+  }
+
+  /** Top-level Addons tile before Settings (second nav block). */
+  function ensureAddonsNav(root) {
+    if (!root) return;
+    var addonsActive = onAddonsHash();
+    var existing = document.getElementById(ADDONS_ID);
+    if (existing && existing.parentElement === root) {
+      var link = existing.querySelector("a.kd-nav-item-button");
+      if (link) {
+        link.href = addonsHref();
+        link.classList.toggle("kd-nav-item-button-active", addonsActive);
+      }
+      syncSettingsActive(addonsActive);
+      return;
+    }
+    if (existing) existing.remove();
+
+    var settings = root.querySelector("#nav-settings");
+    if (!settings) return;
+
+    var item = document.createElement("kd-nav-item");
+    item.id = ADDONS_ID;
+    item.className = "kd-nav-item lg-nav-injected";
+    item.setAttribute("data-lg-addons", "1");
+
+    var a = document.createElement("a");
+    a.className = "kd-nav-item-button mat-button";
+    a.href = addonsHref();
+    a.setAttribute("aria-label", "Addons");
+    if (addonsActive) {
+      a.classList.add("kd-nav-item-button-active");
+    }
+    a.addEventListener("click", function (evt) {
+      evt.preventDefault();
+      var next = addonsHref();
+      if (location.hash !== next) {
+        location.hash = next;
+      } else {
+        try {
+          window.dispatchEvent(new Event("hashchange"));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      syncSettingsActive(true);
+    });
+
+    var wrap = document.createElement("span");
+    wrap.className = "mat-button-wrapper";
+    wrap.textContent = "Addons";
+    a.appendChild(wrap);
+    item.appendChild(a);
+
+    root.insertBefore(item, settings);
+    syncSettingsActive(addonsActive);
   }
 
   function childrenOf(group) {
@@ -427,6 +507,7 @@
     var ok = false;
     for (var i = 0; i < roots.length; i++) {
       ensureOperatorsNav(roots[i]);
+      ensureAddonsNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
     attachObservers();

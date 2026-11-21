@@ -1,0 +1,12 @@
+# Example shape only — fill server/path/storageClassName before apply.
+# Prefer deploying from the console Addons form.
+apiVersion: dashboard.ocp/v1alpha1
+kind: NFSProvisioner
+metadata:
+  name: kubeops-nfs-provisioner
+spec:
+  server: REPLACE_ME
+  path: REPLACE_ME
+  namespace: kubeops-nfs
+  storageClassName: kubeops-nfs-storage
+  defaultClass: false

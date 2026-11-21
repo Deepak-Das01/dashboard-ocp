@@ -34,7 +34,9 @@ func Report(ctx context.Context, c client.Client, name string, component dashboa
 	fresh.Status.ObservedGeneration = fresh.Generation
 	condStatus := metav1.ConditionTrue
 	reason := string(phase)
-	if phase == dashboardv1alpha1.OperatorPhaseDegraded {
+	if phase == dashboardv1alpha1.OperatorPhaseDegraded ||
+		phase == dashboardv1alpha1.OperatorPhaseUnavailable ||
+		phase == dashboardv1alpha1.OperatorPhaseProgressing {
 		condStatus = metav1.ConditionFalse
 	}
 	setCond(&fresh.Status.Conditions, "Ready", condStatus, reason, message)

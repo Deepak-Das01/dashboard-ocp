@@ -192,3 +192,61 @@ func (in *ClusterOIDCStatus) DeepCopyInto(out *ClusterOIDCStatus) {
 		}
 	}
 }
+
+// NFSProvisioner
+func (in *NFSProvisioner) DeepCopyInto(out *NFSProvisioner) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.Spec = in.Spec
+	in.Status.DeepCopyInto(&out.Status)
+}
+func (in *NFSProvisioner) DeepCopy() *NFSProvisioner {
+	if in == nil {
+		return nil
+	}
+	out := new(NFSProvisioner)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *NFSProvisioner) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *NFSProvisionerList) DeepCopyInto(out *NFSProvisionerList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]NFSProvisioner, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+func (in *NFSProvisionerList) DeepCopy() *NFSProvisionerList {
+	if in == nil {
+		return nil
+	}
+	out := new(NFSProvisionerList)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *NFSProvisionerList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *NFSProvisionerStatus) DeepCopyInto(out *NFSProvisionerStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		for i := range in.Conditions {
+			in.Conditions[i].DeepCopyInto(&out.Conditions[i])
+		}
+	}
+}

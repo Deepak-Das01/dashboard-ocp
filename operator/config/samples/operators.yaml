@@ -1,6 +1,6 @@
 # Seed rows for: kubectl get operators / kubectl get ops
 # Controllers overwrite status when CRs reconcile.
-# Names always use kubeops-* ; role/component is console | oidc.
+# Names always use kubeops-* ; role/component is console | oidc | nfs.
 apiVersion: dashboard.ocp/v1alpha1
 kind: Operator
 metadata:
@@ -15,4 +15,12 @@ metadata:
   name: kubeops-authentication
 spec:
   component: oidc
+  version: "1.3.0"
+---
+apiVersion: dashboard.ocp/v1alpha1
+kind: Operator
+metadata:
+  name: kubeops-nfs
+spec:
+  component: nfs
   version: "1.3.0"
