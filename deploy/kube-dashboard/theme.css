@@ -2577,6 +2577,17 @@ body.lg-addons-route .kd-settings {
   display: none !important;
 }
 
+/*
+  Native Settings crumb stays in the toolbar (Angular re-renders it).
+  Hide everything except our Addons bar — fixes "SettingsSettings > Addons".
+*/
+html.lg-addons-route .kd-breadcrumbs-container > :not(.lg-addons-breadcrumbs),
+body.lg-addons-route .kd-breadcrumbs-container > :not(.lg-addons-breadcrumbs),
+html.lg-addons-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-addons-breadcrumbs),
+body.lg-addons-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-addons-breadcrumbs) {
+  display: none !important;
+}
+
 .lg-addons-view {
   display: block;
   position: relative;

@@ -787,24 +787,25 @@
       var kids = host.children;
       for (var i = 0; i < kids.length; i++) {
         if (kids[i].classList && kids[i].classList.contains("lg-addons-breadcrumbs")) continue;
-        kids[i].style.display = "";
+        kids[i].style.removeProperty("display");
       }
       return;
     }
+    // Hide Angular's native "Settings" crumb (CSS also enforces via .lg-addons-route).
     var kids2 = host.children;
     for (var j = 0; j < kids2.length; j++) {
       if (kids2[j].classList && kids2[j].classList.contains("lg-addons-breadcrumbs")) continue;
-      kids2[j].style.display = "none";
+      kids2[j].style.setProperty("display", "none", "important");
     }
     var bar = host.querySelector(".lg-addons-breadcrumbs");
     if (!bar) {
       bar = document.createElement("div");
       bar.className = "lg-addons-breadcrumbs kd-inline-breadcrumb";
-      bar.innerHTML =
-        '<a class="kd-faded-breadcrumb" href="#/settings">Settings</a>' +
-        '<i class="material-icons kd-faded-breadcrumb kd-breadcrumb-divider" aria-hidden="true">keyboard_arrow_right</i>' +
-        '<span class="kd-current-breadcrumb">Addons</span>';
+      // Top-level nav tile — same style as Settings/About (no parent crumb).
+      bar.innerHTML = '<span class="kd-current-breadcrumb">Addons</span>';
       host.appendChild(bar);
+    } else {
+      bar.innerHTML = '<span class="kd-current-breadcrumb">Addons</span>';
     }
   }
 
