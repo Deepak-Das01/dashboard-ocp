@@ -1,8 +1,10 @@
 # Addon controllers shipped by scripts/install-operators.sh
-# All run in namespace kubeops-addon-controller.
+# Default namespace: kubeops-addon-controller (override with optional 6th column).
 #
 # Columns (whitespace-separated):
-#   addon_id   go_cmd_pkg   image_name    deploy_name              component
+#   addon_id   go_cmd_pkg   image_name    deploy_name              component        [namespace]
+#
+# Optional 6th column overrides the shared kubeops-addon-controller namespace.
 #
 # To add a future controller:
 #   1. Add ./cmd/<go_cmd_pkg>
@@ -10,4 +12,5 @@
 #   3. Append a row here
 #   4. Add Operator sample row (component column) in config/samples/operators.yaml
 #
-nfs   nfs   kubeops-nfs   kubeops-nfs-controller   nfs
+nfs              nfs              kubeops-nfs              kubeops-nfs-controller              nfs              kubeops-addon-controller
+virtualization   virtualization   kubeops-virtualization   kubeops-virtualization-controller   virtualization   kubeops-addon-controller

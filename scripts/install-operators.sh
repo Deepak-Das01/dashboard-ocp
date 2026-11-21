@@ -6,7 +6,8 @@
 #   kubeops-authentication     role/component: oidc     (ns: kubeops-authentication)
 #
 # Addon controllers (registry: operator/config/addons/controllers.list):
-#   All Deployments live in kubeops-addon-controller (e.g. kubeops-nfs-controller).
+#   Default namespace: kubeops-addon-controller (e.g. kubeops-nfs-controller).
+#   Optional 6th column overrides ns (default: kubeops-addon-controller).
 #   Adding a future addon = append a registry row + manifests under config/{manager,rbac}/addons/.
 #
 # Default (persistent product path):
@@ -78,6 +79,7 @@ ADDON_CMDS=()
 ADDON_IMAGES=()
 ADDON_DEPLOYS=()
 ADDON_COMPONENTS=()
+ADDON_NAMESPACES=()
 
 load_addon_registry() {
   local f="$1"
@@ -87,14 +89,17 @@ load_addon_registry() {
   ADDON_IMAGES=()
   ADDON_DEPLOYS=()
   ADDON_COMPONENTS=()
-  local id cmd img deploy component
-  while read -r id cmd img deploy component || [[ -n "${id:-}" ]]; do
+  ADDON_NAMESPACES=()
+  local id cmd img deploy component ns
+  while read -r id cmd img deploy component ns || [[ -n "${id:-}" ]]; do
     [[ -z "${id:-}" || "$id" =~ ^# ]] && continue
     ADDON_IDS+=("$id")
     ADDON_CMDS+=("$cmd")
     ADDON_IMAGES+=("$img")
     ADDON_DEPLOYS+=("$deploy")
     ADDON_COMPONENTS+=("${component:-$id}")
+    # Optional 6th column: controller namespace (default: shared ADDON_NS)
+    ADDON_NAMESPACES+=("${ns:-$ADDON_NS}")
   done < <(grep -v '^[[:space:]]*$' "$f" || true)
   ((${#ADDON_IDS[@]} > 0)) || die "addon registry is empty: $f"
 }
@@ -129,7 +134,7 @@ echo "    ${AUTH_NAME}:  ns=${AUTH_NS} image=${AUTH_IMG} role=oidc"
 echo "    addon namespace:         ${ADDON_NS}"
 local_i=0
 for ((local_i = 0; local_i < ${#ADDON_IDS[@]}; local_i++)); do
-  echo "    addon/${ADDON_IDS[$local_i]}:  deploy=${ADDON_DEPLOYS[$local_i]} image=$(addon_image_ref "${ADDON_IMAGES[$local_i]}") component=${ADDON_COMPONENTS[$local_i]}"
+  echo "    addon/${ADDON_IDS[$local_i]}:  deploy=${ADDON_DEPLOYS[$local_i]} ns=${ADDON_NAMESPACES[$local_i]} image=$(addon_image_ref "${ADDON_IMAGES[$local_i]}") component=${ADDON_COMPONENTS[$local_i]}"
 done
 echo "    console sample:          ${CONSOLE_SAMPLE}"
 echo "    install ClusterOIDC:     ${INSTALL_OIDC_CR}"
@@ -204,6 +209,9 @@ kubectl delete operators console oidc --ignore-not-found=true >/dev/null 2>&1 ||
 kubectl delete deploy kubeops-nfs -n kubeops-nfs --ignore-not-found=true >/dev/null 2>&1 || true
 kubectl delete sa kubeops-nfs -n kubeops-nfs --ignore-not-found=true >/dev/null 2>&1 || true
 kubectl delete clusterrolebinding kubeops-nfs --ignore-not-found=true >/dev/null 2>&1 || true
+# Migrate virtualization controller out of workload ns → shared addon-controller ns
+kubectl delete deploy kubeops-virtualization-controller -n kubeops-virtualization --ignore-not-found=true --wait=false >/dev/null 2>&1 || true
+kubectl delete sa kubeops-virtualization-controller -n kubeops-virtualization --ignore-not-found=true >/dev/null 2>&1 || true
 
 kubectl apply -f "$ROOT/operator/config/rbac/role.yaml"
 
@@ -227,14 +235,15 @@ kubectl -n "$AUTH_NS" set image "deploy/${AUTH_NAME}" manager="${AUTH_IMG}" >/de
 for ((i = 0; i < ${#ADDON_IDS[@]}; i++)); do
   deploy="${ADDON_DEPLOYS[$i]}"
   img_ref="$(addon_image_ref "${ADDON_IMAGES[$i]}")"
-  kubectl -n "$ADDON_NS" set image "deploy/${deploy}" manager="${img_ref}" >/dev/null
+  ns="${ADDON_NAMESPACES[$i]}"
+  kubectl -n "$ns" set image "deploy/${deploy}" manager="${img_ref}" >/dev/null
 done
 
 log "Waiting for kubeops operator pods"
 kubectl -n "$CONSOLE_NS" rollout status "deploy/${CONSOLE_NAME}" --timeout="${WAIT_TIMEOUT}s"
 kubectl -n "$AUTH_NS" rollout status "deploy/${AUTH_NAME}" --timeout="${WAIT_TIMEOUT}s"
 for ((i = 0; i < ${#ADDON_IDS[@]}; i++)); do
-  kubectl -n "$ADDON_NS" rollout status "deploy/${ADDON_DEPLOYS[$i]}" --timeout="${WAIT_TIMEOUT}s"
+  kubectl -n "${ADDON_NAMESPACES[$i]}" rollout status "deploy/${ADDON_DEPLOYS[$i]}" --timeout="${WAIT_TIMEOUT}s"
 done
 
 kubectl apply -f "$ROOT/operator/config/samples/operators.yaml"
@@ -311,7 +320,7 @@ fi
 
 ADDON_SUMMARY=""
 for ((i = 0; i < ${#ADDON_IDS[@]}; i++)); do
-  ADDON_SUMMARY+="  ${ADDON_DEPLOYS[$i]}   component=${ADDON_COMPONENTS[$i]}   ns=${ADDON_NS}
+  ADDON_SUMMARY+="  ${ADDON_DEPLOYS[$i]}   component=${ADDON_COMPONENTS[$i]}   ns=${ADDON_NAMESPACES[$i]}
 "
 done
 

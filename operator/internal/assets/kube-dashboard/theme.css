@@ -695,7 +695,10 @@ kd-nav .kd-nav-items,
 */
 .kd-nav #nav-addons.lg-nav-injected > a.kd-nav-item-button,
 .kd-nav .kd-nav-items > #nav-addons > a.kd-nav-item-button,
-.kd-nav .kd-nav-items > .kd-nav-group-item.lg-nav-injected[data-lg-addons] > a.kd-nav-item-button {
+.kd-nav .kd-nav-items > .kd-nav-group-item.lg-nav-injected[data-lg-addons] > a.kd-nav-item-button,
+.kd-nav #nav-virtualization.lg-nav-injected > a.kd-nav-item-button,
+.kd-nav .kd-nav-items > #nav-virtualization > a.kd-nav-item-button,
+.kd-nav .kd-nav-items > .kd-nav-group-item.lg-nav-injected[data-lg-virtualization] > a.kd-nav-item-button {
   height: var(--nav-parent-h, 40px) !important;
   min-height: var(--nav-parent-h, 40px) !important;
   max-height: var(--nav-parent-h, 40px) !important;
@@ -2907,6 +2910,102 @@ body.lg-addons-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-addons-
 }
 
 .lg-addons-breadcrumbs .kd-current-breadcrumb {
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+/* ---------- In-console Virtualization (kubevirt-manager embed) ---------- */
+.kd-scroll-container.lg-virt-active > *:not(#lg-virt-view) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.kd-scroll-container.lg-virt-active {
+  background-image: none !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+html.lg-virt-route .kd-breadcrumbs-container > :not(.lg-virt-breadcrumbs),
+body.lg-virt-route .kd-breadcrumbs-container > :not(.lg-virt-breadcrumbs),
+html.lg-virt-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-virt-breadcrumbs),
+body.lg-virt-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-virt-breadcrumbs) {
+  display: none !important;
+}
+
+/* Hide Angular workloads cards under the overlay host */
+html.lg-virt-route kd-workloads,
+html.lg-virt-route .kd-workloads,
+body.lg-virt-route kd-workloads,
+body.lg-virt-route .kd-workloads {
+  display: none !important;
+}
+
+.lg-virt-view {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 96px);
+  min-height: 480px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.lg-virt-view[hidden] {
+  display: none !important;
+}
+
+.lg-virt-shell,
+.lg-virt-panel {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.lg-virt-loading {
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lg-virt-error {
+  color: var(--text-primary);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.lg-virt-link {
+  color: var(--accent, #3f9cff);
+}
+
+.lg-virt-frame-wrap {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.lg-virt-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.lg-virt-breadcrumbs {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.lg-virt-breadcrumbs .kd-current-breadcrumb {
   font-size: 18px;
   color: var(--text-primary);
 }

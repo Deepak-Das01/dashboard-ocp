@@ -1,0 +1,10 @@
+# Example — prefer deploying from the console Addons form.
+# Versions must match vendored manifests under operator/internal/assets/virtualization/.
+apiVersion: dashboard.ocp/v1alpha1
+kind: Virtualization
+metadata:
+  name: kubeops-virtualization
+spec:
+  kubevirtVersion: v1.10.0
+  cdiVersion: v1.66.1
+  useEmulation: false

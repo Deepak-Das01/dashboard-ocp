@@ -1,0 +1,42 @@
+# Workload namespace for KubeVirt + CDI + kubevirt-manager UI.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeops-virtualization
+  labels:
+    app.kubernetes.io/name: kubeops-virtualization
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: virtualization
+    kubevirt.io: ""
+    cdi.kubevirt.io: ""
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+---
+# Controller lives with other addon controllers (not in the workload ns).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeops-virtualization-controller
+  namespace: kubeops-addon-controller
+  labels:
+    app.kubernetes.io/name: kubeops-virtualization-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: virtualization
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeops-virtualization-controller
+  labels:
+    app.kubernetes.io/name: kubeops-virtualization-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: virtualization
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: kubeops-virtualization-controller
+    namespace: kubeops-addon-controller

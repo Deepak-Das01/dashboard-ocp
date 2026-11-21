@@ -12,18 +12,23 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 | NFS addon controller | `kubeops-nfs-controller` | `kubeops-addon-controller` |
 | NFS provisioner workload | release name (default `kubeops-nfs-provisioner`) | CR `spec.namespace` (default `kubeops-nfs`) |
 | Operator status row | `kubeops-nfs` (`component: nfs`) | cluster-scoped |
+| Virtualization controller | `kubeops-virtualization-controller` | `kubeops-addon-controller` |
+| Virtualization UI | kubevirt-manager (NodePort **30444**) | `kubeops-virtualization` |
+| Virtualization workload | KubeVirt + CDI | `kubeops-virtualization` |
+| Operator status row | `kubeops-virtualization` (`component: virtualization`) | cluster-scoped |
 
 ## Registry (source of truth for install)
 
 `operator/config/addons/controllers.list`
 
 ```text
-# addon_id   go_cmd_pkg   image_name    deploy_name              component
-nfs          nfs          kubeops-nfs   kubeops-nfs-controller   nfs
+# addon_id         go_cmd_pkg        image_name               deploy_name                         component         namespace
+nfs                nfs               kubeops-nfs              kubeops-nfs-controller               nfs               kubeops-addon-controller
+virtualization     virtualization    kubeops-virtualization   kubeops-virtualization-controller    virtualization    kubeops-addon-controller
 ```
 
 `install-operators.sh` loops this file to **build, pack, apply, set-image, and
-wait** for every addon controller. NFS is not special-cased.
+wait** for every addon controller. Individual addons are not special-cased.
 
 ## Add a future controller
 
@@ -38,7 +43,21 @@ wait** for every addon controller. NFS is not special-cased.
 ## Lifecycle
 
 1. Install script deploys CRDs + every registered `*-controller`.
-2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`).
-3. Controller creates workload objects (Deployment, StorageClass, …).
+2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`, `Virtualization`).
+3. Controller creates workload objects (Deployment, StorageClass, KubeVirt/CDI, …).
 4. Uninstall deletes the CR → controller GC.
 5. Controller pod stays running for the next Deploy.
+
+## kubeops-virtualization notes
+
+- Controller runs in **`kubeops-addon-controller`** (with NFS). Workloads
+  (KubeVirt + CDI + kubevirt-manager UI) live in **`kubeops-virtualization`**
+  (upstream manifests default to `kubevirt`/`cdi` and are relocated at apply time).
+  Uninstall must not delete that workload namespace (would be a no-op for the
+  controller home, but keeps re-Deploy simple).
+- Vendored release YAMLs live under `operator/internal/virtualization/manifests/`
+  (KubeVirt `v1.10.0`, CDI `v1.66.1`, kubevirt-manager UI `v1.5.4`).
+- First Deploy pulls many images; status stays `Progressing` until KubeVirt + CDI
+  are `Deployed` and the UI Deployment is ready.
+- UI URL (NodePort **30444**) is written to `status.uiURL` / Operators URL column.
+- Set `spec.useEmulation: true` (Addons checkbox) on labs without `/dev/kvm`.
