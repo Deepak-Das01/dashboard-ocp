@@ -39,6 +39,11 @@ http {
   sub_filter_once off;
   sub_filter_types text/html;
 
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+  }
+
   upstream kd {
     server 127.0.0.1:9090;
   }
@@ -62,6 +67,12 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /virt-theme.css {
+      alias /usr/share/nginx/html/virt-theme.css;
+      default_type text/css;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /nav-accordion.js {
       alias /usr/share/nginx/html/nav-accordion.js;
       default_type application/javascript;
@@ -80,6 +91,12 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /virtualization.js {
+      alias /usr/share/nginx/html/virtualization.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /operators.html {
       alias /usr/share/nginx/html/operators.html;
       default_type text/html;
@@ -92,6 +109,34 @@ http {
 
     location = /operators/ {
       return 302 /operators.html;
+    }
+
+    # Same-origin proxy for kubevirt-manager (embedded Virtualization tab).
+    location /kubeops/virt-ui/ {
+      proxy_pass http://kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080/;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Prefix /kubeops/virt-ui;
+      proxy_set_header Accept-Encoding "";
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_hide_header X-Frame-Options;
+      proxy_hide_header Content-Security-Policy;
+      # buffering required for sub_filter (base href rewrite)
+      proxy_buffering on;
+      proxy_read_timeout 3600s;
+      sub_filter_types text/html;
+      sub_filter_once off;
+      sub_filter '<base href="/">' '<base href="/kubeops/virt-ui/">';
+      sub_filter '<base href="/" />' '<base href="/kubeops/virt-ui/" />';
+      # Brand logo is hardcoded href="/" and escapes the embed into the console.
+      sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
+      sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
+      # Match kube-dashboard glass palette inside the embed.
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-16"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -115,6 +160,17 @@ http {
 %s
     }
 
+    location /kubeops/api/virtualizations {
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/virtualizations;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+%s
+    }
+
     location / {
       proxy_pass http://kd;
       proxy_http_version 1.1;
@@ -125,13 +181,13 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-9"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-16"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-9" defer></script><script src="/operators.js?v=addons-embed-9" defer></script><script src="/addons.js?v=addons-embed-9" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-16" defer></script><script src="/operators.js?v=addons-embed-16" defer></script><script src="/addons.js?v=addons-embed-16" defer></script><script src="/virtualization.js?v=addons-embed-16" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader, authzHeader, authzHeader)
+`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
@@ -162,6 +218,11 @@ http {
   sub_filter_types text/html;
   absolute_redirect off;
   port_in_redirect off;
+
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+  }
 
   upstream oauth2 { server 127.0.0.1:4180; }
   upstream kd { server 127.0.0.1:9090; }
@@ -213,6 +274,14 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /virt-theme.css {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/virt-theme.css;
+      default_type text/css;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /nav-accordion.js {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -237,6 +306,14 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /virtualization.js {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/virtualization.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /operators.html {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -251,6 +328,35 @@ http {
 
     location = /operators/ {
       return 302 /operators.html;
+    }
+
+    location /kubeops/virt-ui/ {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass http://kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080/;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Prefix /kubeops/virt-ui;
+      proxy_set_header Accept-Encoding "";
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_hide_header X-Frame-Options;
+      proxy_hide_header Content-Security-Policy;
+      # buffering required for sub_filter (base href rewrite)
+      proxy_buffering on;
+      proxy_read_timeout 3600s;
+      sub_filter_types text/html;
+      sub_filter_once off;
+      sub_filter '<base href="/">' '<base href="/kubeops/virt-ui/">';
+      sub_filter '<base href="/" />' '<base href="/kubeops/virt-ui/" />';
+      # Brand logo is hardcoded href="/" and escapes the embed into the console.
+      sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
+      sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
+      # Match kube-dashboard glass palette inside the embed.
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-16"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -278,6 +384,19 @@ http {
       proxy_set_header Authorization "Bearer %s";
     }
 
+    location /kubeops/api/virtualizations {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/virtualizations;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+      proxy_set_header Authorization "Bearer %s";
+    }
+
     location / {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -291,12 +410,12 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-9"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-16"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-9" defer></script><script src="/operators.js?v=addons-embed-9" defer></script><script src="/addons.js?v=addons-embed-9" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-16" defer></script><script src="/operators.js?v=addons-embed-16" defer></script><script src="/addons.js?v=addons-embed-16" defer></script><script src="/virtualization.js?v=addons-embed-16" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok, tok, tok)
+`, port, port, port, port, port, port, tok, tok, tok, tok)
 }
 

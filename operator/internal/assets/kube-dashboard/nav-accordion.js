@@ -84,6 +84,7 @@
 
   var OPERATORS_ID = "nav-operators";
   var ADDONS_ID = "nav-addons";
+  var VIRT_ID = "nav-virtualization";
 
   /** Exact Cluster overview only — not clusterrole / clusterrolebinding. */
   function onOperatorsHash() {
@@ -95,6 +96,40 @@
   function onAddonsHash() {
     var h = location.hash || "";
     return /^#\/settings(?:\?|$)/.test(h) && /(?:[?&])view=addons(?:&|$)/.test(h);
+  }
+
+  /** Virtualization overlay uses workloads path (nav tile still sits before CRD). */
+  function onVirtHash() {
+    var h = location.hash || "";
+    return /^#\/workloads(?:\?|$)/i.test(h) && /(?:[?&])view=virtualization(?:&|$)/.test(h);
+  }
+
+  function virtHref() {
+    if (typeof window.__lgVirtHref === "function") {
+      try {
+        return window.__lgVirtHref();
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    var ns = "default";
+    try {
+      var m = (location.hash || "").match(/[?&]namespace=([^&]*)/);
+      if (m && m[1]) ns = decodeURIComponent(m[1]);
+    } catch (e) {
+      /* ignore */
+    }
+    if (!ns) ns = "default";
+    return "#/workloads?namespace=" + encodeURIComponent(ns) + "&view=virtualization";
+  }
+
+  function findCrdNav(root) {
+    return (
+      (root && root.querySelector("#nav-crd")) ||
+      (root && root.querySelector("#nav-customresourcedefinition")) ||
+      document.querySelector("#nav-crd") ||
+      document.querySelector("#nav-customresourcedefinition")
+    );
   }
 
   function operatorsHref() {
@@ -272,6 +307,90 @@
 
     root.insertBefore(item, settings);
     syncSettingsActive(addonsActive);
+  }
+
+  function syncWorkloadsActiveForVirt(virtActive) {
+    var wlLink = document.querySelector("#nav-workloads > a.kd-nav-item-button");
+    if (!wlLink) return;
+    if (virtActive) {
+      if (wlLink.classList.contains("kd-nav-item-button-active")) {
+        wlLink.classList.remove("kd-nav-item-button-active");
+        wlLink.setAttribute("data-lg-virt-suppressed-active", "1");
+      }
+    } else if (wlLink.getAttribute("data-lg-virt-suppressed-active") === "1") {
+      wlLink.removeAttribute("data-lg-virt-suppressed-active");
+    }
+  }
+
+  /** Top-level Virtualization tile immediately before Custom Resource Definitions. */
+  function ensureVirtNav(root) {
+    if (!root) return;
+    var virtActive = onVirtHash();
+    var existing = document.getElementById(VIRT_ID);
+    if (existing && existing.parentElement === root) {
+      existing.classList.add("kd-nav-group-item");
+      existing.classList.remove("lg-nav-toggleable", "lg-nav-open", "lg-nav-collapsed");
+      existing.removeAttribute("data-lg-accordion");
+      existing.removeAttribute("aria-expanded");
+      var orphanChevron = existing.querySelector(".lg-nav-chevron");
+      if (orphanChevron) orphanChevron.remove();
+      var link = existing.querySelector("a.kd-nav-item-button");
+      if (link) {
+        link.href = virtHref();
+        link.classList.toggle("kd-nav-item-button-active", virtActive);
+      }
+      // Keep position before CRD if Angular reorders.
+      var crd = findCrdNav(root);
+      if (crd && existing.nextElementSibling !== crd) {
+        root.insertBefore(existing, crd);
+      }
+      syncWorkloadsActiveForVirt(virtActive);
+      return;
+    }
+    if (existing) existing.remove();
+
+    var crd = findCrdNav(root);
+    if (!crd) return;
+
+    var item = document.createElement("kd-nav-item");
+    item.id = VIRT_ID;
+    item.className = "kd-nav-item kd-nav-group-item lg-nav-injected";
+    item.setAttribute("data-lg-virtualization", "1");
+
+    var a = document.createElement("a");
+    a.className = "kd-nav-item-button mat-button";
+    a.href = virtHref();
+    a.setAttribute("aria-label", "Virtualization");
+    if (virtActive) {
+      a.classList.add("kd-nav-item-button-active");
+    }
+    a.addEventListener("click", function (evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (typeof evt.stopImmediatePropagation === "function") {
+        evt.stopImmediatePropagation();
+      }
+      var next = virtHref();
+      if (location.hash !== next) {
+        location.hash = next;
+      } else {
+        try {
+          window.dispatchEvent(new Event("hashchange"));
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      syncWorkloadsActiveForVirt(true);
+    });
+
+    var wrap = document.createElement("span");
+    wrap.className = "mat-button-wrapper";
+    wrap.textContent = "Virtualization";
+    a.appendChild(wrap);
+    item.appendChild(a);
+
+    root.insertBefore(item, crd);
+    syncWorkloadsActiveForVirt(virtActive);
   }
 
   function childrenOf(group) {
@@ -518,6 +637,7 @@
     for (var i = 0; i < roots.length; i++) {
       ensureOperatorsNav(roots[i]);
       ensureAddonsNav(roots[i]);
+      ensureVirtNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
     attachObservers();

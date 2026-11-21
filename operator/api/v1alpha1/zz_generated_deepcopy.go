@@ -250,3 +250,72 @@ func (in *NFSProvisionerStatus) DeepCopyInto(out *NFSProvisionerStatus) {
 		}
 	}
 }
+
+// Virtualization
+func (in *Virtualization) DeepCopyInto(out *Virtualization) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	out.Spec = in.Spec
+	in.Status.DeepCopyInto(&out.Status)
+}
+func (in *Virtualization) DeepCopy() *Virtualization {
+	if in == nil {
+		return nil
+	}
+	out := new(Virtualization)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *Virtualization) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *VirtualizationList) DeepCopyInto(out *VirtualizationList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Virtualization, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+func (in *VirtualizationList) DeepCopy() *VirtualizationList {
+	if in == nil {
+		return nil
+	}
+	out := new(VirtualizationList)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *VirtualizationList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *VirtualizationStatus) DeepCopyInto(out *VirtualizationStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		for i := range in.Conditions {
+			in.Conditions[i].DeepCopyInto(&out.Conditions[i])
+		}
+	}
+}
+func (in *VirtualizationSpec) DeepCopyInto(out *VirtualizationSpec) {
+	*out = *in
+}
+func (in *VirtualizationSpec) DeepCopy() *VirtualizationSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(VirtualizationSpec)
+	in.DeepCopyInto(out)
+	return out
+}

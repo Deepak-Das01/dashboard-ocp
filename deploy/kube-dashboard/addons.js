@@ -13,11 +13,15 @@
   "use strict";
 
   var NFS_API = "/kubeops/api/nfsprovisioners";
+  var VIRT_API = "/kubeops/api/virtualizations";
   var OPS_API = "/kubeops/api/operators";
   var VIEW_ID = "lg-addons-view";
   var DEFAULT_NS = "kubeops-nfs";
   var DEFAULT_SC = "kubeops-nfs-storage";
   var DEFAULT_RELEASE = "kubeops-nfs-provisioner";
+  var DEFAULT_VIRT_RELEASE = "kubeops-virtualization";
+  var DEFAULT_KV_VERSION = "v1.10.0";
+  var DEFAULT_CDI_VERSION = "v1.66.1";
 
   var timer = null;
   var bound = false;
@@ -27,9 +31,11 @@
   var loading = false;
   var submitting = false;
   var panel = "catalog"; // catalog | form
+  var formKind = "nfs"; // nfs | virt
   var editingName = "";
   var draft = null; // preserved form values while on the form panel
   var lastStatusKey = "";
+  var catalogCache = { nfs: null, virt: null, nfsOp: false, virtOp: false };
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -77,19 +83,26 @@
     return "is-pending";
   }
 
-  function addonStatus(cr, opReady) {
+  function addonStatus(cr, opReady, kind) {
+    kind = kind || "nfs";
     if (!opReady) {
       return {
         label: "Unavailable",
         cls: phaseClass("unavailable"),
-        msg: "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
+        msg:
+          kind === "virt"
+            ? "kubeops-virtualization-controller is not installed (ns kubeops-addon-controller)."
+            : "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
       };
     }
     if (!cr) {
       return {
         label: "Unavailable",
         cls: phaseClass("unavailable"),
-        msg: "Not installed — click Install and Deploy with your NFS server details.",
+        msg:
+          kind === "virt"
+            ? "Not installed — click Install to deploy KubeVirt + CDI."
+            : "Not installed — click Install and Deploy with your NFS server details.",
       };
     }
     var phase = String((cr.status && cr.status.phase) || "Progressing");
@@ -98,20 +111,30 @@
       return {
         label: "Ready",
         cls: phaseClass("ready"),
-        msg: msg || "NFS provisioner installed successfully.",
+        msg:
+          msg ||
+          (kind === "virt"
+            ? "KubeVirt + CDI installed successfully."
+            : "NFS provisioner installed successfully."),
       };
     }
     if (phase === "Degraded") {
       return {
         label: "Degraded",
         cls: phaseClass("degraded"),
-        msg: msg || "Install failed — check operator logs and NFS reachability.",
+        msg:
+          msg ||
+          (kind === "virt"
+            ? "Install failed — check virtualization controller logs."
+            : "Install failed — check operator logs and NFS reachability."),
       };
     }
     return {
       label: "Progressing",
       cls: phaseClass("progressing"),
-      msg: msg || "Installing NFS provisioner…",
+      msg:
+        msg ||
+        (kind === "virt" ? "Installing KubeVirt + CDI…" : "Installing NFS provisioner…"),
     };
   }
 
@@ -150,7 +173,11 @@
   }
 
   function captureDraft() {
-    if (!document.getElementById("nfs-server")) return;
+    if (formKind === "virt") {
+      if (!document.getElementById("virt-release")) return;
+    } else if (!document.getElementById("nfs-server")) {
+      return;
+    }
     draft = readForm();
   }
 
@@ -195,22 +222,33 @@
       if (action === "install" || action === "manage") {
         captureDraft();
         panel = "form";
+        formKind = t.getAttribute("data-kind") || "nfs";
         editingName = t.getAttribute("data-name") || "";
         if (action === "install") {
-          draft = {
-            server: "",
-            path: "",
-            namespace: DEFAULT_NS,
-            storageClassName: DEFAULT_SC,
-            release: DEFAULT_RELEASE,
-            defaultClass: false,
-          };
+          draft =
+            formKind === "virt"
+              ? {
+                  kubevirtVersion: DEFAULT_KV_VERSION,
+                  cdiVersion: DEFAULT_CDI_VERSION,
+                  useEmulation: false,
+                  release: DEFAULT_VIRT_RELEASE,
+                }
+              : {
+                  server: "",
+                  path: "",
+                  namespace: DEFAULT_NS,
+                  storageClassName: DEFAULT_SC,
+                  release: DEFAULT_RELEASE,
+                  defaultClass: false,
+                };
         }
         load(view, true);
       } else if (action === "back") {
         captureDraft();
         panel = "catalog";
+        formKind = "nfs";
         editingName = "";
+        draft = null;
         load(view, true);
       } else if (action === "deploy") {
         submitForm(view, false);
@@ -236,38 +274,63 @@
     return view;
   }
 
-  function renderCatalog(root, cr, opReady) {
-    var st = addonStatus(cr, opReady);
+  function tileHTML(kind, title, desc, cr, opReady) {
+    var st = addonStatus(cr, opReady, kind);
     var cta = cr ? "Manage" : "Install";
     var action = cr ? "manage" : "install";
     var name = (cr && cr.metadata && cr.metadata.name) || "";
-    lastStatusKey = "";
-    root.className = "lg-addons-body";
-    root.innerHTML =
-      '<div class="lg-addons-catalog">' +
+    return (
       '  <div class="lg-addon-tile">' +
       '    <div class="lg-addon-tile-head">' +
-      '      <div class="lg-addon-tile-name">kubeops-nfs</div>' +
+      '      <div class="lg-addon-tile-name">' +
+      esc(title) +
+      "</div>" +
       '      <span class="lg-ops-phase ' +
       esc(st.cls) +
       '">' +
       esc(st.label) +
       "</span>" +
       "    </div>" +
-      '    <p class="lg-addon-tile-desc">NFS subdir external provisioner — creates a StorageClass from your NFS server and export path.</p>' +
+      '    <p class="lg-addon-tile-desc">' +
+      esc(desc) +
+      "</p>" +
       '<p class="lg-addon-tile-msg">' +
       esc(st.msg) +
       "</p>" +
       '    <div class="lg-addon-tile-cta">' +
       '      <button type="button" class="lg-addon-btn primary" data-addons-action="' +
       action +
+      '" data-kind="' +
+      esc(kind) +
       '" data-name="' +
       esc(name) +
       '">' +
       esc(cta) +
       "</button>" +
       "    </div>" +
-      "  </div>" +
+      "  </div>"
+    );
+  }
+
+  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp) {
+    lastStatusKey = "";
+    root.className = "lg-addons-body";
+    root.innerHTML =
+      '<div class="lg-addons-catalog">' +
+      tileHTML(
+        "nfs",
+        "kubeops-nfs",
+        "NFS subdir external provisioner — creates a StorageClass from your NFS server and export path.",
+        nfsCr,
+        nfsOp
+      ) +
+      tileHTML(
+        "virt",
+        "kubeops-virtualization",
+        "KubeVirt + CDI — install the virtualization stack to run VMs and import boot disk ISOs.",
+        virtCr,
+        virtOp
+      ) +
       "</div>";
   }
 
@@ -317,6 +380,12 @@
         ? ' <a class="lg-addon-status-link" href="#/pod?namespace=' +
           encodeURIComponent(status.namespace) +
           '">Pods</a>'
+        : "") +
+      (status && status.kubevirtPhase
+        ? ' <span class="lg-addon-status-msg">KubeVirt=' + esc(status.kubevirtPhase) + "</span>"
+        : "") +
+      (status && status.cdiPhase
+        ? ' <span class="lg-addon-status-msg">CDI=' + esc(status.cdiPhase) + "</span>"
         : "") +
       "</div>"
     );
@@ -370,7 +439,23 @@
   function formValuesFrom(cr) {
     var spec = (cr && cr.spec) || {};
     var release = (cr && cr.metadata && cr.metadata.name) || editingName || "";
-    if (draft) {
+    if (formKind === "virt") {
+      if (draft && draft.kubevirtVersion != null) {
+        return {
+          kubevirtVersion: draft.kubevirtVersion || DEFAULT_KV_VERSION,
+          cdiVersion: draft.cdiVersion || DEFAULT_CDI_VERSION,
+          useEmulation: !!draft.useEmulation,
+          release: draft.release || release || DEFAULT_VIRT_RELEASE,
+        };
+      }
+      return {
+        kubevirtVersion: spec.kubevirtVersion || DEFAULT_KV_VERSION,
+        cdiVersion: spec.cdiVersion || DEFAULT_CDI_VERSION,
+        useEmulation: !!spec.useEmulation,
+        release: release || DEFAULT_VIRT_RELEASE,
+      };
+    }
+    if (draft && draft.server != null) {
       return {
         server: draft.server,
         path: draft.path,
@@ -390,12 +475,79 @@
     };
   }
 
+  function formActionsHTML(isEdit, opReady) {
+    return isEdit
+      ? '<button type="submit" class="lg-addon-btn primary" data-addons-action="redeploy"' +
+          (!opReady || submitting ? " disabled" : "") +
+          ">Redeploy</button>" +
+          '<button type="button" class="lg-addon-btn danger" data-addons-action="uninstall"' +
+          (submitting ? " disabled" : "") +
+          ">Uninstall</button>"
+      : '<button type="submit" class="lg-addon-btn primary" data-addons-action="deploy"' +
+          (!opReady || submitting ? " disabled" : "") +
+          ">Deploy</button>";
+  }
+
   function renderForm(root, cr, opReady) {
     var vals = formValuesFrom(cr);
     var status = (cr && cr.status) || {};
     var isEdit = !!cr;
-    var st = addonStatus(cr, opReady);
-    lastStatusKey = st.label + "|" + st.msg + "|" + (status.storageClass || "") + "|" + (status.namespace || "");
+    var st = addonStatus(cr, opReady, formKind);
+    lastStatusKey =
+      formKind +
+      "|" +
+      st.label +
+      "|" +
+      st.msg +
+      "|" +
+      (status.storageClass || "") +
+      "|" +
+      (status.kubevirtPhase || "") +
+      "|" +
+      (status.cdiPhase || "");
+
+    var fields;
+    var title;
+    var callout;
+    var missingCtrl;
+    var releaseId;
+    if (formKind === "virt") {
+      title = "kubeops-virtualization";
+      missingCtrl =
+        "Install kubeops-virtualization-controller (shipped with install-operators.sh) before Deploy.";
+      callout =
+        "Installs pinned KubeVirt + CDI operators. First Deploy pulls many images and can take several minutes. Enable emulation on labs without /dev/kvm.";
+      releaseId = "virt-release";
+      fields =
+        field("virt-kv", "KubeVirt version", true, DEFAULT_KV_VERSION, vals.kubevirtVersion) +
+        field("virt-cdi", "CDI version", true, DEFAULT_CDI_VERSION, vals.cdiVersion) +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="virt-emulation" name="virt-emulation"' +
+        (vals.useEmulation ? " checked" : "") +
+        " />" +
+        "<span>Use software emulation (no KVM)</span>" +
+        "</label>" +
+        field("virt-release", "Release name", false, DEFAULT_VIRT_RELEASE, vals.release);
+    } else {
+      title = "kubeops-nfs";
+      missingCtrl =
+        "Install kubeops-nfs-controller (shipped with install-operators.sh in kubeops-addon-controller) before Deploy.";
+      callout =
+        "Prerequisites: an NFS export must already exist and be reachable from cluster nodes. The console cannot verify the mount.";
+      releaseId = "nfs-release";
+      fields =
+        field("nfs-server", "NFS server", true, "NFS server IP or hostname", vals.server) +
+        field("nfs-path", "NFS path", true, "/exported/path", vals.path) +
+        field("nfs-namespace", "Namespace", false, DEFAULT_NS, vals.namespace) +
+        field("nfs-sc", "StorageClass name", false, DEFAULT_SC, vals.storageClassName) +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="nfs-default" name="nfs-default"' +
+        (vals.defaultClass ? " checked" : "") +
+        " />" +
+        "<span>Default StorageClass</span>" +
+        "</label>" +
+        field("nfs-release", "Release name", false, DEFAULT_RELEASE, vals.release);
+    }
 
     root.className = "lg-addons-body";
     root.innerHTML =
@@ -403,44 +555,27 @@
       '  <button type="button" class="lg-addon-back" data-addons-action="back">' +
       '    <span class="material-icons" aria-hidden="true">arrow_back</span> Back to Addons' +
       "  </button>" +
-      '  <h2 class="lg-addon-form-title">kubeops-nfs</h2>' +
+      '  <h2 class="lg-addon-form-title">' +
+      esc(title) +
+      "</h2>" +
       statusHTML(st, status) +
-      (!opReady
-        ? '<div class="lg-addon-callout is-error">Install kubeops-nfs-controller (shipped with install-operators.sh in kubeops-addon-controller) before Deploy.</div>'
-        : "") +
-      '  <div class="lg-addon-callout">Prerequisites: an NFS export must already exist and be reachable from cluster nodes. The console cannot verify the mount.</div>' +
+      (!opReady ? '<div class="lg-addon-callout is-error">' + esc(missingCtrl) + "</div>" : "") +
+      '  <div class="lg-addon-callout">' +
+      esc(callout) +
+      "</div>" +
       '  <form class="lg-addon-form" data-addons-form novalidate>' +
-      field("nfs-server", "NFS server", true, "NFS server IP or hostname", vals.server) +
-      field("nfs-path", "NFS path", true, "/exported/path", vals.path) +
-      field("nfs-namespace", "Namespace", false, DEFAULT_NS, vals.namespace) +
-      field("nfs-sc", "StorageClass name", false, DEFAULT_SC, vals.storageClassName) +
-      '<label class="lg-addon-field lg-addon-check">' +
-      '<input type="checkbox" id="nfs-default" name="nfs-default"' +
-      (vals.defaultClass ? " checked" : "") +
-      " />" +
-      "<span>Default StorageClass</span>" +
-      "</label>" +
-      field("nfs-release", "Release name", false, DEFAULT_RELEASE, vals.release) +
+      fields +
       (isEdit
         ? '<p class="lg-addon-hint">Release name cannot change after install; Redeploy updates the existing CR.</p>'
         : "") +
       '    <div class="lg-addon-form-actions">' +
-      (isEdit
-        ? '<button type="submit" class="lg-addon-btn primary" data-addons-action="redeploy"' +
-          (!opReady || submitting ? " disabled" : "") +
-          ">Redeploy</button>" +
-          '<button type="button" class="lg-addon-btn danger" data-addons-action="uninstall"' +
-          (submitting ? " disabled" : "") +
-          ">Uninstall</button>"
-        : '<button type="submit" class="lg-addon-btn primary" data-addons-action="deploy"' +
-          (!opReady || submitting ? " disabled" : "") +
-          ">Deploy</button>") +
+      formActionsHTML(isEdit, opReady) +
       "    </div>" +
       '    <div class="lg-addon-form-msg" data-form-msg hidden></div>' +
       "  </form>" +
       "</div>";
 
-    var releaseInput = root.querySelector("#nfs-release");
+    var releaseInput = root.querySelector("#" + releaseId);
     if (releaseInput && isEdit) {
       releaseInput.readOnly = true;
       releaseInput.setAttribute("aria-readonly", "true");
@@ -450,16 +585,26 @@
 
   /** Update status strip only — keep typed field values intact. */
   function patchFormStatus(root, cr, opReady) {
-    var st = addonStatus(cr, opReady);
+    var st = addonStatus(cr, opReady, formKind);
     var status = (cr && cr.status) || {};
-    var key = st.label + "|" + st.msg + "|" + (status.storageClass || "") + "|" + (status.namespace || "");
+    var key =
+      formKind +
+      "|" +
+      st.label +
+      "|" +
+      st.msg +
+      "|" +
+      (status.storageClass || "") +
+      "|" +
+      (status.kubevirtPhase || "") +
+      "|" +
+      (status.cdiPhase || "");
     if (key === lastStatusKey) return;
     lastStatusKey = key;
     var el = root.querySelector("[data-addons-status]");
     if (!el) return;
     el.outerHTML = statusHTML(st, status);
 
-    // Clear transient submit banner once operator reports a terminal/progress phase.
     var msgEl = root.querySelector("[data-form-msg]");
     if (msgEl && !msgEl.hidden && /waiting for operator|Deploying|Redeploying/i.test(msgEl.textContent || "")) {
       if (st.label === "Ready" || st.label === "Degraded" || st.label === "Progressing") {
@@ -468,24 +613,14 @@
       }
     }
 
-    // Swap Deploy ↔ Redeploy/Uninstall when CR appears/disappears without wiping fields.
     var actions = root.querySelector(".lg-addon-form-actions");
     if (!actions) return;
     var isEdit = !!cr;
     var hasRedeploy = !!root.querySelector('[data-addons-action="redeploy"]');
     if (isEdit === hasRedeploy) return;
     captureDraft();
-    actions.innerHTML = isEdit
-      ? '<button type="submit" class="lg-addon-btn primary" data-addons-action="redeploy"' +
-        (!opReady || submitting ? " disabled" : "") +
-        ">Redeploy</button>" +
-        '<button type="button" class="lg-addon-btn danger" data-addons-action="uninstall"' +
-        (submitting ? " disabled" : "") +
-        ">Uninstall</button>"
-      : '<button type="submit" class="lg-addon-btn primary" data-addons-action="deploy"' +
-        (!opReady || submitting ? " disabled" : "") +
-        ">Deploy</button>";
-    var releaseInput = root.querySelector("#nfs-release");
+    actions.innerHTML = formActionsHTML(isEdit, opReady);
+    var releaseInput = root.querySelector(formKind === "virt" ? "#virt-release" : "#nfs-release");
     if (releaseInput) {
       releaseInput.readOnly = isEdit;
       if (isEdit) releaseInput.setAttribute("aria-readonly", "true");
@@ -520,6 +655,15 @@
       var el = document.getElementById(id);
       return el && el.value != null ? String(el.value).trim() : "";
     }
+    if (formKind === "virt") {
+      var emu = document.getElementById("virt-emulation");
+      return {
+        kubevirtVersion: val("virt-kv") || DEFAULT_KV_VERSION,
+        cdiVersion: val("virt-cdi") || DEFAULT_CDI_VERSION,
+        useEmulation: !!(emu && emu.checked),
+        release: val("virt-release") || DEFAULT_VIRT_RELEASE,
+      };
+    }
     var defEl = document.getElementById("nfs-default");
     return {
       server: val("nfs-server"),
@@ -541,18 +685,33 @@
         showFieldError(id, "");
       }
     }
+    function dns1123(id, v) {
+      if (v && !/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(v)) {
+        showFieldError(id, "Use a DNS-1123 name (lowercase, digits, dashes)");
+        ok = false;
+      }
+    }
+    if (formKind === "virt") {
+      req("virt-kv", vals.kubevirtVersion, "KubeVirt version");
+      req("virt-cdi", vals.cdiVersion, "CDI version");
+      req("virt-release", vals.release, "Release name");
+      dns1123("virt-release", vals.release);
+      if (vals.kubevirtVersion && !/^v?\d+\.\d+\.\d+$/.test(vals.kubevirtVersion)) {
+        showFieldError("virt-kv", "Use a release tag like v1.10.0 (must be vendored)");
+        ok = false;
+      }
+      if (vals.cdiVersion && !/^v?\d+\.\d+\.\d+$/.test(vals.cdiVersion)) {
+        showFieldError("virt-cdi", "Use a release tag like v1.66.1 (must be vendored)");
+        ok = false;
+      }
+      return ok;
+    }
     req("nfs-server", vals.server, "NFS server");
     req("nfs-path", vals.path, "NFS path");
     req("nfs-namespace", vals.namespace, "Namespace");
     req("nfs-sc", vals.storageClassName, "StorageClass name");
     req("nfs-release", vals.release, "Release name");
-    if (vals.release && !/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(vals.release)) {
-      showFieldError(
-        "nfs-release",
-        "Use a DNS-1123 name (lowercase, digits, dashes)"
-      );
-      ok = false;
-    }
+    dns1123("nfs-release", vals.release);
     if (vals.storageClassName && !/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/.test(vals.storageClassName)) {
       showFieldError("nfs-sc", "Invalid StorageClass name");
       ok = false;
@@ -587,35 +746,43 @@
     setSubmitting(view, true);
     setFormMsg(view, isPatch ? "Redeploying…" : "Deploying…", false);
 
-    var spec = {
-      server: vals.server,
-      path: vals.path,
-      namespace: vals.namespace,
-      storageClassName: vals.storageClassName,
-      defaultClass: !!vals.defaultClass,
-    };
+    var api = formKind === "virt" ? VIRT_API : NFS_API;
+    var kind = formKind === "virt" ? "Virtualization" : "NFSProvisioner";
+    var spec =
+      formKind === "virt"
+        ? {
+            kubevirtVersion: vals.kubevirtVersion,
+            cdiVersion: vals.cdiVersion,
+            useEmulation: !!vals.useEmulation,
+          }
+        : {
+            server: vals.server,
+            path: vals.path,
+            namespace: vals.namespace,
+            storageClassName: vals.storageClassName,
+            defaultClass: !!vals.defaultClass,
+          };
 
     var req;
     if (isPatch) {
-      req = fetchJSON(NFS_API + "/" + encodeURIComponent(vals.release), {
+      req = fetchJSON(api + "/" + encodeURIComponent(vals.release), {
         method: "PATCH",
         headers: { "Content-Type": "application/merge-patch+json" },
         body: JSON.stringify({ spec: spec }),
       });
     } else {
-      req = fetchJSON(NFS_API, {
+      req = fetchJSON(api, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           apiVersion: "dashboard.ocp/v1alpha1",
-          kind: "NFSProvisioner",
+          kind: kind,
           metadata: { name: vals.release },
           spec: spec,
         }),
       }).catch(function (err) {
-        // Already exists → fall back to PATCH (common if UI state was stale).
         if (err && /already exists|Conflict|409/i.test(String(err.message || err))) {
-          return fetchJSON(NFS_API + "/" + encodeURIComponent(vals.release), {
+          return fetchJSON(api + "/" + encodeURIComponent(vals.release), {
             method: "PATCH",
             headers: { "Content-Type": "application/merge-patch+json" },
             body: JSON.stringify({ spec: spec }),
@@ -630,7 +797,6 @@
         editingName = vals.release;
         panel = "form";
         setFormMsg(view, "Submitted — waiting for operator…", false);
-        // Keep draft; soft-refresh status.
         return load(view, false);
       })
       .catch(function (err) {
@@ -649,20 +815,18 @@
       setFormMsg(view, "No release to uninstall.", true);
       return;
     }
-    if (
-      !window.confirm(
-        'Uninstall kubeops-nfs provisioner "' +
-          name +
-          '"? Owned workloads and StorageClass will be removed.'
-      )
-    ) {
-      return;
-    }
+    var label =
+      formKind === "virt"
+        ? 'Uninstall kubeops-virtualization "' + name + '"? KubeVirt and CDI will be removed (may take several minutes).'
+        : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
+    if (!window.confirm(label)) return;
     setSubmitting(view, true);
     setFormMsg(view, "Uninstalling…", false);
-    fetchJSON(NFS_API + "/" + encodeURIComponent(name), { method: "DELETE" })
+    var api = formKind === "virt" ? VIRT_API : NFS_API;
+    fetchJSON(api + "/" + encodeURIComponent(name), { method: "DELETE" })
       .then(function () {
         panel = "catalog";
+        formKind = "nfs";
         editingName = "";
         draft = null;
         lastStatusKey = "";
@@ -674,6 +838,20 @@
       .then(function () {
         setSubmitting(view, false);
       });
+  }
+
+  function pickCR(items, preferName) {
+    var cr = null;
+    if (preferName) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].metadata && items[i].metadata.name === preferName) {
+          cr = items[i];
+          break;
+        }
+      }
+    }
+    if (!cr && items.length) cr = items[0];
+    return cr;
   }
 
   function load(view, forceFull) {
@@ -693,37 +871,51 @@
       root.textContent = "Loading addons…";
     }
 
-    return Promise.all([fetchJSON(NFS_API), fetchJSON(OPS_API + "/kubeops-nfs")])
+    return Promise.all([
+      fetchJSON(NFS_API),
+      fetchJSON(OPS_API + "/kubeops-nfs"),
+      fetchJSON(VIRT_API),
+      fetchJSON(OPS_API + "/kubeops-virtualization"),
+    ])
       .then(function (pair) {
         if (!onAddonsRoute()) return;
-        var list = pair[0];
-        var op = pair[1];
-        var items = (list && list.items) || [];
-        var cr = null;
-        if (editingName) {
-          for (var i = 0; i < items.length; i++) {
-            if (items[i].metadata && items[i].metadata.name === editingName) {
-              cr = items[i];
-              break;
-            }
-          }
-        }
-        if (!cr && items.length) cr = items[0];
-        if (cr && cr.metadata && cr.metadata.name) editingName = cr.metadata.name;
+        var nfsItems = (pair[0] && pair[0].items) || [];
+        var nfsOp = pair[1];
+        var virtItems = (pair[2] && pair[2].items) || [];
+        var virtOp = pair[3];
+        var nfsCr = pickCR(nfsItems, formKind === "nfs" ? editingName : null);
+        var virtCr = pickCR(virtItems, formKind === "virt" ? editingName : null);
+        if (!nfsCr && nfsItems.length) nfsCr = nfsItems[0];
+        if (!virtCr && virtItems.length) virtCr = virtItems[0];
 
-        var opReady = !!(op && op.metadata && op.metadata.name === "kubeops-nfs");
+        var nfsOpReady = !!(nfsOp && nfsOp.metadata && nfsOp.metadata.name === "kubeops-nfs");
+        var virtOpReady = !!(
+          virtOp &&
+          virtOp.metadata &&
+          virtOp.metadata.name === "kubeops-virtualization"
+        );
+        catalogCache = { nfs: nfsCr, virt: virtCr, nfsOp: nfsOpReady, virtOp: virtOpReady };
 
         if (panel === "form") {
+          var cr = formKind === "virt" ? virtCr : nfsCr;
+          var opReady = formKind === "virt" ? virtOpReady : nfsOpReady;
+          if (cr && cr.metadata && cr.metadata.name) editingName = cr.metadata.name;
           var formAlive = !!root.querySelector("[data-addons-form]");
           if (formAlive && !forceFull) {
             patchFormStatus(root, cr, opReady);
           } else {
             renderForm(root, cr, opReady);
           }
+          schedulePoll(view, cr);
         } else {
-          renderCatalog(root, cr, opReady);
+          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady);
+          var pollCr =
+            (virtCr && virtCr.status && virtCr.status.phase === "Progressing" && virtCr) ||
+            (nfsCr && nfsCr.status && nfsCr.status.phase === "Progressing" && nfsCr) ||
+            virtCr ||
+            nfsCr;
+          schedulePoll(view, pollCr);
         }
-        schedulePoll(view, cr);
       })
       .catch(function (err) {
         if (!onAddonsRoute()) return;
