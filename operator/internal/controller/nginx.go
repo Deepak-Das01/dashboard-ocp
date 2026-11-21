@@ -108,9 +108,9 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-8"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-10"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-8" defer></script><script src="/operators.js?v=ops-embed-8" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-10" defer></script><script src="/operators.js?v=ops-embed-10" defer></script></body>';
     }
   }
 }
@@ -253,9 +253,9 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-8"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=ops-embed-10"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-8" defer></script><script src="/operators.js?v=ops-embed-8" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=ops-embed-10" defer></script><script src="/operators.js?v=ops-embed-10" defer></script></body>';
     }
   }
 }

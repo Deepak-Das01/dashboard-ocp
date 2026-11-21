@@ -11,6 +11,7 @@
   var READY_KEY = "lg-nav-accordion-ready";
   var bound = false;
   var started = false;
+  var observer = null;
 
   function loadOpenIds() {
     try {
@@ -51,13 +52,40 @@
     return false;
   }
 
-  var OPERATORS_ID = "nav-operators";
-  // Use a real Cluster route + query flag so Angular does not bounce the hash.
-  var OPERATORS_HREF = "#/cluster?view=operators";
+  /**
+   * CRD is a single list page — never treat it as an accordion with a chevron,
+   * even though Angular may nest pinned CR items underneath.
+   */
+  function isSinglePageGroup(group) {
+    if (!group) return false;
+    var id = (group.getAttribute("id") || "").toLowerCase();
+    if (id === "nav-crd" || id === "nav-customresourcedefinition" || id.indexOf("nav-crd") === 0) {
+      return true;
+    }
+    var label = (group.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+    return label.indexOf("custom resource definition") === 0;
+  }
 
+  function flattenSinglePageGroup(group) {
+    if (!group || !isSinglePageGroup(group)) return;
+    group.classList.remove("lg-nav-open", "lg-nav-collapsed", "lg-nav-toggleable");
+    group.removeAttribute("data-lg-accordion");
+    group.removeAttribute("aria-expanded");
+    var chevron = group.querySelector(".lg-nav-chevron");
+    if (chevron) chevron.remove();
+    var kids = childrenOf(group);
+    for (var i = 0; i < kids.length; i++) {
+      kids[i].classList.add("lg-nav-hidden");
+      kids[i].setAttribute("aria-hidden", "true");
+    }
+  }
+
+  var OPERATORS_ID = "nav-operators";
+
+  /** Exact Cluster overview only — not clusterrole / clusterrolebinding. */
   function onOperatorsHash() {
     var h = location.hash || "";
-    return h.indexOf("#/cluster") === 0 && /(?:[?&])view=operators(?:&|$)/.test(h);
+    return /^#\/cluster(?:\?|$)/.test(h) && /(?:[?&])view=operators(?:&|$)/.test(h);
   }
 
   function operatorsHref() {
@@ -72,16 +100,30 @@
     return "#/cluster?namespace=" + encodeURIComponent(ns) + "&view=operators";
   }
 
+  function syncClusterGroupActive(opsActive) {
+    var clusterLink = document.querySelector("#nav-cluster > a.kd-nav-item-button");
+    if (!clusterLink) return;
+    if (opsActive) {
+      if (clusterLink.classList.contains("kd-nav-item-button-active")) {
+        clusterLink.classList.remove("kd-nav-item-button-active");
+        clusterLink.setAttribute("data-lg-ops-suppressed-active", "1");
+      }
+    } else if (clusterLink.getAttribute("data-lg-ops-suppressed-active") === "1") {
+      clusterLink.removeAttribute("data-lg-ops-suppressed-active");
+    }
+  }
+
   function ensureOperatorsNav(root) {
     if (!root) return;
+    var opsActive = onOperatorsHash();
     var existing = document.getElementById(OPERATORS_ID);
     if (existing && existing.parentElement === root) {
-      // Keep active state in sync with location.
       var link = existing.querySelector("a.kd-nav-item-button");
       if (link) {
         link.href = operatorsHref();
-        link.classList.toggle("kd-nav-item-button-active", onOperatorsHash());
+        link.classList.toggle("kd-nav-item-button-active", opsActive);
       }
+      syncClusterGroupActive(opsActive);
       return;
     }
     if (existing) existing.remove();
@@ -106,7 +148,7 @@
     a.className = "kd-nav-item-button mat-button";
     a.href = operatorsHref();
     a.setAttribute("aria-label", "Operators");
-    if (onOperatorsHash()) {
+    if (opsActive) {
       a.classList.add("kd-nav-item-button-active");
     }
     a.addEventListener("click", function (evt) {
@@ -121,11 +163,11 @@
           /* ignore */
         }
       }
-      // Ensure Cluster group stays expanded.
       if (!cluster.classList.contains("lg-nav-open")) {
         setOpen(cluster, true);
         syncStorageFromDom(root);
       }
+      syncClusterGroupActive(true);
     });
 
     var wrap = document.createElement("span");
@@ -139,6 +181,7 @@
     } else {
       root.appendChild(item);
     }
+    syncClusterGroupActive(opsActive);
   }
 
   function childrenOf(group) {
@@ -165,8 +208,6 @@
   }
 
   function ensureChevron(group) {
-    // Flex-row trailing control inside the mat-button link:
-    // [ .mat-button-wrapper (label + badge) ] [ .lg-nav-chevron ]
     var link = group.querySelector("a.kd-nav-item-button");
     if (!link) return;
 
@@ -190,22 +231,34 @@
     var kids = childrenOf(group);
     if (!kids.length) return false;
 
+    var wantOpen = !!open;
+    var already =
+      group.classList.contains("lg-nav-toggleable") &&
+      group.classList.contains("lg-nav-open") === wantOpen &&
+      group.classList.contains("lg-nav-collapsed") === !wantOpen;
+
+    if (already) {
+      // Still ensure chevron exists, but skip kid class churn.
+      ensureChevron(group);
+      return true;
+    }
+
     group.classList.add("lg-nav-toggleable");
     ensureChevron(group);
-    group.classList.toggle("lg-nav-open", !!open);
-    group.classList.toggle("lg-nav-collapsed", !open);
-    group.setAttribute("aria-expanded", open ? "true" : "false");
+    group.classList.toggle("lg-nav-open", wantOpen);
+    group.classList.toggle("lg-nav-collapsed", !wantOpen);
+    group.setAttribute("aria-expanded", wantOpen ? "true" : "false");
     group.setAttribute("data-lg-accordion", "true");
 
     var chevron = group.querySelector(".lg-nav-chevron");
     if (chevron) {
-      chevron.setAttribute("aria-expanded", open ? "true" : "false");
-      chevron.title = open ? "Collapse section" : "Expand section";
+      chevron.setAttribute("aria-expanded", wantOpen ? "true" : "false");
+      chevron.title = wantOpen ? "Collapse section" : "Expand section";
     }
 
     for (var i = 0; i < kids.length; i++) {
-      kids[i].classList.toggle("lg-nav-hidden", !open);
-      kids[i].setAttribute("aria-hidden", open ? "false" : "true");
+      kids[i].classList.toggle("lg-nav-hidden", !wantOpen);
+      kids[i].setAttribute("aria-hidden", wantOpen ? "false" : "true");
     }
     return true;
   }
@@ -229,7 +282,12 @@
   }
 
   function groupIsActive(group) {
-    return !!group.querySelector("a.kd-nav-item-button-active");
+    // Prefer the group's own anchor (first mat-button under the group item).
+    var own = group.querySelector("a.kd-nav-item-button");
+    if (!own) return false;
+    // If Operators suppressed Cluster active, treat as inactive for accordion.
+    if (group.id === "nav-cluster" && onOperatorsHash()) return false;
+    return own.classList.contains("kd-nav-item-button-active");
   }
 
   function apply(root) {
@@ -243,9 +301,14 @@
     var anyKids = false;
     var activeFound = false;
     var firstToggleable = null;
+    var opsActive = onOperatorsHash();
 
     for (var i = 0; i < groups.length; i++) {
       var group = groups[i];
+      if (isSinglePageGroup(group)) {
+        flattenSinglePageGroup(group);
+        continue;
+      }
       var kids = childrenOf(group);
       if (!kids.length) {
         group.classList.remove("lg-nav-open", "lg-nav-collapsed", "lg-nav-toggleable");
@@ -262,6 +325,7 @@
 
     for (var j = 0; j < groups.length; j++) {
       var g = groups[j];
+      if (isSinglePageGroup(g)) continue;
       if (!childrenOf(g).length) continue;
 
       var id = groupId(g);
@@ -273,7 +337,9 @@
           (!activeFound && g === firstToggleable);
       } else {
         // Trust chevron/tile storage; auto-open only when a child route is active.
+        // When Operators is active, force Cluster open via child active (Operators link).
         shouldOpen = stored.indexOf(id) !== -1 || groupHasActiveChild(g);
+        if (opsActive && g.id === "nav-cluster") shouldOpen = true;
       }
       setOpen(g, shouldOpen);
     }
@@ -307,7 +373,6 @@
     if (bound) return;
     bound = true;
 
-    // Chevron only: collapse / expand, do not navigate.
     document.addEventListener(
       "click",
       function (evt) {
@@ -315,7 +380,7 @@
         if (!chevron) return;
 
         var group = chevron.closest(".kd-nav-group-item");
-        if (!group || !childrenOf(group).length) return;
+        if (!group || isSinglePageGroup(group) || !childrenOf(group).length) return;
 
         evt.preventDefault();
         evt.stopPropagation();
@@ -327,16 +392,14 @@
       true
     );
 
-    // Main tile / link: allow Angular navigation, and expand submenu.
     document.addEventListener(
       "click",
       function (evt) {
         if (evt.target.closest && evt.target.closest(".lg-nav-chevron")) return;
 
         var group = evt.target.closest && evt.target.closest(".kd-nav-group-item");
-        if (!group || !childrenOf(group).length) return;
+        if (!group || isSinglePageGroup(group) || !childrenOf(group).length) return;
 
-        // Do not preventDefault — tile must open its overview page.
         group.classList.add("lg-nav-toggleable");
         openGroup(group);
       },
@@ -350,7 +413,7 @@
         var chevron = evt.target.closest && evt.target.closest(".lg-nav-chevron");
         if (!chevron) return;
         var group = chevron.closest(".kd-nav-group-item");
-        if (!group || !childrenOf(group).length) return;
+        if (!group || isSinglePageGroup(group) || !childrenOf(group).length) return;
         evt.preventDefault();
         evt.stopPropagation();
         toggleGroup(group);
@@ -366,7 +429,59 @@
       ensureOperatorsNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
+    attachObservers();
     return ok;
+  }
+
+  function mutationRelevant(mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var m = mutations[i];
+      var t = m.target;
+      if (!t || !t.closest) continue;
+      // Ignore main content rewrites — those caused accordion flicker on every route change.
+      if (t.closest(".kd-scroll-container") || t.closest("mat-drawer-content")) continue;
+      if (t.closest(".kd-nav-items") || t.closest("mat-nav-list") || t.closest(".kd-nav")) {
+        return true;
+      }
+      // Nav may be recreated under body
+      if (m.type === "childList") {
+        var nodes = [];
+        if (m.addedNodes) for (var a = 0; a < m.addedNodes.length; a++) nodes.push(m.addedNodes[a]);
+        if (m.removedNodes) for (var r = 0; r < m.removedNodes.length; r++) nodes.push(m.removedNodes[r]);
+        for (var n = 0; n < nodes.length; n++) {
+          var el = nodes[n];
+          if (el.nodeType !== 1) continue;
+          if (
+            (el.classList && (el.classList.contains("kd-nav-items") || el.classList.contains("kd-nav"))) ||
+            (el.querySelector && el.querySelector(".kd-nav-items, .kd-nav-group-item"))
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  function attachObservers() {
+    if (!document.body) return;
+    if (observer) return;
+
+    var scheduled = false;
+    observer = new MutationObserver(function (mutations) {
+      if (!mutationRelevant(mutations)) return;
+      if (scheduled) return;
+      scheduled = true;
+      setTimeout(function () {
+        scheduled = false;
+        refresh();
+      }, 50);
+    });
+
+    // Observe drawer/nav region if present; fall back to body but filter in callback.
+    var navHost =
+      document.querySelector("mat-drawer.kd-nav, mat-nav-list, .kd-nav") || document.body;
+    observer.observe(navHost, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   }
 
   function boot() {
@@ -380,19 +495,7 @@
       if (refresh() || tries > 80) clearInterval(timer);
     }, 250);
 
-    var scheduled = false;
-    var obs = new MutationObserver(function () {
-      if (scheduled) return;
-      scheduled = true;
-      setTimeout(function () {
-        scheduled = false;
-        refresh();
-      }, 30);
-    });
-
-    if (document.body) {
-      obs.observe(document.body, { childList: true, subtree: true });
-    }
+    attachObservers();
   }
 
   if (document.readyState === "loading") {

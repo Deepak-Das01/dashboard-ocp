@@ -1,6 +1,7 @@
 /**
  * In-console Operators view — embeds into the main dashboard shell.
- * Active only on: #/cluster?...&view=operators
+ * Active only on exact: #/cluster?...&view=operators
+ * (Not #/clusterrolebinding etc. — those share a "#/cluster" prefix.)
  * Leaves cleanly when navigating anywhere else.
  */
 (function () {
@@ -11,6 +12,7 @@
   var timer = null;
   var bound = false;
   var lastHash = "";
+  var healing = false;
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -20,12 +22,18 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Exact Cluster overview path only — not clusterrole / clusterrolebinding. */
+  function isExactClusterPath(hash) {
+    return /^#\/cluster(?:\?|$)/.test(hash || "");
+  }
+
+  function hasOperatorsView(hash) {
+    return /(?:[?&])view=operators(?:&|$)/.test(hash || "");
+  }
+
   function onOperatorsRoute() {
     var h = location.hash || "";
-    // Must be the Cluster route AND the operators view flag.
-    // (Angular preserves query params across nav, so view=operators alone is not enough.)
-    if (h.indexOf("#/cluster") !== 0) return false;
-    return /(?:[?&])view=operators(?:&|$)/.test(h);
+    return isExactClusterPath(h) && hasOperatorsView(h);
   }
 
   function contentHost() {
@@ -136,12 +144,16 @@
           '">' +
           esc(phase) +
           "</span></td>" +
-          '<td class="lg-ops-url">' +
+          '<td class="lg-ops-url" title="' +
+          esc(url || "") +
+          '">' +
           (url
-            ? '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(url) + "</a>"
+            ? '<a href="' + esc(url) + '" target="_blank" rel="noopener" title="' + esc(url) + '">' + esc(url) + "</a>"
             : "—") +
           "</td>" +
-          '<td class="lg-ops-msg">' +
+          '<td class="lg-ops-msg" title="' +
+          esc(msg || "") +
+          '">' +
           esc(msg || "—") +
           "</td>" +
           "</tr>"
@@ -170,9 +182,11 @@
         return res.json();
       })
       .then(function (data) {
+        if (!onOperatorsRoute()) return;
         render(root, (data && data.items) || []);
       })
       .catch(function (err) {
+        if (!onOperatorsRoute()) return;
         root.className = "lg-ops-error";
         root.textContent =
           "Could not load operators (" +
@@ -181,10 +195,29 @@
       });
   }
 
+  /** Suppress Angular's Cluster-group active while Operators child is selected. */
+  function syncClusterGroupActive(opsActive) {
+    var clusterLink = document.querySelector("#nav-cluster > a.kd-nav-item-button");
+    if (!clusterLink) return;
+    if (opsActive) {
+      if (clusterLink.classList.contains("kd-nav-item-button-active")) {
+        clusterLink.classList.remove("kd-nav-item-button-active");
+        clusterLink.setAttribute("data-lg-ops-suppressed-active", "1");
+      }
+    } else if (clusterLink.getAttribute("data-lg-ops-suppressed-active") === "1") {
+      clusterLink.removeAttribute("data-lg-ops-suppressed-active");
+      // Let Angular re-apply active on next digest if still on #/cluster overview.
+      if (isExactClusterPath(location.hash) && !hasOperatorsView(location.hash)) {
+        clusterLink.classList.add("kd-nav-item-button-active");
+      }
+    }
+  }
+
   function syncNavActive() {
+    var opsActive = onOperatorsRoute();
     var link = document.querySelector("#nav-operators a.kd-nav-item-button");
-    if (!link) return;
-    link.classList.toggle("kd-nav-item-button-active", onOperatorsRoute());
+    if (link) link.classList.toggle("kd-nav-item-button-active", opsActive);
+    syncClusterGroupActive(opsActive);
   }
 
   function setBreadcrumbs(active) {
@@ -193,7 +226,6 @@
     if (!active) {
       var custom = host.querySelector(".lg-ops-breadcrumbs");
       if (custom) custom.remove();
-      // Unhide native crumbs if we hid them.
       var kids = host.children;
       for (var i = 0; i < kids.length; i++) {
         if (kids[i].classList && kids[i].classList.contains("lg-ops-breadcrumbs")) continue;
@@ -201,7 +233,6 @@
       }
       return;
     }
-    // Hide native Angular crumbs and show Cluster > Operators.
     var kids2 = host.children;
     for (var j = 0; j < kids2.length; j++) {
       if (kids2[j].classList && kids2[j].classList.contains("lg-ops-breadcrumbs")) continue;
@@ -238,7 +269,6 @@
   }
 
   function hide() {
-    // Aggressively clear every overlay / lock class so other pages work again.
     var hosts = document.querySelectorAll(".kd-scroll-container.lg-operators-active, .lg-operators-active");
     for (var i = 0; i < hosts.length; i++) {
       hosts[i].classList.remove("lg-operators-active");
@@ -247,7 +277,6 @@
     for (var j = 0; j < views.length; j++) {
       views[j].hidden = true;
       views[j].style.display = "none";
-      // Remove from DOM so it cannot block clicks/layout.
       if (views[j].parentNode) views[j].parentNode.removeChild(views[j]);
     }
     if (timer) {
@@ -256,11 +285,6 @@
     }
     setBreadcrumbs(false);
     syncNavActive();
-  }
-
-  function sync() {
-    if (onOperatorsRoute()) show();
-    else hide();
   }
 
   function stripOperatorsParam(hash) {
@@ -277,19 +301,40 @@
     return cleaned;
   }
 
-  function pollHash() {
-    if (location.hash === lastHash) return;
-    lastHash = location.hash;
-    sync();
+  /** If view=operators leaked onto a non-Operators route, strip it and hide. */
+  function healStickyOperatorsParam() {
+    var h = location.hash || "";
+    if (!hasOperatorsView(h)) return false;
+    if (isExactClusterPath(h)) return false;
+    if (healing) return true;
+    healing = true;
+    var cleaned = stripOperatorsParam(h) || "#/workloads";
+    hide();
+    if (cleaned !== h) {
+      lastHash = cleaned;
+      location.replace(location.pathname + location.search + cleaned);
+    } else {
+      hide();
+    }
+    setTimeout(function () {
+      healing = false;
+    }, 0);
+    return true;
+  }
+
+  function sync() {
+    if (healStickyOperatorsParam()) return;
+    if (onOperatorsRoute()) show();
+    else hide();
   }
 
   function bind() {
     if (bound) return;
     bound = true;
     window.addEventListener("hashchange", sync);
-    setInterval(pollHash, 200);
 
-    // When leaving via sidebar, drop the sticky view=operators query immediately.
+    // Leave Operators: hide immediately and strip sticky view=operators so Angular
+    // queryParamsHandling=preserve cannot bounce us back.
     document.addEventListener(
       "click",
       function (evt) {
@@ -298,16 +343,24 @@
         if (a.closest && a.closest("#nav-operators")) return;
         var href = a.getAttribute("href") || "";
         if (href.charAt(0) !== "#") return;
-        if (!/(?:[?&])view=operators(?:&|$)/.test(href) && !onOperatorsRoute()) {
-          // Navigating elsewhere while overlay is up — force hide now.
-          if (document.querySelector(".lg-operators-view")) hide();
-          return;
-        }
-        if (/(?:[?&])view=operators(?:&|$)/.test(href) && href.indexOf("#/cluster") !== 0) {
-          // Other routes should never carry view=operators.
+
+        var leavingOps = onOperatorsRoute() || !!document.querySelector(".lg-operators-view");
+        var hrefIsOps = isExactClusterPath(href) && hasOperatorsView(href);
+
+        if (hrefIsOps) return; // staying on / entering Operators
+
+        if (leavingOps || hasOperatorsView(href) || hasOperatorsView(location.hash)) {
           evt.preventDefault();
-          location.hash = stripOperatorsParam(href) || "#/workloads";
+          evt.stopPropagation();
+          if (typeof evt.stopImmediatePropagation === "function") {
+            evt.stopImmediatePropagation();
+          }
           hide();
+          var next = stripOperatorsParam(href) || href;
+          if (!next || next === "#") next = "#/workloads";
+          if (next.charAt(0) !== "#") next = "#" + next;
+          lastHash = next;
+          location.hash = next;
         }
       },
       true
