@@ -22,6 +22,8 @@
   var timer = null;
   var bound = false;
   var healing = false;
+  var leaveGuardTimer = null;
+  var leaveGuardUntil = 0;
   var loading = false;
   var submitting = false;
   var panel = "catalog"; // catalog | form
@@ -302,7 +304,7 @@
       esc(st.cls) +
       '">' +
       esc(st.label) +
-      "</span>" +
+      "</span> " +
       '<span class="lg-addon-status-msg">' +
       esc(st.msg) +
       "</span>" +
@@ -318,6 +320,51 @@
         : "") +
       "</div>"
     );
+  }
+
+  function currentNamespace() {
+    try {
+      var m = (location.hash || "").match(/[?&]namespace=([^&]*)/);
+      if (m && m[1]) return decodeURIComponent(m[1]) || "default";
+    } catch (e) {
+      /* ignore */
+    }
+    return "default";
+  }
+
+  function settingsHrefPlain() {
+    return "#/settings?namespace=" + encodeURIComponent(currentNamespace());
+  }
+
+  /**
+   * Angular Settings links use queryParamsHandling=preserve, so while on Addons their
+   * href becomes #/settings?view=addons&…. After we navigate to plain Settings, Angular
+   * may reattach view=addons — strip it for a short window (same class of bug as Operators).
+   */
+  function armAddonsLeaveGuard() {
+    leaveGuardUntil = Date.now() + 1500;
+    if (leaveGuardTimer) clearInterval(leaveGuardTimer);
+    leaveGuardTimer = setInterval(function () {
+      if (Date.now() > leaveGuardUntil) {
+        clearInterval(leaveGuardTimer);
+        leaveGuardTimer = null;
+        return;
+      }
+      var h = location.hash || "";
+      if (!hasAddonsView(h) || !isExactSettingsPath(h)) return;
+      var cleaned = stripAddonsParam(h);
+      if (cleaned && cleaned !== h) {
+        location.replace(location.pathname + location.search + cleaned);
+      }
+    }, 40);
+  }
+
+  function clearAddonsLeaveGuard() {
+    leaveGuardUntil = 0;
+    if (leaveGuardTimer) {
+      clearInterval(leaveGuardTimer);
+      leaveGuardTimer = null;
+    }
   }
 
   function formValuesFrom(cr) {
@@ -832,8 +879,23 @@
 
   function sync() {
     if (healStickyAddonsParam()) return;
-    if (onAddonsRoute()) show();
-    else hide();
+    // Leave-guard: Angular reattached view=addons on Settings — strip before show().
+    if (
+      leaveGuardUntil > Date.now() &&
+      onAddonsRoute() &&
+      isExactSettingsPath(location.hash)
+    ) {
+      var cleaned = stripAddonsParam(location.hash || "");
+      if (cleaned && cleaned !== location.hash) {
+        hide();
+        location.replace(location.pathname + location.search + cleaned);
+        return;
+      }
+    }
+    if (onAddonsRoute()) {
+      clearAddonsLeaveGuard();
+      show();
+    } else hide();
   }
 
   function bind() {
@@ -846,15 +908,22 @@
       function (evt) {
         var a = evt.target && evt.target.closest && evt.target.closest("a");
         if (!a) return;
-        if (a.closest && a.closest("#nav-addons")) return;
+        if (a.closest && a.closest("#nav-addons")) {
+          clearAddonsLeaveGuard();
+          return;
+        }
 
         // Status links inside the form: leave Addons cleanly to the target page.
         var inAddons = a.closest && a.closest("#" + VIEW_ID);
+        var viaSettingsNav = !!(a.closest && a.closest("#nav-settings"));
+        var viaSettingsCrumb = !!(a.classList && a.classList.contains("kd-faded-breadcrumb"));
         var href = a.getAttribute("href") || "";
         if (href.charAt(0) !== "#") return;
 
         var hrefIsAddons = isExactSettingsPath(href) && hasAddonsView(href);
-        if (hrefIsAddons) return;
+        // Settings nav href is rewritten to include view=addons (queryParamsHandling=preserve).
+        // Still treat it as a leave-to-Settings intent.
+        if (hrefIsAddons && !viaSettingsNav && !viaSettingsCrumb) return;
 
         var leaving = onAddonsRoute() || !!document.querySelector(".lg-addons-view");
         if (!(leaving || hasAddonsView(href) || hasAddonsView(location.hash))) return;
@@ -866,14 +935,14 @@
           if (typeof evt.stopImmediatePropagation === "function") evt.stopImmediatePropagation();
           hide();
           location.hash = href;
+          armAddonsLeaveGuard();
           return;
         }
 
         // Don't intercept clicks on form controls / buttons.
         if (inAddons && !a.classList.contains("lg-addon-status-link")) {
-          // Breadcrumb "Settings" inside addons chrome should leave.
-          if (a.classList.contains("kd-faded-breadcrumb")) {
-            /* fall through */
+          if (viaSettingsCrumb) {
+            /* fall through — leave to Settings */
           } else {
             return;
           }
@@ -885,10 +954,20 @@
           evt.stopImmediatePropagation();
         }
         hide();
-        var next = stripAddonsParam(href) || href;
+
+        var next;
+        if (viaSettingsNav || viaSettingsCrumb) {
+          next = settingsHrefPlain();
+        } else {
+          next = stripAddonsParam(href) || href;
+        }
         if (!next || next === "#") next = "#/workloads";
         if (next.charAt(0) !== "#") next = "#" + next;
         location.hash = next;
+        // Strip view=addons if Angular preserve reattaches it on #/settings.
+        if (viaSettingsNav || viaSettingsCrumb || isExactSettingsPath(next)) {
+          armAddonsLeaveGuard();
+        }
       },
       true
     );

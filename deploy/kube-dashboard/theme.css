@@ -689,6 +689,21 @@ kd-nav .kd-nav-items,
   font-weight: 400 !important;
 }
 
+/*
+  Top-level injected tiles (Addons) must match Settings / About / CRD —
+  not the child indent used by Workloads submenu / Operators-under-Cluster.
+*/
+.kd-nav #nav-addons.lg-nav-injected > a.kd-nav-item-button,
+.kd-nav .kd-nav-items > #nav-addons > a.kd-nav-item-button,
+.kd-nav .kd-nav-items > .kd-nav-group-item.lg-nav-injected[data-lg-addons] > a.kd-nav-item-button {
+  height: var(--nav-parent-h, 40px) !important;
+  min-height: var(--nav-parent-h, 40px) !important;
+  max-height: var(--nav-parent-h, 40px) !important;
+  padding-left: var(--nav-row-pad-x, 12px) !important;
+  padding-right: var(--nav-row-pad-x, 12px) !important;
+  font-weight: 600 !important;
+}
+
 .kd-nav a.kd-nav-item-button:hover {
   background: var(--glass-surface-hover) !important;
   color: var(--text-primary) !important;

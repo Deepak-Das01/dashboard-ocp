@@ -46,9 +46,11 @@
 
   function isChild(el) {
     if (!el) return false;
+    // Top-level injected tiles (Addons) use kd-nav-group-item — never treat as children.
+    if (isGroup(el)) return false;
     if (el.classList && el.classList.contains("lg-nav-injected")) return true;
     if (el.tagName === "KD-PINNER-NAV") return true;
-    if (el.tagName === "KD-NAV-ITEM") return !isGroup(el);
+    if (el.tagName === "KD-NAV-ITEM") return true;
     return false;
   }
 
@@ -214,6 +216,13 @@
     var addonsActive = onAddonsHash();
     var existing = document.getElementById(ADDONS_ID);
     if (existing && existing.parentElement === root) {
+      // Match Settings / About / CRD: top-level group geometry (not child indent).
+      existing.classList.add("kd-nav-group-item");
+      existing.classList.remove("lg-nav-toggleable", "lg-nav-open", "lg-nav-collapsed");
+      existing.removeAttribute("data-lg-accordion");
+      existing.removeAttribute("aria-expanded");
+      var orphanChevron = existing.querySelector(".lg-nav-chevron");
+      if (orphanChevron) orphanChevron.remove();
       var link = existing.querySelector("a.kd-nav-item-button");
       if (link) {
         link.href = addonsHref();
@@ -229,7 +238,8 @@
 
     var item = document.createElement("kd-nav-item");
     item.id = ADDONS_ID;
-    item.className = "kd-nav-item lg-nav-injected";
+    // Same host classes as Settings/About so padding/height/weight match top-level rows.
+    item.className = "kd-nav-item kd-nav-group-item lg-nav-injected";
     item.setAttribute("data-lg-addons", "1");
 
     var a = document.createElement("a");
