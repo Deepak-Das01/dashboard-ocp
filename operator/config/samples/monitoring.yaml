@@ -1,0 +1,12 @@
+# Prefer deploying from the console Addons form.
+apiVersion: dashboard.ocp/v1alpha1
+kind: Monitoring
+metadata:
+  name: kubeops-monitoring
+spec:
+  namespace: kubeops-monitoring
+  storageClassName: kubeops-nfs-storage
+  retention: 15d
+  grafanaAdminUser: admin
+  # grafanaAdminPassword: leave empty to auto-generate into Secret grafana-admin
+  enableAlertmanager: true

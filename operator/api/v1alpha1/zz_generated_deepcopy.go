@@ -319,3 +319,84 @@ func (in *VirtualizationSpec) DeepCopy() *VirtualizationSpec {
 	in.DeepCopyInto(out)
 	return out
 }
+
+// Monitoring
+func (in *Monitoring) DeepCopyInto(out *Monitoring) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+func (in *Monitoring) DeepCopy() *Monitoring {
+	if in == nil {
+		return nil
+	}
+	out := new(Monitoring)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *Monitoring) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *MonitoringList) DeepCopyInto(out *MonitoringList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]Monitoring, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+func (in *MonitoringList) DeepCopy() *MonitoringList {
+	if in == nil {
+		return nil
+	}
+	out := new(MonitoringList)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *MonitoringList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *MonitoringSpec) DeepCopyInto(out *MonitoringSpec) {
+	*out = *in
+	if in.EnableAlertmanager != nil {
+		v := *in.EnableAlertmanager
+		out.EnableAlertmanager = &v
+	}
+}
+func (in *MonitoringSpec) DeepCopy() *MonitoringSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(MonitoringSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *MonitoringStatus) DeepCopyInto(out *MonitoringStatus) {
+	*out = *in
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		for i := range in.Conditions {
+			in.Conditions[i].DeepCopyInto(&out.Conditions[i])
+		}
+	}
+}
+func (in *MonitoringStatus) DeepCopy() *MonitoringStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(MonitoringStatus)
+	in.DeepCopyInto(out)
+	return out
+}

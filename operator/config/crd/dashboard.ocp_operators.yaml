@@ -48,7 +48,7 @@ spec:
               properties:
                 component:
                   type: string
-                  enum: [console, oidc, nfs, virtualization]
+                  enum: [console, oidc, nfs, virtualization, monitoring]
                 version:
                   type: string
             status:

@@ -20,6 +20,8 @@
   var loadedOnce = false;
   var leaveGuardTimer = null;
   var leaveGuardUntil = 0;
+  var pinTimer = null;
+  var pinUntil = 0;
 
   function isExactWorkloadsPath(hash) {
     return /^#\/workloads(?:\?|$)/i.test(hash || "");
@@ -322,6 +324,58 @@
     bar.innerHTML = '<span class="kd-current-breadcrumb">Virtualization</span>';
   }
 
+
+  function clearPin() {
+    pinUntil = 0;
+    if (pinTimer) {
+      clearInterval(pinTimer);
+      pinTimer = null;
+    }
+  }
+
+  function armPin() {
+    pinUntil = Date.now() + 3500;
+    if (pinTimer) clearInterval(pinTimer);
+    pinTimer = setInterval(function () {
+      if (Date.now() > pinUntil) {
+        clearPin();
+        return;
+      }
+      var h = location.hash || "";
+      if (!isExactWorkloadsPath(h)) return;
+      if (!hasVirtView(h)) {
+        var next = virtHref();
+        if (h !== next) {
+          location.replace(location.pathname + location.search + next);
+        }
+      }
+      if (!document.getElementById(VIEW_ID) || !document.documentElement.classList.contains("lg-virt-route")) {
+        show();
+      }
+    }, 40);
+  }
+
+  /** One-click entry: set hash, show overlay immediately, pin against Angular stripping view=. */
+  function enter() {
+    clearLeaveGuard();
+    try {
+      if (typeof window.__lgHideMon === "function") window.__lgHideMon();
+    } catch (e) {
+      /* ignore */
+    }
+    var next = virtHref();
+    if (location.hash !== next) {
+      location.hash = next;
+    }
+    armPin();
+    show();
+    try {
+      window.dispatchEvent(new Event("hashchange"));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   function syncNavActive() {
     var active = onVirtRoute();
     var link = document.querySelector("#nav-virtualization a.kd-nav-item-button");
@@ -363,6 +417,7 @@
 
   function hide() {
     loadedOnce = false;
+    clearPin();
     clearLeaveGuard();
     var hosts = document.querySelectorAll(
       ".kd-scroll-container.lg-virt-active, .mat-drawer-content.lg-virt-active, .lg-virt-active"
@@ -417,6 +472,18 @@
 
   function sync() {
     if (healStickyVirtParam()) return;
+    // While pinning after a nav click, keep overlay up even if Angular briefly strips view=.
+    if (Date.now() < pinUntil && isExactWorkloadsPath(location.hash || "")) {
+      if (!hasVirtView(location.hash || "")) {
+        var pinned = virtHref();
+        if (location.hash !== pinned) {
+          location.replace(location.pathname + location.search + pinned);
+        }
+      }
+      clearLeaveGuard();
+      show();
+      return;
+    }
     // Leave-guard: Angular reattached view=virtualization on workloads — strip.
     if (leaveGuardUntil > Date.now() && onVirtRoute()) {
       var cleaned = stripVirtParam(location.hash || "") || workloadsHrefPlain();
@@ -457,8 +524,16 @@
         var a = evt.target && evt.target.closest && evt.target.closest("a");
         if (!a) return;
 
-        // Entering Virtualization from our tile — let nav-accordion handle it.
+        // Own tile: enter immediately (capture) so one click always works.
         if (a.closest && a.closest("#nav-virtualization")) {
+          evt.preventDefault();
+          evt.stopPropagation();
+          if (typeof evt.stopImmediatePropagation === "function") evt.stopImmediatePropagation();
+          enter();
+          return;
+        }
+        // Sibling overlay tile — do not intercept.
+        if (a.closest && a.closest("#nav-monitoring")) {
           clearLeaveGuard();
           return;
         }
@@ -516,6 +591,8 @@
     // Expose href helper for nav-accordion (optional).
     try {
       window.__lgVirtHref = virtHref;
+      window.__lgEnterVirt = enter;
+      window.__lgHideVirt = hide;
     } catch (e) {
       /* ignore */
     }

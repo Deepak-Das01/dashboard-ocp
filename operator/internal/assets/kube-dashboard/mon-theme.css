@@ -1,0 +1,701 @@
+/* ============================================================
+   Grafana embed theme — kube-dashboard palette, readable graphs.
+   Glass is dialed down vs the console: opaque tiles so charts
+   stay high-contrast and easy to follow.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+:root {
+  --mon-text-primary: #F0F5FC;
+  --mon-text-secondary: #BCCBDD;
+  --mon-text-muted: #9BAFC5;
+  --mon-link: #8DC4FF;
+  --mon-accent: #3f9cff;
+  --mon-accent-soft: rgba(63, 156, 255, 0.22);
+  --mon-success: #43D6A0;
+  --mon-warning: #FCD34D;
+  --mon-error: #FCA5A5;
+  --mon-info: #93C5FD;
+
+  /* Opaque surfaces — same hue family as console, no frost */
+  --mon-canvas: #070b12;
+  --mon-surface: #0e1624;
+  --mon-surface-elevated: #141e2e;
+  --mon-surface-hover: #1a2638;
+  --mon-surface-input: #0a1220;
+  --mon-border: rgba(180, 205, 235, 0.22);
+  --mon-border-soft: rgba(180, 205, 235, 0.12);
+  --mon-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --mon-sidebar: #0b1220;
+  --mon-toolbar: #0f1828;
+  --mon-radius: 10px;
+  --mon-radius-sm: 6px;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html,
+body,
+body.theme-dark,
+body.app-grafana {
+  height: 100% !important;
+  min-height: 100% !important;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  color: var(--mon-text-primary) !important;
+  /* Soft ambient only — no heavy wash behind charts */
+  background-color: var(--mon-canvas) !important;
+  background-image:
+    radial-gradient(ellipse 900px 520px at 6% -8%, rgba(56, 120, 220, 0.22), transparent 60%),
+    radial-gradient(ellipse 700px 480px at 96% 8%, rgba(45, 140, 130, 0.12), transparent 55%),
+    linear-gradient(165deg, #06090f 0%, #0a1018 50%, #070b12 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* ---------- App shell ---------- */
+.main-view,
+.page-wrapper,
+#reactRoot,
+.grafana-app,
+[class*="grafana-app"],
+[class*="main-view"] {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: var(--mon-text-primary) !important;
+}
+
+/* ---------- Mega menu / sidebar ---------- */
+[data-testid="data-testid navigation mega-menu"],
+[class*="megamenu"],
+nav[aria-label="Navigation"],
+aside[aria-label="Navigation"],
+[class*="sidemenu"] {
+  background: var(--mon-sidebar) !important;
+  border-right: 1px solid var(--mon-border-soft) !important;
+  color: var(--mon-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+[data-testid="data-testid navigation mega-menu"] a,
+nav[aria-label="Navigation"] a,
+aside[aria-label="Navigation"] a {
+  color: var(--mon-text-secondary) !important;
+  border-radius: var(--mon-radius-sm) !important;
+}
+
+[data-testid="data-testid navigation mega-menu"] a:hover,
+nav[aria-label="Navigation"] a:hover,
+aside[aria-label="Navigation"] a:hover {
+  background: var(--mon-surface-hover) !important;
+  color: var(--mon-text-primary) !important;
+}
+
+/* ---------- Top chrome / Nav toolbar (mega-menu dock) ---------- */
+[data-testid="data-testid Nav toolbar"],
+[data-testid="data-testid Dashboard header"],
+header[role="banner"] {
+  background: linear-gradient(
+    105deg,
+    rgba(40, 92, 180, 0.28) 0%,
+    #0f1828 42%,
+    rgba(28, 110, 108, 0.18) 100%
+  ) !important;
+  background-color: var(--mon-toolbar) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: 1px solid var(--mon-border) !important;
+  color: var(--mon-text-primary) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 14px rgba(0, 0, 0, 0.22) !important;
+}
+
+[data-testid="data-testid Nav toolbar"] button,
+[data-testid="data-testid Nav toolbar"] a,
+[data-testid="data-testid Nav toolbar"] svg {
+  color: var(--mon-text-secondary) !important;
+  fill: currentColor !important;
+}
+
+[data-testid="data-testid Nav toolbar"] button:hover,
+[data-testid="data-testid Nav toolbar"] a:hover {
+  color: var(--mon-text-primary) !important;
+  background: var(--mon-accent-soft) !important;
+}
+
+[data-testid="data-testid Nav toolbar"] a[href*="home"] img,
+[data-testid="data-testid Nav toolbar"] img[alt*="Grafana"],
+[data-testid="data-testid Nav toolbar"] [class*="logo"] {
+  filter: hue-rotate(190deg) saturate(0.85) brightness(1.15) !important;
+}
+
+[data-testid="data-testid Nav toolbar"] input,
+[data-testid="data-testid Nav toolbar"] [role="search"],
+[placeholder*="Search"],
+[placeholder*="Jump"],
+[placeholder*="jump"] {
+  background: var(--mon-surface-input) !important;
+  border: 1px solid var(--mon-border) !important;
+  color: var(--mon-text-primary) !important;
+  border-radius: 999px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+[placeholder*="Search"]::placeholder,
+[placeholder*="Jump"]::placeholder,
+[placeholder*="jump"]::placeholder {
+  color: var(--mon-text-muted) !important;
+}
+
+[data-testid="data-testid Nav toolbar"] kbd,
+[data-testid="data-testid Nav toolbar"] [class*="kbd"],
+[data-testid="data-testid Nav toolbar"] [class*="shortcut"] {
+  background: rgba(63, 156, 255, 0.16) !important;
+  border: 1px solid var(--mon-border-soft) !important;
+  color: var(--mon-text-secondary) !important;
+  border-radius: 6px !important;
+}
+
+/* ---------- Dashboard PageToolbar ribbon (breadcrumbs + actions) ----------
+   This is a different component from Nav toolbar — stock Grafana styles
+   win unless we target .page-toolbar and its action testids directly. */
+.page-toolbar,
+[class*="page-toolbar"],
+[class*="PageToolbar"] {
+  background: linear-gradient(
+    105deg,
+    rgba(40, 92, 180, 0.20) 0%,
+    #0c1422 45%,
+    rgba(28, 110, 108, 0.14) 100%
+  ) !important;
+  background-color: #0c1422 !important;
+  border-bottom: 1px solid var(--mon-border-soft) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  color: var(--mon-text-primary) !important;
+  min-height: 48px !important;
+  padding: 0 12px !important;
+  gap: 8px !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Breadcrumbs */
+.page-toolbar nav[aria-label="Breadcrumbs"],
+nav[aria-label="Breadcrumbs"],
+.page-toolbar ol,
+.page-toolbar [class*="breadcrumb"] {
+  color: var(--mon-text-muted) !important;
+  background: transparent !important;
+}
+
+.page-toolbar nav[aria-label="Breadcrumbs"] a,
+.page-toolbar [class*="breadcrumb"] a,
+.page-toolbar a[data-testid$="breadcrumb"],
+[data-testid$="breadcrumb"] {
+  color: var(--mon-text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 450 !important;
+  text-decoration: none !important;
+  background: transparent !important;
+}
+
+.page-toolbar nav[aria-label="Breadcrumbs"] a:hover,
+.page-toolbar [class*="breadcrumb"] a:hover,
+[data-testid$="breadcrumb"]:hover {
+  color: var(--mon-link) !important;
+}
+
+/* Current / last crumb */
+.page-toolbar nav[aria-label="Breadcrumbs"] [aria-current="page"],
+.page-toolbar span[data-testid$="breadcrumb"] {
+  color: var(--mon-text-primary) !important;
+  font-weight: 600 !important;
+}
+
+.page-toolbar [class*="breadcrumbSeparator"],
+.page-toolbar nav[aria-label="Breadcrumbs"] li::before {
+  color: rgba(155, 175, 197, 0.45) !important;
+}
+
+/* Action cluster on the right of the ribbon */
+.page-toolbar button,
+.page-toolbar [role="button"],
+.page-toolbar a[class*="css-"] {
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease !important;
+}
+
+/* Secondary / outline actions: Share, All, time, refresh */
+.page-toolbar button[class*="secondary"],
+.page-toolbar button[class*="outline"],
+[data-testid="data-testid Share dashboard"],
+[data-testid="data-testid new share button"],
+[data-testid="data-testid new share link-button"],
+[data-testid="data-testid TimePicker Open Button"],
+[data-testid="data-testid RefreshPicker run button"],
+[data-testid="data-testid RefreshPicker interval button"] {
+  background: rgba(190, 215, 245, 0.07) !important;
+  border: 1px solid rgba(225, 240, 255, 0.16) !important;
+  color: var(--mon-text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.page-toolbar button[class*="secondary"]:hover,
+.page-toolbar button[class*="outline"]:hover,
+[data-testid="data-testid Share dashboard"]:hover,
+[data-testid="data-testid new share button"]:hover,
+[data-testid="data-testid TimePicker Open Button"]:hover,
+[data-testid="data-testid RefreshPicker run button"]:hover,
+[data-testid="data-testid RefreshPicker interval button"]:hover {
+  background: rgba(210, 228, 255, 0.12) !important;
+  border-color: rgba(141, 196, 255, 0.40) !important;
+  color: #fff !important;
+}
+
+/* Primary Save — kubeops blue, not stock Grafana blue */
+[data-testid="data-testid Save dashboard button"],
+.page-toolbar button[class*="primary"] {
+  background: linear-gradient(145deg, #3a7fd6 0%, #2a62b8 100%) !important;
+  border: 1px solid rgba(141, 196, 255, 0.45) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 2px 8px rgba(40, 100, 180, 0.28) !important;
+}
+
+[data-testid="data-testid Save dashboard button"]:hover,
+.page-toolbar button[class*="primary"]:hover {
+  background: linear-gradient(145deg, #4a8ee0 0%, #3470c4 100%) !important;
+  border-color: rgba(181, 219, 255, 0.55) !important;
+}
+
+/* Icons inside ribbon actions */
+.page-toolbar button svg,
+[data-testid="data-testid TimePicker Open Button"] svg,
+[data-testid="data-testid RefreshPicker run button"] svg,
+[data-testid="data-testid Share dashboard"] svg,
+[data-testid="data-testid new share button"] svg {
+  color: inherit !important;
+  fill: currentColor !important;
+  opacity: 0.9 !important;
+}
+
+/* Time range label text */
+[data-testid="data-testid TimePicker Open Button"] {
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* Refresh interval chip (30s) */
+[data-testid="data-testid RefreshPicker interval button"] {
+  min-width: 2.4rem !important;
+  font-variant-numeric: tabular-nums !important;
+  color: var(--mon-link) !important;
+}
+
+/* ---------- Dashboard variables / SubMenu (namespace, node, …) ----------
+   Quiet inline filters — match console chip restraint, not chunky pills. */
+[data-testid="data-testid SubMenu container"],
+[data-testid="SubMenu container"],
+.submenu-controls,
+[class*="submenu"],
+[class*="SubMenu"] {
+  background: transparent !important;
+  border-bottom: 1px solid var(--mon-border-soft) !important;
+  color: var(--mon-text-primary) !important;
+  padding: 10px 12px 8px !important;
+  gap: 10px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+}
+
+/* Each variable as one compact field: label + value share one outline */
+[data-testid="data-testid SubMenu container"] > div,
+[data-testid="data-testid SubMenu container"] .gf-form,
+.submenu-controls .gf-form,
+[class*="SubMenu"] .gf-form {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  margin: 0 10px 0 0 !important;
+  padding: 0 !important;
+  background: rgba(190, 215, 245, 0.06) !important;
+  border: 1px solid rgba(225, 240, 255, 0.14) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+  overflow: hidden !important;
+  min-height: 28px !important;
+  transition: border-color 160ms ease, background-color 160ms ease !important;
+}
+
+[data-testid="data-testid SubMenu container"] > div:hover,
+[data-testid="data-testid SubMenu container"] .gf-form:hover,
+.submenu-controls .gf-form:hover {
+  background: rgba(210, 228, 255, 0.10) !important;
+  border-color: rgba(141, 196, 255, 0.35) !important;
+}
+
+/* Variable label: "namespace", "node" — quiet prefix inside the field */
+[data-testid="data-testid Dashboard template variables submenu Label"],
+.gf-form-label--variable,
+[data-testid*="template variables submenu Label"] {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid rgba(225, 240, 255, 0.10) !important;
+  border-radius: 0 !important;
+  color: var(--mon-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  padding: 0 10px !important;
+  margin: 0 !important;
+  line-height: 28px !important;
+  box-shadow: none !important;
+}
+
+/* Don't restyle every gf-form-label on the page — only variable ones above */
+.gf-form-label:not(.gf-form-label--variable) {
+  background: transparent !important;
+}
+
+/* Variable value ("All") — text + chevron, no second pill */
+[data-testid="data-testid Dashboard template variables Variable Value DropDown value link text"],
+[data-testid="variable-link-wrapper"],
+[data-testid="data-testid variable-link-wrapper"],
+.variable-link-wrapper,
+.gf-form-label--btn,
+a.variable-value-link,
+[class*="variable-link"] {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--mon-text-primary) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 0 12px 0 10px !important;
+  margin: 0 !important;
+  line-height: 28px !important;
+  min-height: 28px !important;
+}
+
+[data-testid="data-testid Dashboard template variables Variable Value DropDown value link text"]:hover,
+.variable-link-wrapper:hover,
+a.variable-value-link:hover {
+  background: transparent !important;
+  border: none !important;
+  color: #fff !important;
+}
+
+/* Soften chevron */
+[data-testid="data-testid SubMenu container"] svg,
+.variable-link-wrapper svg,
+[class*="variable-link"] svg {
+  width: 12px !important;
+  height: 12px !important;
+  opacity: 0.65 !important;
+  margin-left: 4px !important;
+}
+
+/* Open variable option list */
+[data-testid="data-testid Dashboard template variables Variable Value DropDown option text"],
+[data-testid="variable-option"],
+[data-testid="data-testid variable-option"] {
+  background: var(--mon-surface-elevated) !important;
+  color: var(--mon-text-primary) !important;
+  font-size: 13px !important;
+}
+
+[data-testid="data-testid Dashboard template variables Variable Value DropDown option text"]:hover,
+[data-testid="variable-option"]:hover {
+  background: var(--mon-accent-soft) !important;
+}
+
+/* ---------- Dashboard canvas ---------- */
+.dashboard-scroll,
+.dashboard-container,
+[class*="dashboard-scroll"],
+[class*="DashboardGrid"],
+.react-grid-layout {
+  background: transparent !important;
+}
+
+.dashboard-row,
+.dash-row,
+[data-testid="data-testid dashboard row title"],
+[class*="DashboardRow"] {
+  color: var(--mon-text-primary) !important;
+  background: transparent !important;
+}
+
+/* ---------- Panels: solid tiles (readable graphs) ---------- */
+.panel-container,
+[class*="panel-container"],
+.react-grid-item > .panel-container,
+div[data-viz-panel-key],
+[data-panelid] {
+  background: var(--mon-surface) !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid var(--mon-border-soft) !important;
+  border-radius: var(--mon-radius) !important;
+  box-shadow: var(--mon-shadow) !important;
+  color: var(--mon-text-primary) !important;
+  overflow: hidden;
+}
+
+/* Time-series / graph panels get a slightly denser fill */
+.panel-container:has(canvas),
+.panel-container:has(.graph-panel),
+.panel-container:has([data-testid*="Graph"]),
+[data-panelid]:has(canvas) {
+  background: var(--mon-surface-elevated) !important;
+}
+
+.panel-content,
+[data-testid="data-testid panel content"] {
+  background: transparent !important;
+  color: var(--mon-text-primary) !important;
+}
+
+.panel-title,
+.panel-title-container,
+[class*="PanelHeader"],
+[class*="panel-title"],
+[data-testid="data-testid Panel header title"],
+.panel-title-text {
+  color: var(--mon-text-primary) !important;
+  background: transparent !important;
+  font-weight: 600 !important;
+}
+
+/* Stat / big numbers */
+[class*="grafana-stat"],
+[class*="big-value"],
+[class*="BigValue"],
+.graph-panel,
+.graph-legend {
+  color: var(--mon-text-primary) !important;
+}
+
+/* uPlot / canvas chart area — keep opaque, no blur inheritance */
+.panel-content canvas,
+[data-testid="data-testid panel content"] canvas,
+.graph-panel__chart,
+[class*="u-plot"] {
+  background: transparent !important;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Legend text contrast */
+.graph-legend,
+[class*="VizLegend"],
+[class*="legend"] {
+  color: var(--mon-text-secondary) !important;
+}
+
+/* ---------- Menus / dropdowns / modals ---------- */
+.dropdown-menu,
+[role="menu"],
+[role="listbox"],
+[role="dialog"],
+[data-testid="data-testid Select options menu"],
+.gf-form-select-box__menu,
+[class*="Menu"],
+.modal,
+.modal-body,
+.modal-header {
+  background: var(--mon-surface-elevated) !important;
+  border: 1px solid var(--mon-border) !important;
+  border-radius: var(--mon-radius-sm) !important;
+  color: var(--mon-text-primary) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.dropdown-menu a,
+[role="menuitem"],
+[role="option"] {
+  color: var(--mon-text-secondary) !important;
+}
+
+.dropdown-menu a:hover,
+[role="menuitem"]:hover,
+[role="option"]:hover,
+[role="option"][aria-selected="true"] {
+  background: var(--mon-accent-soft) !important;
+  color: var(--mon-text-primary) !important;
+}
+
+/* ---------- Forms / inputs ---------- */
+input,
+textarea,
+select,
+.gf-form-input,
+.gf-form-select-box__control,
+[class*="input-wrapper"] input,
+[class*="Input"] input {
+  background: var(--mon-surface-input) !important;
+  border: 1px solid var(--mon-border-soft) !important;
+  color: var(--mon-text-primary) !important;
+  border-radius: var(--mon-radius-sm) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--mon-text-muted) !important;
+}
+
+.gf-form-label,
+label {
+  color: var(--mon-text-secondary) !important;
+}
+
+/* ---------- Buttons ---------- */
+button,
+.btn,
+[class*="Button"] {
+  border-radius: var(--mon-radius-sm) !important;
+  color: var(--mon-text-primary);
+}
+
+button[class*="primary"],
+.btn-primary,
+button[data-testid*="Save"] {
+  background: #2a6fd4 !important;
+  border: 1px solid rgba(141, 196, 255, 0.4) !important;
+  color: #fff !important;
+}
+
+a {
+  color: var(--mon-link);
+}
+
+a:hover {
+  color: #b5dbff;
+}
+
+/* ---------- Tables ---------- */
+table,
+.table,
+[role="table"] {
+  color: var(--mon-text-primary) !important;
+  border-color: var(--mon-border-soft) !important;
+  background: transparent !important;
+}
+
+table th,
+[role="columnheader"] {
+  background: var(--mon-surface-input) !important;
+  color: var(--mon-text-secondary) !important;
+  border-color: var(--mon-border) !important;
+}
+
+table td,
+[role="cell"] {
+  border-color: var(--mon-border-soft) !important;
+  color: var(--mon-text-primary) !important;
+}
+
+table tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+table tbody tr:hover {
+  background-color: var(--mon-surface-hover) !important;
+}
+
+/* ---------- Scrollbars ---------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(141, 196, 255, 0.3) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(141, 196, 255, 0.3);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- Status accents ---------- */
+[class*="text-success"],
+.text-success {
+  color: var(--mon-success) !important;
+}
+
+[class*="text-warning"],
+.text-warning {
+  color: var(--mon-warning) !important;
+}
+
+[class*="text-danger"],
+.text-danger,
+[class*="text-error"] {
+  color: var(--mon-error) !important;
+}
+
+[class*="text-info"],
+.text-info {
+  color: var(--mon-info) !important;
+}
+
+/* ---------- Preloader ---------- */
+.preloader {
+  background: var(--mon-canvas) !important;
+}
+
+.preloader__text {
+  color: var(--mon-text-secondary) !important;
+}
+
+/* ============================================================
+   Hide Sign in (console is already OIDC-gated).
+   ============================================================ */
+a[href*="forceLogin"],
+a[href*="forceLogin=true"],
+a[href$="/login"],
+a[href*="/login?"],
+a[href="/kubeops/mon-ui/login"],
+a[href="/kubeops/mon-ui/login/"],
+a[href="/login"],
+button[aria-label="Sign in"],
+button[aria-label="Sign In"],
+[data-testid="data-testid Nav menu item Sign in"],
+[aria-label="Sign in"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+[data-testid="data-testid Alert error"],
+[data-testid="data-testid Alert warning"] {
+  display: none !important;
+}

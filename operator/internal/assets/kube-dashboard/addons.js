@@ -14,12 +14,15 @@
 
   var NFS_API = "/kubeops/api/nfsprovisioners";
   var VIRT_API = "/kubeops/api/virtualizations";
+  var MON_API = "/kubeops/api/monitorings";
   var OPS_API = "/kubeops/api/operators";
   var VIEW_ID = "lg-addons-view";
   var DEFAULT_NS = "kubeops-nfs";
   var DEFAULT_SC = "kubeops-nfs-storage";
   var DEFAULT_RELEASE = "kubeops-nfs-provisioner";
   var DEFAULT_VIRT_RELEASE = "kubeops-virtualization";
+  var DEFAULT_MON_RELEASE = "kubeops-monitoring";
+  var DEFAULT_MON_NS = "kubeops-monitoring";
   var DEFAULT_KV_VERSION = "v1.10.0";
   var DEFAULT_CDI_VERSION = "v1.66.1";
 
@@ -31,11 +34,11 @@
   var loading = false;
   var submitting = false;
   var panel = "catalog"; // catalog | form
-  var formKind = "nfs"; // nfs | virt
+  var formKind = "nfs"; // nfs | virt | mon
   var editingName = "";
   var draft = null; // preserved form values while on the form panel
   var lastStatusKey = "";
-  var catalogCache = { nfs: null, virt: null, nfsOp: false, virtOp: false };
+  var catalogCache = { nfs: null, virt: null, mon: null, nfsOp: false, virtOp: false, monOp: false };
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -175,6 +178,8 @@
   function captureDraft() {
     if (formKind === "virt") {
       if (!document.getElementById("virt-release")) return;
+    } else if (formKind === "mon") {
+      if (!document.getElementById("mon-release")) return;
     } else if (!document.getElementById("nfs-server")) {
       return;
     }
@@ -225,22 +230,32 @@
         formKind = t.getAttribute("data-kind") || "nfs";
         editingName = t.getAttribute("data-name") || "";
         if (action === "install") {
-          draft =
-            formKind === "virt"
-              ? {
-                  kubevirtVersion: DEFAULT_KV_VERSION,
-                  cdiVersion: DEFAULT_CDI_VERSION,
-                  useEmulation: false,
-                  release: DEFAULT_VIRT_RELEASE,
-                }
-              : {
-                  server: "",
-                  path: "",
-                  namespace: DEFAULT_NS,
-                  storageClassName: DEFAULT_SC,
-                  release: DEFAULT_RELEASE,
-                  defaultClass: false,
-                };
+          if (formKind === "virt") {
+            draft = {
+              kubevirtVersion: DEFAULT_KV_VERSION,
+              cdiVersion: DEFAULT_CDI_VERSION,
+              useEmulation: false,
+              release: DEFAULT_VIRT_RELEASE,
+            };
+          } else if (formKind === "mon") {
+            draft = {
+              namespace: DEFAULT_MON_NS,
+              storageClassName: DEFAULT_SC,
+              retention: "15d",
+              grafanaAdminUser: "admin",
+              enableAlertmanager: true,
+              release: DEFAULT_MON_RELEASE,
+            };
+          } else {
+            draft = {
+              server: "",
+              path: "",
+              namespace: DEFAULT_NS,
+              storageClassName: DEFAULT_SC,
+              release: DEFAULT_RELEASE,
+              defaultClass: false,
+            };
+          }
         }
         load(view, true);
       } else if (action === "back") {
@@ -312,7 +327,7 @@
     );
   }
 
-  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp) {
+  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp, monCr, monOp) {
     lastStatusKey = "";
     root.className = "lg-addons-body";
     root.innerHTML =
@@ -330,6 +345,13 @@
         "KubeVirt + CDI + kubevirt-manager UI — install the virtualization stack and open the VM console.",
         virtCr,
         virtOp
+      ) +
+      tileHTML(
+        "mon",
+        "kubeops-monitoring",
+        "Prometheus + Grafana + Alertmanager + exporters — cluster metrics with curated dashboards.",
+        monCr,
+        monOp
       ) +
       "</div>";
   }
@@ -391,6 +413,11 @@
         ? ' <a class="lg-addon-status-link" href="' +
           esc(status.uiURL) +
           '" target="_blank" rel="noopener">Open UI</a>'
+        : "") +
+      (status && status.grafanaURL
+        ? ' <a class="lg-addon-status-link" href="' +
+          esc(status.grafanaURL) +
+          '" target="_blank" rel="noopener">Grafana</a>'
         : "") +
       "</div>"
     );
@@ -458,6 +485,26 @@
         cdiVersion: spec.cdiVersion || DEFAULT_CDI_VERSION,
         useEmulation: !!spec.useEmulation,
         release: release || DEFAULT_VIRT_RELEASE,
+      };
+    }
+    if (formKind === "mon") {
+      if (draft && draft.grafanaAdminUser != null) {
+        return {
+          namespace: draft.namespace || DEFAULT_MON_NS,
+          storageClassName: draft.storageClassName != null ? draft.storageClassName : DEFAULT_SC,
+          retention: draft.retention || "15d",
+          grafanaAdminUser: draft.grafanaAdminUser || "admin",
+          enableAlertmanager: draft.enableAlertmanager !== false,
+          release: draft.release || release || DEFAULT_MON_RELEASE,
+        };
+      }
+      return {
+        namespace: spec.namespace || DEFAULT_MON_NS,
+        storageClassName: spec.storageClassName != null ? spec.storageClassName : DEFAULT_SC,
+        retention: spec.retention || "15d",
+        grafanaAdminUser: spec.grafanaAdminUser || "admin",
+        enableAlertmanager: spec.enableAlertmanager !== false,
+        release: release || DEFAULT_MON_RELEASE,
       };
     }
     if (draft && draft.server != null) {
@@ -533,6 +580,25 @@
         "<span>Use software emulation (no KVM)</span>" +
         "</label>" +
         field("virt-release", "Release name", false, DEFAULT_VIRT_RELEASE, vals.release);
+    } else if (formKind === "mon") {
+      title = "kubeops-monitoring";
+      missingCtrl =
+        "Install kubeops-monitoring-controller (shipped with install-operators.sh) before Deploy.";
+      callout =
+        "Installs Prometheus, Grafana, Alertmanager, kube-state-metrics, and node-exporter. Prefers StorageClass kubeops-nfs-storage; leave blank for ephemeral emptyDir.";
+      releaseId = "mon-release";
+      fields =
+        field("mon-namespace", "Namespace", false, DEFAULT_MON_NS, vals.namespace) +
+        field("mon-sc", "StorageClass name", false, DEFAULT_SC, vals.storageClassName) +
+        field("mon-retention", "Retention", false, "15d", vals.retention) +
+        field("mon-admin", "Grafana admin user", false, "admin", vals.grafanaAdminUser) +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="mon-alertmanager" name="mon-alertmanager"' +
+        (vals.enableAlertmanager ? " checked" : "") +
+        " />" +
+        "<span>Enable Alertmanager</span>" +
+        "</label>" +
+        field("mon-release", "Release name", false, DEFAULT_MON_RELEASE, vals.release);
     } else {
       title = "kubeops-nfs";
       missingCtrl =
@@ -625,7 +691,9 @@
     if (isEdit === hasRedeploy) return;
     captureDraft();
     actions.innerHTML = formActionsHTML(isEdit, opReady);
-    var releaseInput = root.querySelector(formKind === "virt" ? "#virt-release" : "#nfs-release");
+    var releaseInput = root.querySelector(
+      formKind === "virt" ? "#virt-release" : formKind === "mon" ? "#mon-release" : "#nfs-release"
+    );
     if (releaseInput) {
       releaseInput.readOnly = isEdit;
       if (isEdit) releaseInput.setAttribute("aria-readonly", "true");
@@ -667,6 +735,17 @@
         cdiVersion: val("virt-cdi") || DEFAULT_CDI_VERSION,
         useEmulation: !!(emu && emu.checked),
         release: val("virt-release") || DEFAULT_VIRT_RELEASE,
+      };
+    }
+    if (formKind === "mon") {
+      var am = document.getElementById("mon-alertmanager");
+      return {
+        namespace: val("mon-namespace") || DEFAULT_MON_NS,
+        storageClassName: val("mon-sc"),
+        retention: val("mon-retention") || "15d",
+        grafanaAdminUser: val("mon-admin") || "admin",
+        enableAlertmanager: !!(am && am.checked),
+        release: val("mon-release") || DEFAULT_MON_RELEASE,
       };
     }
     var defEl = document.getElementById("nfs-default");
@@ -711,6 +790,13 @@
       }
       return ok;
     }
+    if (formKind === "mon") {
+      req("mon-namespace", vals.namespace, "Namespace");
+      req("mon-release", vals.release, "Release name");
+      dns1123("mon-release", vals.release);
+      dns1123("mon-namespace", vals.namespace);
+      return ok;
+    }
     req("nfs-server", vals.server, "NFS server");
     req("nfs-path", vals.path, "NFS path");
     req("nfs-namespace", vals.namespace, "Namespace");
@@ -751,22 +837,33 @@
     setSubmitting(view, true);
     setFormMsg(view, isPatch ? "Redeploying…" : "Deploying…", false);
 
-    var api = formKind === "virt" ? VIRT_API : NFS_API;
-    var kind = formKind === "virt" ? "Virtualization" : "NFSProvisioner";
-    var spec =
-      formKind === "virt"
-        ? {
-            kubevirtVersion: vals.kubevirtVersion,
-            cdiVersion: vals.cdiVersion,
-            useEmulation: !!vals.useEmulation,
-          }
-        : {
-            server: vals.server,
-            path: vals.path,
-            namespace: vals.namespace,
-            storageClassName: vals.storageClassName,
-            defaultClass: !!vals.defaultClass,
-          };
+    var api = formKind === "virt" ? VIRT_API : formKind === "mon" ? MON_API : NFS_API;
+    var kind =
+      formKind === "virt" ? "Virtualization" : formKind === "mon" ? "Monitoring" : "NFSProvisioner";
+    var spec;
+    if (formKind === "virt") {
+      spec = {
+        kubevirtVersion: vals.kubevirtVersion,
+        cdiVersion: vals.cdiVersion,
+        useEmulation: !!vals.useEmulation,
+      };
+    } else if (formKind === "mon") {
+      spec = {
+        namespace: vals.namespace,
+        storageClassName: vals.storageClassName || "",
+        retention: vals.retention || "15d",
+        grafanaAdminUser: vals.grafanaAdminUser || "admin",
+        enableAlertmanager: !!vals.enableAlertmanager,
+      };
+    } else {
+      spec = {
+        server: vals.server,
+        path: vals.path,
+        namespace: vals.namespace,
+        storageClassName: vals.storageClassName,
+        defaultClass: !!vals.defaultClass,
+      };
+    }
 
     var req;
     if (isPatch) {
@@ -823,11 +920,13 @@
     var label =
       formKind === "virt"
         ? 'Uninstall kubeops-virtualization "' + name + '"? KubeVirt and CDI will be removed (may take several minutes).'
-        : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
+        : formKind === "mon"
+          ? 'Uninstall kubeops-monitoring "' + name + '"? Prometheus/Grafana workloads will be removed.'
+          : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
     if (!window.confirm(label)) return;
     setSubmitting(view, true);
     setFormMsg(view, "Uninstalling…", false);
-    var api = formKind === "virt" ? VIRT_API : NFS_API;
+    var api = formKind === "virt" ? VIRT_API : formKind === "mon" ? MON_API : NFS_API;
     fetchJSON(api + "/" + encodeURIComponent(name), { method: "DELETE" })
       .then(function () {
         panel = "catalog";
@@ -881,6 +980,8 @@
       fetchJSON(OPS_API + "/kubeops-nfs"),
       fetchJSON(VIRT_API),
       fetchJSON(OPS_API + "/kubeops-virtualization"),
+      fetchJSON(MON_API),
+      fetchJSON(OPS_API + "/kubeops-monitoring"),
     ])
       .then(function (pair) {
         if (!onAddonsRoute()) return;
@@ -888,10 +989,14 @@
         var nfsOp = pair[1];
         var virtItems = (pair[2] && pair[2].items) || [];
         var virtOp = pair[3];
+        var monItems = (pair[4] && pair[4].items) || [];
+        var monOp = pair[5];
         var nfsCr = pickCR(nfsItems, formKind === "nfs" ? editingName : null);
         var virtCr = pickCR(virtItems, formKind === "virt" ? editingName : null);
+        var monCr = pickCR(monItems, formKind === "mon" ? editingName : null);
         if (!nfsCr && nfsItems.length) nfsCr = nfsItems[0];
         if (!virtCr && virtItems.length) virtCr = virtItems[0];
+        if (!monCr && monItems.length) monCr = monItems[0];
 
         var nfsOpReady = !!(nfsOp && nfsOp.metadata && nfsOp.metadata.name === "kubeops-nfs");
         var virtOpReady = !!(
@@ -899,11 +1004,23 @@
           virtOp.metadata &&
           virtOp.metadata.name === "kubeops-virtualization"
         );
-        catalogCache = { nfs: nfsCr, virt: virtCr, nfsOp: nfsOpReady, virtOp: virtOpReady };
+        var monOpReady = !!(
+          monOp &&
+          monOp.metadata &&
+          monOp.metadata.name === "kubeops-monitoring"
+        );
+        catalogCache = {
+          nfs: nfsCr,
+          virt: virtCr,
+          mon: monCr,
+          nfsOp: nfsOpReady,
+          virtOp: virtOpReady,
+          monOp: monOpReady,
+        };
 
         if (panel === "form") {
-          var cr = formKind === "virt" ? virtCr : nfsCr;
-          var opReady = formKind === "virt" ? virtOpReady : nfsOpReady;
+          var cr = formKind === "virt" ? virtCr : formKind === "mon" ? monCr : nfsCr;
+          var opReady = formKind === "virt" ? virtOpReady : formKind === "mon" ? monOpReady : nfsOpReady;
           if (cr && cr.metadata && cr.metadata.name) editingName = cr.metadata.name;
           var formAlive = !!root.querySelector("[data-addons-form]");
           if (formAlive && !forceFull) {
@@ -913,10 +1030,12 @@
           }
           schedulePoll(view, cr);
         } else {
-          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady);
+          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady, monCr, monOpReady);
           var pollCr =
+            (monCr && monCr.status && monCr.status.phase === "Progressing" && monCr) ||
             (virtCr && virtCr.status && virtCr.status.phase === "Progressing" && virtCr) ||
             (nfsCr && nfsCr.status && nfsCr.status.phase === "Progressing" && nfsCr) ||
+            monCr ||
             virtCr ||
             nfsCr;
           schedulePoll(view, pollCr);

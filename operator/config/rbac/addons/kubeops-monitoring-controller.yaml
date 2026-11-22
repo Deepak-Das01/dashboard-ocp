@@ -1,0 +1,37 @@
+# Workload namespace for Prometheus + Grafana + Alertmanager + exporters.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubeops-monitoring
+  labels:
+    app.kubernetes.io/name: kubeops-monitoring
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: monitoring
+---
+# Controller lives with other addon controllers (not in the workload ns).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubeops-monitoring-controller
+  namespace: kubeops-addon-controller
+  labels:
+    app.kubernetes.io/name: kubeops-monitoring-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubeops-monitoring-controller
+  labels:
+    app.kubernetes.io/name: kubeops-monitoring-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: kubeops-monitoring-controller
+    namespace: kubeops-addon-controller

@@ -14,3 +14,4 @@
 #
 nfs              nfs              kubeops-nfs              kubeops-nfs-controller              nfs              kubeops-addon-controller
 virtualization   virtualization   kubeops-virtualization   kubeops-virtualization-controller   virtualization   kubeops-addon-controller
+monitoring       monitoring       kubeops-monitoring       kubeops-monitoring-controller       monitoring       kubeops-addon-controller

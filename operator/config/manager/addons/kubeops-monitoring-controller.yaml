@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeops-monitoring-controller
+  namespace: kubeops-addon-controller
+  labels:
+    app.kubernetes.io/name: kubeops-monitoring-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeops-monitoring-controller
+  template:
+    metadata:
+      labels:
+        app: kubeops-monitoring-controller
+        app.kubernetes.io/name: kubeops-monitoring-controller
+        app.kubernetes.io/part-of: kube-dashboard
+        app.kubernetes.io/component: monitoring
+    spec:
+      serviceAccountName: kubeops-monitoring-controller
+      containers:
+        - name: manager
+          image: kubeops-monitoring:1.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-elect=false
+            - --health-probe-bind-address=:18087
+            - --metrics-bind-address=:18086
+          ports:
+            - name: health
+              containerPort: 18087
+            - name: metrics
+              containerPort: 18086
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux

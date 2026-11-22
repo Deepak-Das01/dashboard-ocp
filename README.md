@@ -25,7 +25,10 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
 | Dex NodePort | **32056** |
 | Virtualization UI NodePort | **30444** (kubevirt-manager; also embedded in console) |
-| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs` |
+| Monitoring Grafana NodePort | **30445** (also embedded in console at `/kubeops/mon-ui/`) |
+| Prometheus NodePort | **30446** |
+| Alertmanager NodePort | **30447** |
+| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring` |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
 
 ---
@@ -44,10 +47,11 @@ git checkout main
 
 ```bash
 kubectl get ops
-kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization
+kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization,monitoring
 kubectl get pods -n kubeops-console
 kubectl get pods -n kubeops-authentication
 kubectl get pods -n kubeops-addon-controller
+kubectl get pods -n kubeops-monitoring   # after Addons → Monitoring Deploy
 ```
 
 **Browser:** `https://<node-ip>:30443/` → Dex → sign in as `kubeadmin`
@@ -84,6 +88,7 @@ Core operators use **name = namespace**. Addon controllers share `kubeops-addon-
 | **kubeops-authentication** | `kubeops-authentication` | `oidc` | Operator + Dex IdP + OIDC secrets |
 | **kubeops-nfs-controller** | `kubeops-addon-controller` | `nfs` | `NFSProvisioner` CR → NFS provisioner + StorageClass |
 | **kubeops-virtualization-controller** | `kubeops-addon-controller` | `virtualization` | `Virtualization` CR → KubeVirt + CDI + kubevirt-manager |
+| **kubeops-monitoring-controller** | `kubeops-addon-controller` | `monitoring` | `Monitoring` CR → Prometheus + Grafana + Alertmanager + exporters |
 
 ```text
 kubeops-console/
@@ -98,9 +103,11 @@ kubeops-authentication/
 kubeops-addon-controller/
   kubeops-nfs-controller
   kubeops-virtualization-controller
+  kubeops-monitoring-controller
 
 kubeops-nfs/                 # default NFSProvisioner workload ns
 kubeops-virtualization/      # KubeVirt + CDI + kubevirt-manager UI
+kubeops-monitoring/          # Prometheus + Grafana + Alertmanager (+ exporters)
 ```
 
 ```bash
@@ -110,6 +117,7 @@ kubectl get ops
 # kubeops-authentication       oidc             Ready
 # kubeops-nfs                  nfs              Ready
 # kubeops-virtualization       virtualization   Ready
+# kubeops-monitoring           monitoring       Ready
 ```
 
 Install/uninstall **addon workloads** from the console **Addons** page (creates/deletes CRs). Controllers stay running. Details: [docs/ADDON_CONTROLLERS.md](docs/ADDON_CONTROLLERS.md).
@@ -154,8 +162,9 @@ The Dashboard binary runs as a **sidecar** in the `kube-dashboard` pod. NGINX:
 
 1. Terminates TLS for a convenient NodePort HTTPS endpoint.
 2. Proxies to the Dashboard sidecar on loopback (`127.0.0.1:9090`).
-3. Injects `theme.css`, `nav-accordion.js`, and Operators/Addons/Virtualization scripts into HTML responses.
+3. Injects `theme.css`, `nav-accordion.js`, and Operators/Addons/Virtualization/Monitoring scripts into HTML responses.
 4. Proxies `/kubeops/virt-ui/` to kubevirt-manager and injects `virt-theme.css`.
+5. Proxies `/kubeops/mon-ui/` to Grafana and injects `mon-theme.css` (kubeops palette, readable panels).
 
 ### Why this project exists
 
@@ -169,6 +178,7 @@ Operators often want a clearer, more modern cluster UI while keeping familiar Da
 - The same workload, networking, storage, and RBAC management surfaces provided by Dashboard v2.7.0 (subject to your cluster permissions and services).
 - In-console **Operators** and **Addons** pages for kubeops status and one-click addon install.
 - **Virtualization** sidebar view embedding kubevirt-manager (KubeVirt + CDI) with the same glass theme.
+- **Monitoring** sidebar view embedding Grafana (Prometheus stack) with a matching dark palette and clear charts.
 
 ### What this is not
 
@@ -192,8 +202,9 @@ Screenshots of the live **v1.3.0** Kube Dashboard interface should live under `d
 | `docs/screenshots/namespaces.png` | Namespaces |
 | `docs/screenshots/resource-table.png` | Generic resource table + pagination |
 | `docs/screenshots/operators.png` | In-console Operators status cards |
-| `docs/screenshots/addons.png` | Addons page (NFS + Virtualization tiles) |
+| `docs/screenshots/addons.png` | Addons page (NFS + Virtualization + Monitoring tiles) |
 | `docs/screenshots/virtualization.png` | Embedded kubevirt-manager (glass theme) |
+| `docs/screenshots/monitoring.png` | Embedded Grafana enterprise observability dashboard |
 | `docs/screenshots/settings.png` | Settings |
 | `docs/screenshots/yaml-editor.png` | Create from input / YAML editor |
 | `docs/screenshots/create-form.png` | Create from form |
@@ -232,15 +243,17 @@ Cosmetic improvements delivered by `deploy/kube-dashboard/theme.css`:
 - `prefers-reduced-motion` support
 - Improved Events table text containment (in-cell wrapping; no table layout changes)
 
-### In-console Operators, Addons, and Virtualization
+### In-console Operators, Addons, Virtualization, and Monitoring
 
-Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `virt-theme.css`):
+Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `monitoring.js`, `virt-theme.css`, `mon-theme.css`):
 
-- **Operators** nav item — live status cards for console, authentication, NFS, and virtualization
-- **Addons** page — deploy/uninstall `NFSProvisioner` and `Virtualization` CRs without leaving the console
+- **Operators** nav item — live status cards for console, authentication, NFS, virtualization, and monitoring
+- **Addons** page — deploy/uninstall `NFSProvisioner`, `Virtualization`, and `Monitoring` CRs without leaving the console
 - **Virtualization** nav item (before CRDs) — same-origin iframe of kubevirt-manager at `/kubeops/virt-ui/`
-- Glass theme overlay for kubevirt-manager matching the dashboard palette (copyright footer hidden in embed)
-- Brand/nav leave-guards so the embed does not nest the main dashboard or stick on leave
+- **Monitoring** nav item — same-origin iframe of Grafana at `/kubeops/mon-ui/` (default home dashboard: Kubernetes enterprise observability)
+- Glass theme overlay for kubevirt-manager; opaque kubeops-palette theme for Grafana so graphs stay readable
+- Console OIDC already gates access — Grafana runs anonymous + auth-proxy in the embed (no Grafana login)
+- Brand/nav leave-guards so embeds do not nest the main dashboard or stick on leave
 
 ### Existing Kubernetes management capabilities
 
@@ -261,7 +274,7 @@ Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by the t
 - Pod logs and terminal access (when permitted)
 - Metrics visualization when the metrics scraper and cluster metrics stack are available
 
-Addon controllers (`NFSProvisioner`, `Virtualization`) are **additional** kubeops APIs beyond upstream Dashboard.
+Addon controllers (`NFSProvisioner`, `Virtualization`, `Monitoring`) are **additional** kubeops APIs beyond upstream Dashboard.
 
 ---
 
@@ -271,7 +284,7 @@ Addon controllers (`NFSProvisioner`, `Virtualization`) are **additional** kubeop
 |-----------|------------|
 | Base application | Kubernetes Dashboard **v2.7.0** (`kubernetesui/dashboard:v2.7.0`) |
 | UI framework | Upstream Angular + Angular Material (bundled in Dashboard image) |
-| Custom theme | CSS (`theme.css`, `virt-theme.css`) |
+| Custom theme | CSS (`theme.css`, `virt-theme.css`, `mon-theme.css`) |
 | Reverse proxy | NGINX **1.27-alpine** (`nginx:1.27-alpine`) |
 | Deployment | kubeops operators (`install-operators.sh`) + classic Kustomize (`deploy/`) |
 | Configuration | ConfigMaps `kube-dashboard-ui`, `kube-dashboard-nginx` |
@@ -281,6 +294,7 @@ Addon controllers (`NFSProvisioner`, `Virtualization`) are **additional** kubeop
 | TLS for console | Secret `kube-dashboard-tls` (self-signed via `scripts/create-tls-secret.sh`) |
 | Virtualization | KubeVirt **1.10.0** + CDI **1.66.1** + kubevirt-manager **1.5.4** |
 | NFS addon | Dynamic NFS provisioner via `NFSProvisioner` CR |
+| Monitoring addon | Prometheus **2.54** + Grafana **11.2** + Alertmanager **0.27** + kube-state-metrics + node-exporter |
 
 ---
 
@@ -314,9 +328,11 @@ Browser
 | `dex` | `kubeops-authentication` | OIDC IdP / login form |
 | `kubeops-nfs-controller` | `kubeops-addon-controller` | Reconciles `NFSProvisioner` |
 | `kubeops-virtualization-controller` | `kubeops-addon-controller` | Reconciles `Virtualization` |
+| `kubeops-monitoring-controller` | `kubeops-addon-controller` | Reconciles `Monitoring` |
 | KubeVirt + CDI + kubevirt-manager | `kubeops-virtualization` | VM stack + UI (NodePort **30444**) |
+| Prometheus + Grafana + Alertmanager | `kubeops-monitoring` | Observability stack (NodePorts **30445–30447**) |
 
-NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager and injects `virt-theme.css` so the Virtualization tab matches the console glass theme.
+NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager (`virt-theme.css`) and `/kubeops/mon-ui/` → Grafana (`mon-theme.css`) so the sidebar embeds match the console palette.
 
 ### Mermaid diagram
 
@@ -326,12 +342,15 @@ flowchart LR
   NGINX -->|login| Dex["Dex :32056"]
   NGINX --> Dash["Dashboard sidecar"]
   NGINX -->|/kubeops/virt-ui/| KVM["kubevirt-manager"]
+  NGINX -->|/kubeops/mon-ui/| Graf["Grafana"]
   Dash --> API["Kubernetes API"]
   OpC["kubeops-console"] -.->|owns| NGINX
   OpA["kubeops-authentication"] -.->|owns| Dex
   OpN["kubeops-nfs-controller"] -.->|NFSProvisioner| NFS["kubeops-nfs"]
   OpV["kubeops-virtualization-controller"] -.->|Virtualization| Virt["kubeops-virtualization"]
+  OpM["kubeops-monitoring-controller"] -.->|Monitoring| Mon["kubeops-monitoring"]
   Virt --> KVM
+  Mon --> Graf
 ```
 
 ---
@@ -468,6 +487,8 @@ Committed defaults in `deploy/kube-dashboard/service.yaml`:
 
 Virtualization UI (when installed): kubevirt-manager Service NodePort **30444**, also embedded at `https://<NODE_IP>:30443/` → **Virtualization** sidebar (proxied `/kubeops/virt-ui/`).
 
+Monitoring (when installed): Grafana **30445**, Prometheus **30446**, Alertmanager **30447**. Grafana is also embedded at `https://<NODE_IP>:30443/` → **Monitoring** sidebar (proxied `/kubeops/mon-ui/`).
+
 Discover values and a node address:
 
 ```bash
@@ -548,15 +569,16 @@ Never commit, paste into issues, or publish real tokens.
 ```bash
 kubectl get ops
 kubectl get kubedashboard,clusteroidc
-kubectl get nfsprovisioner,virtualization
+kubectl get nfsprovisioner,virtualization,monitoring
 kubectl get pods -n kubeops-console
 kubectl get pods -n kubeops-authentication
 kubectl get pods -n kubeops-addon-controller
 kubectl get pods -n kubeops-virtualization   # after Addons → Virtualization Deploy
+kubectl get pods -n kubeops-monitoring       # after Addons → Monitoring Deploy
 kubectl -n kubeops-console rollout status deploy/kube-dashboard
 ```
 
-Expected: Operators `Ready`, console HTTPS on **30443**, virt UI NodePort **30444** when Virtualization is installed.
+Expected: Operators `Ready`, console HTTPS on **30443**, virt UI NodePort **30444** when Virtualization is installed, Grafana **30445** / Prometheus **30446** when Monitoring is installed.
 
 ### Classic path
 
@@ -685,7 +707,8 @@ This repository does **not** ship a Helm chart or invented values files.
 | Theme missing | Confirm HTML includes `/theme.css`; `curl -skI` the stylesheet |
 | Old CSS after update | Rollout restart kube-dashboard Deployment; hard-refresh browser |
 | Virtualization blank / nested UI | Confirm `/kubeops/virt-ui/` proxy + `virt-theme.css`; hard-refresh `?nocache=` |
-| Addons tile stuck Progressing | `kubectl get virtualization,nfsprovisioner -o yaml`; check addon-controller logs |
+| Addons tile stuck Progressing | `kubectl get virtualization,nfsprovisioner,monitoring -o yaml`; check addon-controller logs |
+| Monitoring panels empty | `kubectl -n kubeops-monitoring get pods`; Prometheus targets `http://<node>:30446/targets`; prefer NFS StorageClass for PVC mode |
 | NGINX proxy errors | `logs deploy/kube-dashboard`; confirm upstream Service `kubernetes-dashboard` |
 | Metrics empty / charts waiting | `kubectl top nodes`; metrics-server + scraper logs; wait ~2–5 min for samples |
 | Overlay/dropdown styling | Hard-refresh; confirm served CSS matches repo file |
@@ -740,13 +763,23 @@ Do not use `git reset --hard` on shared `main` or force-push as a rollback proce
 
 ### Operator path
 
+Delete addon workloads first (while controllers are still running) so finalizers can GC:
+
 ```bash
+kubectl delete monitoring,nfsprovisioner,virtualization --all --all-namespaces
 kubectl delete kubedashboard --all
 kubectl delete clusteroidc --all
 kubectl delete operators --all
-kubectl delete ns kubeops-console kubeops-authentication
-kubectl delete crd kubedashboards.dashboard.ocp clusteroidcs.dashboard.ocp operators.dashboard.ocp
-kubectl delete clusterrolebinding kubeops-console kubeops-authentication dashboard-admin oidc-kubeadmin --ignore-not-found
+kubectl delete ns \
+  kubeops-console kubeops-authentication kubeops-addon-controller \
+  kubeops-nfs kubeops-virtualization kubeops-monitoring
+kubectl delete crd \
+  kubedashboards.dashboard.ocp clusteroidcs.dashboard.ocp operators.dashboard.ocp \
+  nfsprovisioners.dashboard.ocp virtualizations.dashboard.ocp monitorings.dashboard.ocp
+kubectl delete clusterrolebinding \
+  kubeops-console kubeops-authentication \
+  kubeops-nfs-controller kubeops-virtualization-controller kubeops-monitoring-controller \
+  dashboard-admin oidc-kubeadmin --ignore-not-found
 ```
 
 ### Classic path
@@ -778,15 +811,15 @@ dashboard-ocp/
 ├── CHANGELOG.md
 ├── VERSION / RELEASE
 ├── operator/                         # kubeops operators + addon controllers
-│   ├── cmd/console|oidc|nfs|virtualization/
+│   ├── cmd/console|oidc|nfs|virtualization|monitoring/
 │   ├── config/
 │   │   ├── addons/controllers.list   # addon registry for install-operators.sh
 │   │   ├── crd|rbac|manager|samples/
-│   │   └── manager|rbac/addons/      # NFS + virtualization controller manifests
+│   │   └── manager|rbac/addons/      # NFS + virtualization + monitoring controllers
 │   └── internal/
-│       ├── assets/kube-dashboard/    # theme.css, virt-theme.css, *.js
+│       ├── assets/kube-dashboard/    # theme.css, virt-theme.css, mon-theme.css, *.js
 │       ├── controller/               # console reconciler + nginx templates
-│       ├── oidc/ nfs/ virtualization/
+│       ├── oidc/ nfs/ virtualization/ monitoring/
 ├── deploy/                           # classic kustomize packaging (install.sh)
 ├── scripts/
 │   ├── install-operators.sh          # recommended (kubeops + OIDC + addons)
@@ -830,6 +863,7 @@ dashboard-ocp/
 - Shared **kubeops-addon-controller** namespace + Addons page
 - **NFSProvisioner** addon (`kubeops-nfs-controller`)
 - **Virtualization** addon (KubeVirt + CDI + kubevirt-manager embed + glass theme)
+- **Monitoring** addon (Prometheus + Grafana + Alertmanager embed + kubeops palette theme)
 
 ### Possible future work (not implemented)
 
@@ -838,6 +872,7 @@ dashboard-ocp/
 - Improved responsive layouts
 - Broader accessibility testing
 - Security / dependency modernization of the base stack
+- Loki / Tempo / Thanos for the monitoring stack
 
 No delivery dates are promised.
 
@@ -852,7 +887,7 @@ No delivery dates are promised.
 
 Stable single-pod **kube-dashboard** console (NGINX + Dashboard sidecar), themed UI, metrics-server packaging, and offline image helpers. No separate upstream dashboard or glass proxy Deployment.
 
-**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, and Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager with matching glass theme).
+**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager), and Monitoring stack (Prometheus/Grafana/Alertmanager + embedded Grafana with kubeops palette).
 
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 
@@ -863,7 +898,7 @@ Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 1. Fork the repository.
 2. Create a feature branch from `main` or a release tag.
 3. Prefer small, reviewable cosmetic or packaging changes.
-4. For CSS work, edit `operator/internal/assets/kube-dashboard/theme.css` (and `virt-theme.css` for the virt embed), rebuild/pack `kubeops-console`, and hard-refresh the browser.
+4. For CSS work, edit `operator/internal/assets/kube-dashboard/theme.css` (plus `virt-theme.css` / `mon-theme.css` for embeds), rebuild/pack `kubeops-console`, and hard-refresh the browser.
 5. Open a pull request with a clear summary and test notes.
 6. File bugs with: Kubernetes version, kube-dashboard version, browser, steps to reproduce, and redacted screenshots.
 

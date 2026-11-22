@@ -16,6 +16,10 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 | Virtualization UI | kubevirt-manager (NodePort **30444**) | `kubeops-virtualization` |
 | Virtualization workload | KubeVirt + CDI | `kubeops-virtualization` |
 | Operator status row | `kubeops-virtualization` (`component: virtualization`) | cluster-scoped |
+| Monitoring controller | `kubeops-monitoring-controller` | `kubeops-addon-controller` |
+| Monitoring UI | Grafana (NodePort **30445**; embed `/kubeops/mon-ui/`) | `kubeops-monitoring` |
+| Monitoring workload | Prometheus + Alertmanager + Grafana + exporters | `kubeops-monitoring` |
+| Operator status row | `kubeops-monitoring` (`component: monitoring`) | cluster-scoped |
 
 ## Registry (source of truth for install)
 
@@ -25,6 +29,7 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 # addon_id         go_cmd_pkg        image_name               deploy_name                         component         namespace
 nfs                nfs               kubeops-nfs              kubeops-nfs-controller               nfs               kubeops-addon-controller
 virtualization     virtualization    kubeops-virtualization   kubeops-virtualization-controller    virtualization    kubeops-addon-controller
+monitoring         monitoring        kubeops-monitoring       kubeops-monitoring-controller        monitoring        kubeops-addon-controller
 ```
 
 `install-operators.sh` loops this file to **build, pack, apply, set-image, and
@@ -43,10 +48,21 @@ wait** for every addon controller. Individual addons are not special-cased.
 ## Lifecycle
 
 1. Install script deploys CRDs + every registered `*-controller`.
-2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`, `Virtualization`).
+2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`, `Virtualization`, `Monitoring`).
 3. Controller creates workload objects (Deployment, StorageClass, KubeVirt/CDI, …).
 4. Uninstall deletes the CR → controller GC.
 5. Controller pod stays running for the next Deploy.
+
+## kubeops-monitoring notes
+
+- Controller runs in **`kubeops-addon-controller`**. Workloads live in
+  **`kubeops-monitoring`** (CR `spec.namespace`). Uninstall GCs owned
+  Deployments/Services/PVCs/ConfigMaps; it does **not** delete the Namespace.
+- Stack: Prometheus (**30446**), Grafana (**30445**), Alertmanager (**30447**),
+  kube-state-metrics, node-exporter. Prefers StorageClass `kubeops-nfs-storage`;
+  otherwise emptyDir with an ephemeral warning in status.
+- Console embeds Grafana at `/kubeops/mon-ui/` (sidebar **Monitoring**).
+- Phase 2 (out of v1): Loki, Tempo, Thanos, remote_write.
 
 ## kubeops-virtualization notes
 

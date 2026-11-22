@@ -85,6 +85,7 @@
   var OPERATORS_ID = "nav-operators";
   var ADDONS_ID = "nav-addons";
   var VIRT_ID = "nav-virtualization";
+  var MON_ID = "nav-monitoring";
 
   /** Exact Cluster overview only — not clusterrole / clusterrolebinding. */
   function onOperatorsHash() {
@@ -122,6 +123,31 @@
     if (!ns) ns = "default";
     return "#/workloads?namespace=" + encodeURIComponent(ns) + "&view=virtualization";
   }
+
+  /** Monitoring overlay uses workloads path (nav tile sits before CRD, near Virtualization). */
+  function onMonHash() {
+    var h = location.hash || "";
+    return /^#\/workloads(?:\?|$)/i.test(h) && /(?:[?&])view=monitoring(?:&|$)/.test(h);
+  }
+
+  function monHref() {
+    if (typeof window.__lgMonHref === "function") {
+      try {
+        return window.__lgMonHref();
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    var ns = "default";
+    try {
+      var m = (location.hash || "").match(/[?&]namespace=([^&]*)/);
+      if (m && m[1]) ns = decodeURIComponent(m[1]);
+    } catch (e) {
+      /* ignore */
+    }
+    return "#/workloads?namespace=" + encodeURIComponent(ns || "default") + "&view=monitoring";
+  }
+
 
   function findCrdNav(root) {
     return (
@@ -309,6 +335,10 @@
     syncSettingsActive(addonsActive);
   }
 
+  function syncWorkloadsActiveForMon(monActive) {
+    syncWorkloadsActiveForVirt(monActive || onVirtHash());
+  }
+
   function syncWorkloadsActiveForVirt(virtActive) {
     var wlLink = document.querySelector("#nav-workloads > a.kd-nav-item-button");
     if (!wlLink) return;
@@ -339,12 +369,14 @@
         link.href = virtHref();
         link.classList.toggle("kd-nav-item-button-active", virtActive);
       }
-      // Keep position before CRD if Angular reorders.
+      // Keep Virtualization immediately before Monitoring (or CRD).
       var crd = findCrdNav(root);
-      if (crd && existing.nextElementSibling !== crd) {
-        root.insertBefore(existing, crd);
+      var monEl = document.getElementById(MON_ID);
+      var wantBefore = monEl && monEl.parentElement === root ? monEl : crd;
+      if (wantBefore && existing.nextElementSibling !== wantBefore) {
+        root.insertBefore(existing, wantBefore);
       }
-      syncWorkloadsActiveForVirt(virtActive);
+      syncWorkloadsActiveForVirt(virtActive || onMonHash());
       return;
     }
     if (existing) existing.remove();
@@ -370,14 +402,13 @@
       if (typeof evt.stopImmediatePropagation === "function") {
         evt.stopImmediatePropagation();
       }
-      var next = virtHref();
-      if (location.hash !== next) {
-        location.hash = next;
+      if (typeof window.__lgEnterVirt === "function") {
+        window.__lgEnterVirt();
       } else {
-        try {
-          window.dispatchEvent(new Event("hashchange"));
-        } catch (e) {
-          /* ignore */
+        var next = virtHref();
+        if (location.hash !== next) location.hash = next;
+        else {
+          try { window.dispatchEvent(new Event("hashchange")); } catch (e) {}
         }
       }
       syncWorkloadsActiveForVirt(true);
@@ -390,7 +421,89 @@
     item.appendChild(a);
 
     root.insertBefore(item, crd);
-    syncWorkloadsActiveForVirt(virtActive);
+    syncWorkloadsActiveForVirt(virtActive || onMonHash());
+  }
+
+  /** Top-level Monitoring tile immediately before Custom Resource Definitions (after Virtualization). */
+  function ensureMonNav(root) {
+    if (!root) return;
+    var monActive = onMonHash();
+    var existing = document.getElementById(MON_ID);
+    if (existing && existing.parentElement === root) {
+      existing.classList.add("kd-nav-group-item");
+      existing.classList.remove("lg-nav-toggleable", "lg-nav-open", "lg-nav-collapsed");
+      existing.removeAttribute("data-lg-accordion");
+      existing.removeAttribute("aria-expanded");
+      var orphanChevron = existing.querySelector(".lg-nav-chevron");
+      if (orphanChevron) orphanChevron.remove();
+      var link = existing.querySelector("a.kd-nav-item-button");
+      if (link) {
+        link.href = monHref();
+        link.classList.toggle("kd-nav-item-button-active", monActive);
+      }
+      // Keep position before CRD if Angular reorders.
+      var crd = findCrdNav(root);
+      var virtEl = document.getElementById(VIRT_ID);
+      if (virtEl && virtEl.parentElement === root) {
+        if (existing.previousElementSibling !== virtEl) {
+          root.insertBefore(existing, virtEl.nextElementSibling);
+        }
+      } else if (crd && existing.nextElementSibling !== crd) {
+        root.insertBefore(existing, crd);
+      }
+      syncWorkloadsActiveForMon(monActive);
+      return;
+    }
+    if (existing) existing.remove();
+
+    var crd = findCrdNav(root);
+    if (!crd) return;
+
+    var item = document.createElement("kd-nav-item");
+    item.id = MON_ID;
+    item.className = "kd-nav-item kd-nav-group-item lg-nav-injected";
+    item.setAttribute("data-lg-monitoring", "1");
+
+    var a = document.createElement("a");
+    a.className = "kd-nav-item-button mat-button";
+    a.href = monHref();
+    a.setAttribute("aria-label", "Monitoring");
+    if (monActive) {
+      a.classList.add("kd-nav-item-button-active");
+    }
+    a.addEventListener("click", function (evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (typeof evt.stopImmediatePropagation === "function") {
+        evt.stopImmediatePropagation();
+      }
+      if (typeof window.__lgEnterMon === "function") {
+        window.__lgEnterMon();
+      } else {
+        var next = monHref();
+        if (location.hash !== next) location.hash = next;
+        else {
+          try { window.dispatchEvent(new Event("hashchange")); } catch (e) {}
+        }
+      }
+      syncWorkloadsActiveForMon(true);
+    });
+
+    var wrap = document.createElement("span");
+    wrap.className = "mat-button-wrapper";
+    wrap.textContent = "Monitoring";
+    a.appendChild(wrap);
+    item.appendChild(a);
+
+        var virtEl = document.getElementById(VIRT_ID);
+    if (virtEl && virtEl.parentElement === root) {
+      if (virtEl.nextElementSibling !== item) {
+        root.insertBefore(item, virtEl.nextElementSibling);
+      }
+    } else {
+      root.insertBefore(item, crd);
+    }
+    syncWorkloadsActiveForMon(monActive);
   }
 
   function childrenOf(group) {
@@ -638,6 +751,7 @@
       ensureOperatorsNav(roots[i]);
       ensureAddonsNav(roots[i]);
       ensureVirtNav(roots[i]);
+      ensureMonNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
     attachObservers();
