@@ -112,8 +112,12 @@ http {
     }
 
     # Same-origin proxy for kubevirt-manager (embedded Virtualization tab).
+    # Variable + resolver so nginx starts even when Virtualization is not installed.
     location /kubeops/virt-ui/ {
-      proxy_pass http://kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080/;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $virt_ui_upstream kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080;
+      rewrite ^/kubeops/virt-ui/(.*)$ /$1 break;
+      proxy_pass http://$virt_ui_upstream;
       proxy_http_version 1.1;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
@@ -136,7 +140,7 @@ http {
       sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
       sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
       # Match kube-dashboard glass palette inside the embed.
-      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-20"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -181,9 +185,9 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-20"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-19" defer></script><script src="/operators.js?v=addons-embed-19" defer></script><script src="/addons.js?v=addons-embed-19" defer></script><script src="/virtualization.js?v=addons-embed-19" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-20" defer></script><script src="/operators.js?v=addons-embed-20" defer></script><script src="/addons.js?v=addons-embed-20" defer></script><script src="/virtualization.js?v=addons-embed-20" defer></script></body>';
     }
   }
 }
@@ -330,10 +334,14 @@ http {
       return 302 /operators.html;
     }
 
+    # Variable + resolver so nginx starts even when Virtualization is not installed.
     location /kubeops/virt-ui/ {
       auth_request /oauth2/auth;
       error_page 401 = @login;
-      proxy_pass http://kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080/;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $virt_ui_upstream kubevirt-manager.kubeops-virtualization.svc.cluster.local:8080;
+      rewrite ^/kubeops/virt-ui/(.*)$ /$1 break;
+      proxy_pass http://$virt_ui_upstream;
       proxy_http_version 1.1;
       proxy_set_header Host $host;
       proxy_set_header X-Real-IP $remote_addr;
@@ -356,7 +364,7 @@ http {
       sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
       sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
       # Match kube-dashboard glass palette inside the embed.
-      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-20"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -410,9 +418,9 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-20"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-19" defer></script><script src="/operators.js?v=addons-embed-19" defer></script><script src="/addons.js?v=addons-embed-19" defer></script><script src="/virtualization.js?v=addons-embed-19" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-20" defer></script><script src="/operators.js?v=addons-embed-20" defer></script><script src="/addons.js?v=addons-embed-20" defer></script><script src="/virtualization.js?v=addons-embed-20" defer></script></body>';
     }
   }
 }
