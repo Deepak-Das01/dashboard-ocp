@@ -1,0 +1,27 @@
+# Sample RookCeph — replace REPLACE_ME node/device names before apply.
+apiVersion: dashboard.ocp/v1alpha1
+kind: RookCeph
+metadata:
+  name: kubeops-ceph
+spec:
+  namespace: kubeops-ceph-cluster
+  cephImage: quay.io/ceph/ceph:v19.2.3
+  dataDirHostPath: /var/lib/rook
+  mon:
+    count: 1
+    allowMultiplePerNode: true
+  mgr:
+    count: 1
+    allowMultiplePerNode: true
+  nodeLabel:
+    key: ceph
+    value: storage
+  nodes:
+    - name: REPLACE_ME
+      devices:
+        - REPLACE_ME
+  enableDashboard: true
+  enableToolbox: true
+  setBlockDefaultStorageClass: false
+  dashboardNodePort: 30448
+  # poolSize: 0 = auto (3 when ≥3 nodes/devices; uses failureDomain=osd on single-node)

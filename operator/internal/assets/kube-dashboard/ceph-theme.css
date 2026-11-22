@@ -1,0 +1,26 @@
+/* Ceph dashboard embed — light touch so Angular/PatternFly layout stays intact. */
+:root {
+  --ceph-accent: #3f9cff;
+  --ceph-canvas: #0b1220;
+}
+
+html { color-scheme: dark; }
+
+/* Soften only the outer chrome; leave cards/tables to upstream styles. */
+html, body {
+  background: var(--ceph-canvas) !important;
+}
+
+.cd-navbar,
+.cd-navbar-primary,
+.cd-navbar-secondary,
+.pf-c-page__header,
+.pf-v5-c-page__header {
+  background-color: #0e1624 !important;
+  border-color: rgba(180, 205, 235, 0.18) !important;
+}
+
+a.btn-link,
+.cd-navbar a:hover {
+  color: var(--ceph-accent) !important;
+}

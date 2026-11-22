@@ -15,6 +15,8 @@
   var NFS_API = "/kubeops/api/nfsprovisioners";
   var VIRT_API = "/kubeops/api/virtualizations";
   var MON_API = "/kubeops/api/monitorings";
+  var CEPH_API = "/kubeops/api/rookceps";
+  var CEPH_DISKS_API = "/kubeops/api/ceph-disks";
   var OPS_API = "/kubeops/api/operators";
   var VIEW_ID = "lg-addons-view";
   var DEFAULT_NS = "kubeops-nfs";
@@ -23,6 +25,9 @@
   var DEFAULT_VIRT_RELEASE = "kubeops-virtualization";
   var DEFAULT_MON_RELEASE = "kubeops-monitoring";
   var DEFAULT_MON_NS = "kubeops-monitoring";
+  var DEFAULT_CEPH_RELEASE = "kubeops-ceph";
+  var DEFAULT_CEPH_NS = "kubeops-ceph-cluster";
+  var DEFAULT_CEPH_IMAGE = "quay.io/ceph/ceph:v19.2.3";
   var DEFAULT_KV_VERSION = "v1.10.0";
   var DEFAULT_CDI_VERSION = "v1.66.1";
 
@@ -34,11 +39,11 @@
   var loading = false;
   var submitting = false;
   var panel = "catalog"; // catalog | form
-  var formKind = "nfs"; // nfs | virt | mon
+  var formKind = "nfs"; // nfs | virt | mon | ceph
   var editingName = "";
   var draft = null; // preserved form values while on the form panel
   var lastStatusKey = "";
-  var catalogCache = { nfs: null, virt: null, mon: null, nfsOp: false, virtOp: false, monOp: false };
+  var catalogCache = { nfs: null, virt: null, mon: null, ceph: null, nfsOp: false, virtOp: false, monOp: false, cephOp: false };
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -95,7 +100,11 @@
         msg:
           kind === "virt"
             ? "kubeops-virtualization-controller is not installed (ns kubeops-addon-controller)."
-            : "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
+            : kind === "mon"
+              ? "kubeops-monitoring-controller is not installed (ns kubeops-addon-controller)."
+              : kind === "ceph"
+                ? "kubeops-ceph-controller is not installed (ns kubeops-addon-controller)."
+                : "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
       };
     }
     if (!cr) {
@@ -105,7 +114,11 @@
         msg:
           kind === "virt"
             ? "Not installed — click Install to deploy KubeVirt + CDI."
-            : "Not installed — click Install and Deploy with your NFS server details.",
+            : kind === "mon"
+              ? "Not installed — click Install to deploy Prometheus + Grafana."
+              : kind === "ceph"
+                ? "Not installed — click Install to deploy Rook Ceph."
+                : "Not installed — click Install and Deploy with your NFS server details.",
       };
     }
     var phase = String((cr.status && cr.status.phase) || "Progressing");
@@ -180,6 +193,8 @@
       if (!document.getElementById("virt-release")) return;
     } else if (formKind === "mon") {
       if (!document.getElementById("mon-release")) return;
+    } else if (formKind === "ceph") {
+      if (!document.getElementById("ceph-release")) return;
     } else if (!document.getElementById("nfs-server")) {
       return;
     }
@@ -246,6 +261,22 @@
               enableAlertmanager: true,
               release: DEFAULT_MON_RELEASE,
             };
+          } else if (formKind === "ceph") {
+            draft = {
+              namespace: DEFAULT_CEPH_NS,
+              cephImage: DEFAULT_CEPH_IMAGE,
+              dataDirHostPath: "/var/lib/rook",
+              monCount: 1,
+              mgrCount: 1,
+              allowMultiplePerNode: true,
+              poolSize: 0,
+              nodesText: "",
+              enableDashboard: true,
+              enableToolbox: true,
+              setBlockDefaultStorageClass: false,
+              dashboardNodePort: 30448,
+              release: DEFAULT_CEPH_RELEASE,
+            };
           } else {
             draft = {
               server: "",
@@ -271,6 +302,8 @@
         submitForm(view, true);
       } else if (action === "uninstall") {
         uninstall(view);
+      } else if (action === "ceph-discover") {
+        discoverCephDisks(view);
       }
     });
     view.addEventListener("submit", function (evt) {
@@ -327,7 +360,7 @@
     );
   }
 
-  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp, monCr, monOp) {
+  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp, monCr, monOp, cephCr, cephOp) {
     lastStatusKey = "";
     root.className = "lg-addons-body";
     root.innerHTML =
@@ -352,6 +385,13 @@
         "Prometheus + Grafana + Alertmanager + exporters — cluster metrics with curated dashboards.",
         monCr,
         monOp
+      ) +
+      tileHTML(
+        "ceph",
+        "Ceph Cluster",
+        "Rook Ceph — block (RWO) + CephFS (RWX) StorageClasses, toolbox, and dashboard embed.",
+        cephCr,
+        cephOp
       ) +
       "</div>";
   }
@@ -418,6 +458,14 @@
         ? ' <a class="lg-addon-status-link" href="' +
           esc(status.grafanaURL) +
           '" target="_blank" rel="noopener">Grafana</a>'
+        : "") +
+      (status && status.dashboardURL
+        ? ' <a class="lg-addon-status-link" href="' +
+          esc(status.dashboardURL) +
+          '" target="_blank" rel="noopener">Ceph UI</a>'
+        : "") +
+      (status && status.cephHealth
+        ? ' <span class="lg-addon-status-msg">health=' + esc(status.cephHealth) + "</span>"
         : "") +
       "</div>"
     );
@@ -505,6 +553,50 @@
         grafanaAdminUser: spec.grafanaAdminUser || "admin",
         enableAlertmanager: spec.enableAlertmanager !== false,
         release: release || DEFAULT_MON_RELEASE,
+      };
+    }
+    if (formKind === "ceph") {
+      function nodesToText(nodes) {
+        if (!nodes || !nodes.length) return "";
+        return nodes
+          .map(function (n) {
+            return (n.name || "") + "=" + ((n.devices || []).join(",") || "");
+          })
+          .join("\n");
+      }
+      if (draft && draft.namespace != null && draft.cephImage != null) {
+        return {
+          namespace: draft.namespace || DEFAULT_CEPH_NS,
+          cephImage: draft.cephImage || DEFAULT_CEPH_IMAGE,
+          dataDirHostPath: draft.dataDirHostPath || "/var/lib/rook",
+          monCount: draft.monCount != null ? draft.monCount : 1,
+          mgrCount: draft.mgrCount != null ? draft.mgrCount : 1,
+          allowMultiplePerNode: draft.allowMultiplePerNode !== false,
+          poolSize: draft.poolSize != null ? draft.poolSize : 0,
+          nodesText: draft.nodesText || "",
+          enableDashboard: draft.enableDashboard !== false,
+          enableToolbox: draft.enableToolbox !== false,
+          setBlockDefaultStorageClass: !!draft.setBlockDefaultStorageClass,
+          dashboardNodePort: draft.dashboardNodePort || 30448,
+          release: draft.release || release || DEFAULT_CEPH_RELEASE,
+        };
+      }
+      var mon = spec.mon || {};
+      var mgr = spec.mgr || {};
+      return {
+        namespace: spec.namespace || DEFAULT_CEPH_NS,
+        cephImage: spec.cephImage || DEFAULT_CEPH_IMAGE,
+        dataDirHostPath: spec.dataDirHostPath || "/var/lib/rook",
+        monCount: mon.count != null ? mon.count : 1,
+        mgrCount: mgr.count != null ? mgr.count : 1,
+        allowMultiplePerNode: mon.allowMultiplePerNode !== false,
+        poolSize: spec.poolSize != null ? spec.poolSize : 0,
+        nodesText: nodesToText(spec.nodes),
+        enableDashboard: spec.enableDashboard !== false,
+        enableToolbox: spec.enableToolbox !== false,
+        setBlockDefaultStorageClass: !!spec.setBlockDefaultStorageClass,
+        dashboardNodePort: spec.dashboardNodePort || 30448,
+        release: release || DEFAULT_CEPH_RELEASE,
       };
     }
     if (draft && draft.server != null) {
@@ -599,6 +691,56 @@
         "<span>Enable Alertmanager</span>" +
         "</label>" +
         field("mon-release", "Release name", false, DEFAULT_MON_RELEASE, vals.release);
+    } else if (formKind === "ceph") {
+      title = "kubeops-ceph";
+      missingCtrl =
+        "Install kubeops-ceph-controller (shipped with install-operators.sh) before Deploy.";
+      callout =
+        "Deploys Rook + CephCluster with both rook-ceph-block (RWO) and rook-cephfs (RWX). Lab defaults use mon/mgr=1 and pool size auto. Nodes format: one line per node as name=device1,device2. Uninstall requires wipe confirmation.";
+      releaseId = "ceph-release";
+      fields =
+        field("ceph-namespace", "Namespace", false, DEFAULT_CEPH_NS, vals.namespace) +
+        field("ceph-image", "Ceph image", false, DEFAULT_CEPH_IMAGE, vals.cephImage) +
+        field("ceph-hostpath", "dataDirHostPath", false, "/var/lib/rook", vals.dataDirHostPath) +
+        field("ceph-mon", "Mon count", false, "1", String(vals.monCount)) +
+        field("ceph-mgr", "Mgr count", false, "1", String(vals.mgrCount)) +
+        field("ceph-pool", "Pool size (0=auto)", false, "0", String(vals.poolSize)) +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="ceph-multi" name="ceph-multi"' +
+        (vals.allowMultiplePerNode ? " checked" : "") +
+        " />" +
+        "<span>Allow multiple mons/mgrs per node</span>" +
+        "</label>" +
+        '<label class="lg-addon-field" for="ceph-nodes">' +
+        '<span class="lg-addon-label">Nodes and disks <span class="lg-addon-req">*</span></span>' +
+        '<textarea class="lg-addon-input" id="ceph-nodes" name="ceph-nodes" rows="4" placeholder="node-a=sdb,sdc">' +
+        esc(vals.nodesText || "") +
+        "</textarea>" +
+        '<span class="lg-addon-error" id="ceph-nodes-err" hidden></span>' +
+        "</label>" +
+        '<div class="lg-addon-form-actions" style="margin:0 0 12px">' +
+        '<button type="button" class="lg-addon-btn" data-addons-action="ceph-discover">Discover disks</button>' +
+        "</div>" +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="ceph-dashboard" name="ceph-dashboard"' +
+        (vals.enableDashboard ? " checked" : "") +
+        " />" +
+        "<span>Enable Ceph dashboard</span>" +
+        "</label>" +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="ceph-toolbox" name="ceph-toolbox"' +
+        (vals.enableToolbox ? " checked" : "") +
+        " />" +
+        "<span>Enable toolbox</span>" +
+        "</label>" +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="ceph-default-sc" name="ceph-default-sc"' +
+        (vals.setBlockDefaultStorageClass ? " checked" : "") +
+        " />" +
+        "<span>Set rook-ceph-block as default StorageClass</span>" +
+        "</label>" +
+        field("ceph-nodeport", "Dashboard NodePort", false, "30448", String(vals.dashboardNodePort || 30448)) +
+        field("ceph-release", "Release name", false, DEFAULT_CEPH_RELEASE, vals.release);
     } else {
       title = "kubeops-nfs";
       missingCtrl =
@@ -692,7 +834,13 @@
     captureDraft();
     actions.innerHTML = formActionsHTML(isEdit, opReady);
     var releaseInput = root.querySelector(
-      formKind === "virt" ? "#virt-release" : formKind === "mon" ? "#mon-release" : "#nfs-release"
+      formKind === "virt"
+        ? "#virt-release"
+        : formKind === "mon"
+          ? "#mon-release"
+          : formKind === "ceph"
+            ? "#ceph-release"
+            : "#nfs-release"
     );
     if (releaseInput) {
       releaseInput.readOnly = isEdit;
@@ -748,6 +896,28 @@
         release: val("mon-release") || DEFAULT_MON_RELEASE,
       };
     }
+    if (formKind === "ceph") {
+      var multi = document.getElementById("ceph-multi");
+      var dash = document.getElementById("ceph-dashboard");
+      var toolbox = document.getElementById("ceph-toolbox");
+      var defSC = document.getElementById("ceph-default-sc");
+      var nodesEl = document.getElementById("ceph-nodes");
+      return {
+        namespace: val("ceph-namespace") || DEFAULT_CEPH_NS,
+        cephImage: val("ceph-image") || DEFAULT_CEPH_IMAGE,
+        dataDirHostPath: val("ceph-hostpath") || "/var/lib/rook",
+        monCount: parseInt(val("ceph-mon") || "1", 10) || 1,
+        mgrCount: parseInt(val("ceph-mgr") || "1", 10) || 1,
+        allowMultiplePerNode: !!(multi && multi.checked),
+        poolSize: parseInt(val("ceph-pool") || "0", 10) || 0,
+        nodesText: nodesEl && nodesEl.value != null ? String(nodesEl.value) : "",
+        enableDashboard: !!(dash && dash.checked),
+        enableToolbox: !!(toolbox && toolbox.checked),
+        setBlockDefaultStorageClass: !!(defSC && defSC.checked),
+        dashboardNodePort: parseInt(val("ceph-nodeport") || "30448", 10) || 30448,
+        release: val("ceph-release") || DEFAULT_CEPH_RELEASE,
+      };
+    }
     var defEl = document.getElementById("nfs-default");
     return {
       server: val("nfs-server"),
@@ -797,6 +967,18 @@
       dns1123("mon-namespace", vals.namespace);
       return ok;
     }
+    if (formKind === "ceph") {
+      req("ceph-namespace", vals.namespace, "Namespace");
+      req("ceph-release", vals.release, "Release name");
+      req("ceph-nodes", (vals.nodesText || "").trim(), "Nodes and disks");
+      dns1123("ceph-release", vals.release);
+      dns1123("ceph-namespace", vals.namespace);
+      if ((vals.nodesText || "").indexOf("REPLACE_ME") >= 0) {
+        showFieldError("ceph-nodes", "Replace REPLACE_ME with real node/device names");
+        ok = false;
+      }
+      return ok;
+    }
     req("nfs-server", vals.server, "NFS server");
     req("nfs-path", vals.path, "NFS path");
     req("nfs-namespace", vals.namespace, "Namespace");
@@ -821,9 +1003,65 @@
   function setSubmitting(view, on) {
     submitting = !!on;
     var btns = view.querySelectorAll(
-      '[data-addons-action="deploy"], [data-addons-action="redeploy"], [data-addons-action="uninstall"]'
+      '[data-addons-action="deploy"], [data-addons-action="redeploy"], [data-addons-action="uninstall"], [data-addons-action="ceph-discover"]'
     );
     for (var i = 0; i < btns.length; i++) btns[i].disabled = !!on;
+  }
+
+  function parseNodesText(text) {
+    var nodes = [];
+    String(text || "")
+      .split(/\n|;/)
+      .forEach(function (line) {
+        line = String(line || "").trim();
+        if (!line) return;
+        var parts = line.split("=");
+        var name = (parts[0] || "").trim();
+        var devices = (parts[1] || "")
+          .split(",")
+          .map(function (d) {
+            return String(d || "")
+              .trim()
+              .replace(/^\/dev\//, "");
+          })
+          .filter(Boolean);
+        if (name) nodes.push({ name: name, devices: devices });
+      });
+    return nodes;
+  }
+
+  function discoverCephDisks(view) {
+    if (submitting) return;
+    var vals = readForm();
+    draft = vals;
+    setFormMsg(view, "Discovering disks (privileged probe)…", false);
+    setSubmitting(view, true);
+    var ns = encodeURIComponent(vals.namespace || DEFAULT_CEPH_NS);
+    fetchJSON(CEPH_DISKS_API + "?namespace=" + ns)
+      .then(function (data) {
+        var lines = [];
+        ((data && data.nodes) || []).forEach(function (n) {
+          var disks = (n.disks || []).map(function (d) {
+            return d.name;
+          });
+          if (n.error && !disks.length) {
+            lines.push(n.node + "=");
+          } else {
+            lines.push(n.node + "=" + disks.join(","));
+          }
+        });
+        var el = document.getElementById("ceph-nodes");
+        if (el) el.value = lines.join("\n");
+        captureDraft();
+        var msg = lines.length ? "Filled candidate disks — review before Deploy." : "No disks found — enter devices manually.";
+        setFormMsg(view, msg, false);
+      })
+      .catch(function (err) {
+        setFormMsg(view, err && err.message ? err.message : "Disk discovery failed", true);
+      })
+      .then(function () {
+        setSubmitting(view, false);
+      });
   }
 
   function submitForm(view, isPatch) {
@@ -837,9 +1075,22 @@
     setSubmitting(view, true);
     setFormMsg(view, isPatch ? "Redeploying…" : "Deploying…", false);
 
-    var api = formKind === "virt" ? VIRT_API : formKind === "mon" ? MON_API : NFS_API;
+    var api =
+      formKind === "virt"
+        ? VIRT_API
+        : formKind === "mon"
+          ? MON_API
+          : formKind === "ceph"
+            ? CEPH_API
+            : NFS_API;
     var kind =
-      formKind === "virt" ? "Virtualization" : formKind === "mon" ? "Monitoring" : "NFSProvisioner";
+      formKind === "virt"
+        ? "Virtualization"
+        : formKind === "mon"
+          ? "Monitoring"
+          : formKind === "ceph"
+            ? "RookCeph"
+            : "NFSProvisioner";
     var spec;
     if (formKind === "virt") {
       spec = {
@@ -854,6 +1105,21 @@
         retention: vals.retention || "15d",
         grafanaAdminUser: vals.grafanaAdminUser || "admin",
         enableAlertmanager: !!vals.enableAlertmanager,
+      };
+    } else if (formKind === "ceph") {
+      spec = {
+        namespace: vals.namespace,
+        cephImage: vals.cephImage || DEFAULT_CEPH_IMAGE,
+        dataDirHostPath: vals.dataDirHostPath || "/var/lib/rook",
+        mon: { count: vals.monCount || 1, allowMultiplePerNode: !!vals.allowMultiplePerNode },
+        mgr: { count: vals.mgrCount || 1, allowMultiplePerNode: !!vals.allowMultiplePerNode },
+        nodeLabel: { key: "ceph", value: "storage" },
+        nodes: parseNodesText(vals.nodesText),
+        enableDashboard: !!vals.enableDashboard,
+        enableToolbox: !!vals.enableToolbox,
+        setBlockDefaultStorageClass: !!vals.setBlockDefaultStorageClass,
+        dashboardNodePort: vals.dashboardNodePort || 30448,
+        poolSize: vals.poolSize || 0,
       };
     } else {
       spec = {
@@ -922,12 +1188,38 @@
         ? 'Uninstall kubeops-virtualization "' + name + '"? KubeVirt and CDI will be removed (may take several minutes).'
         : formKind === "mon"
           ? 'Uninstall kubeops-monitoring "' + name + '"? Prometheus/Grafana workloads will be removed.'
-          : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
+          : formKind === "ceph"
+            ? 'Uninstall kubeops-ceph "' + name + '"? This WIPEs Rook host path and selected disks. Type confirm next.'
+            : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
     if (!window.confirm(label)) return;
+    var wipePatch = Promise.resolve();
+    if (formKind === "ceph") {
+      var typed = window.prompt('Type "wipe disks" to confirm destructive uninstall:', "");
+      if (String(typed || "").trim().toLowerCase() !== "wipe disks") {
+        setFormMsg(view, "Uninstall cancelled — wipe confirmation required.", true);
+        return;
+      }
+    }
     setSubmitting(view, true);
     setFormMsg(view, "Uninstalling…", false);
-    var api = formKind === "virt" ? VIRT_API : formKind === "mon" ? MON_API : NFS_API;
-    fetchJSON(api + "/" + encodeURIComponent(name), { method: "DELETE" })
+    var api =
+      formKind === "virt"
+        ? VIRT_API
+        : formKind === "mon"
+          ? MON_API
+          : formKind === "ceph"
+            ? CEPH_API
+            : NFS_API;
+    if (formKind === "ceph") {
+      wipePatch = fetchJSON(api + "/" + encodeURIComponent(name), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/merge-patch+json" },
+        body: JSON.stringify({ metadata: { annotations: { "kubeops.io/wipe-disks": "confirmed" } } }),
+      });
+    }
+    wipePatch.then(function () {
+      return fetchJSON(api + "/" + encodeURIComponent(name), { method: "DELETE" });
+    })
       .then(function () {
         panel = "catalog";
         formKind = "nfs";
@@ -982,6 +1274,8 @@
       fetchJSON(OPS_API + "/kubeops-virtualization"),
       fetchJSON(MON_API),
       fetchJSON(OPS_API + "/kubeops-monitoring"),
+      fetchJSON(CEPH_API),
+      fetchJSON(OPS_API + "/kubeops-ceph"),
     ])
       .then(function (pair) {
         if (!onAddonsRoute()) return;
@@ -991,12 +1285,16 @@
         var virtOp = pair[3];
         var monItems = (pair[4] && pair[4].items) || [];
         var monOp = pair[5];
+        var cephItems = (pair[6] && pair[6].items) || [];
+        var cephOp = pair[7];
         var nfsCr = pickCR(nfsItems, formKind === "nfs" ? editingName : null);
         var virtCr = pickCR(virtItems, formKind === "virt" ? editingName : null);
         var monCr = pickCR(monItems, formKind === "mon" ? editingName : null);
+        var cephCr = pickCR(cephItems, formKind === "ceph" ? editingName : null);
         if (!nfsCr && nfsItems.length) nfsCr = nfsItems[0];
         if (!virtCr && virtItems.length) virtCr = virtItems[0];
         if (!monCr && monItems.length) monCr = monItems[0];
+        if (!cephCr && cephItems.length) cephCr = cephItems[0];
 
         var nfsOpReady = !!(nfsOp && nfsOp.metadata && nfsOp.metadata.name === "kubeops-nfs");
         var virtOpReady = !!(
@@ -1009,18 +1307,35 @@
           monOp.metadata &&
           monOp.metadata.name === "kubeops-monitoring"
         );
+        var cephOpReady = !!(cephOp && cephOp.metadata && cephOp.metadata.name === "kubeops-ceph");
         catalogCache = {
           nfs: nfsCr,
           virt: virtCr,
           mon: monCr,
+          ceph: cephCr,
           nfsOp: nfsOpReady,
           virtOp: virtOpReady,
           monOp: monOpReady,
+          cephOp: cephOpReady,
         };
 
         if (panel === "form") {
-          var cr = formKind === "virt" ? virtCr : formKind === "mon" ? monCr : nfsCr;
-          var opReady = formKind === "virt" ? virtOpReady : formKind === "mon" ? monOpReady : nfsOpReady;
+          var cr =
+            formKind === "virt"
+              ? virtCr
+              : formKind === "mon"
+                ? monCr
+                : formKind === "ceph"
+                  ? cephCr
+                  : nfsCr;
+          var opReady =
+            formKind === "virt"
+              ? virtOpReady
+              : formKind === "mon"
+                ? monOpReady
+                : formKind === "ceph"
+                  ? cephOpReady
+                  : nfsOpReady;
           if (cr && cr.metadata && cr.metadata.name) editingName = cr.metadata.name;
           var formAlive = !!root.querySelector("[data-addons-form]");
           if (formAlive && !forceFull) {
@@ -1030,11 +1345,13 @@
           }
           schedulePoll(view, cr);
         } else {
-          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady, monCr, monOpReady);
+          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady, monCr, monOpReady, cephCr, cephOpReady);
           var pollCr =
+            (cephCr && cephCr.status && cephCr.status.phase === "Progressing" && cephCr) ||
             (monCr && monCr.status && monCr.status.phase === "Progressing" && monCr) ||
             (virtCr && virtCr.status && virtCr.status.phase === "Progressing" && virtCr) ||
             (nfsCr && nfsCr.status && nfsCr.status.phase === "Progressing" && nfsCr) ||
+            cephCr ||
             monCr ||
             virtCr ||
             nfsCr;

@@ -400,3 +400,116 @@ func (in *MonitoringStatus) DeepCopy() *MonitoringStatus {
 	in.DeepCopyInto(out)
 	return out
 }
+
+// RookCeph
+func (in *RookCeph) DeepCopyInto(out *RookCeph) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+func (in *RookCeph) DeepCopy() *RookCeph {
+	if in == nil {
+		return nil
+	}
+	out := new(RookCeph)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *RookCeph) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *RookCephList) DeepCopyInto(out *RookCephList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]RookCeph, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+func (in *RookCephList) DeepCopy() *RookCephList {
+	if in == nil {
+		return nil
+	}
+	out := new(RookCephList)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *RookCephList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *RookCephSpec) DeepCopyInto(out *RookCephSpec) {
+	*out = *in
+	out.Mon = in.Mon
+	out.Mgr = in.Mgr
+	out.NodeLabel = in.NodeLabel
+	if in.Nodes != nil {
+		out.Nodes = make([]RookCephNode, len(in.Nodes))
+		for i := range in.Nodes {
+			in.Nodes[i].DeepCopyInto(&out.Nodes[i])
+		}
+	}
+	if in.EnableDashboard != nil {
+		v := *in.EnableDashboard
+		out.EnableDashboard = &v
+	}
+	if in.EnableToolbox != nil {
+		v := *in.EnableToolbox
+		out.EnableToolbox = &v
+	}
+}
+func (in *RookCephSpec) DeepCopy() *RookCephSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(RookCephSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *RookCephNode) DeepCopyInto(out *RookCephNode) {
+	*out = *in
+	if in.Devices != nil {
+		out.Devices = make([]string, len(in.Devices))
+		copy(out.Devices, in.Devices)
+	}
+}
+func (in *RookCephNode) DeepCopy() *RookCephNode {
+	if in == nil {
+		return nil
+	}
+	out := new(RookCephNode)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *RookCephStatus) DeepCopyInto(out *RookCephStatus) {
+	*out = *in
+	if in.StorageClasses != nil {
+		out.StorageClasses = make([]string, len(in.StorageClasses))
+		copy(out.StorageClasses, in.StorageClasses)
+	}
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		for i := range in.Conditions {
+			in.Conditions[i].DeepCopyInto(&out.Conditions[i])
+		}
+	}
+}
+func (in *RookCephStatus) DeepCopy() *RookCephStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(RookCephStatus)
+	in.DeepCopyInto(out)
+	return out
+}

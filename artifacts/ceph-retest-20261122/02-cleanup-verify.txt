@@ -1,0 +1,35 @@
+=== CLEANUP VERIFICATION Sun Nov 22 09:27:24 PM UTC 2026 ===
+--- RookCeph CR ---
+No resources found
+--- CephCluster / pools / fs ---
+No resources found
+--- StorageClasses ---
+No resources found
+--- Namespace pods/jobs ---
+NAME                   STATUS   AGE
+kubeops-ceph-cluster   Active   135m
+error: the server doesn't have a resource type "virtualmachinebackups"
+--- Node labels (ceph/rook) ---
+(none)
+--- Disk signatures ---
+NAME                        SIZE TYPE FSTYPE      MOUNTPOINT
+sdb                          50G disk             
+sdc                          50G disk             
+sdd                          50G disk             
+-- /dev/sdb --
+(no blkid)
+-- /dev/sdc --
+(no blkid)
+-- /dev/sdd --
+(no blkid)
+--- Host /var/lib/rook ---
+total 12
+drwxr-xr-x  3 root root 4096 Nov 22 21:26 .
+drwxr-xr-x 62 root root 4096 Nov 22 19:22 ..
+drwxr-xr-x  2  167  167 4096 Nov 22 21:26 exporter
+/var/lib/rook
+/var/lib/rook/exporter
+--- Controller still running ---
+NAME                                      READY   STATUS    RESTARTS   AGE     IP             NODE        NOMINATED NODE   READINESS GATES
+kubeops-ceph-controller-b64846489-4g8h6   1/1     Running   0          5m36s   10.244.0.149   kube-node   <none>           <none>
+CLEANUP_FAIL=0

@@ -28,7 +28,8 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Monitoring Grafana NodePort | **30445** (also embedded in console at `/kubeops/mon-ui/`) |
 | Prometheus NodePort | **30446** |
 | Alertmanager NodePort | **30447** |
-| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring` |
+| Ceph dashboard NodePort | **30448** (also embedded in console at `/kubeops/ceph-ui/`) |
+| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring`, `kubeops-ceph-cluster` |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
 
 ---
@@ -47,11 +48,12 @@ git checkout main
 
 ```bash
 kubectl get ops
-kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization,monitoring
+kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization,monitoring,rookceph
 kubectl get pods -n kubeops-console
 kubectl get pods -n kubeops-authentication
 kubectl get pods -n kubeops-addon-controller
 kubectl get pods -n kubeops-monitoring   # after Addons → Monitoring Deploy
+kubectl get pods -n kubeops-ceph-cluster # after Addons → Ceph Deploy
 ```
 
 **Browser:** `https://<node-ip>:30443/` → Dex → sign in as `kubeadmin`
@@ -89,6 +91,7 @@ Core operators use **name = namespace**. Addon controllers share `kubeops-addon-
 | **kubeops-nfs-controller** | `kubeops-addon-controller` | `nfs` | `NFSProvisioner` CR → NFS provisioner + StorageClass |
 | **kubeops-virtualization-controller** | `kubeops-addon-controller` | `virtualization` | `Virtualization` CR → KubeVirt + CDI + kubevirt-manager |
 | **kubeops-monitoring-controller** | `kubeops-addon-controller` | `monitoring` | `Monitoring` CR → Prometheus + Grafana + Alertmanager + exporters |
+| **kubeops-ceph-controller** | `kubeops-addon-controller` | `ceph` | `RookCeph` CR → Rook + CephCluster + RBD/CephFS StorageClasses |
 
 ```text
 kubeops-console/
@@ -104,10 +107,12 @@ kubeops-addon-controller/
   kubeops-nfs-controller
   kubeops-virtualization-controller
   kubeops-monitoring-controller
+  kubeops-ceph-controller
 
 kubeops-nfs/                 # default NFSProvisioner workload ns
 kubeops-virtualization/      # KubeVirt + CDI + kubevirt-manager UI
 kubeops-monitoring/          # Prometheus + Grafana + Alertmanager (+ exporters)
+kubeops-ceph-cluster/        # Rook + CephCluster + toolbox + CSI
 ```
 
 ```bash
@@ -118,6 +123,7 @@ kubectl get ops
 # kubeops-nfs                  nfs              Ready
 # kubeops-virtualization       virtualization   Ready
 # kubeops-monitoring           monitoring       Ready
+# kubeops-ceph                 ceph             Unavailable  # until Addons Deploy
 ```
 
 Install/uninstall **addon workloads** from the console **Addons** page (creates/deletes CRs). Controllers stay running. Details: [docs/ADDON_CONTROLLERS.md](docs/ADDON_CONTROLLERS.md).
@@ -162,9 +168,10 @@ The Dashboard binary runs as a **sidecar** in the `kube-dashboard` pod. NGINX:
 
 1. Terminates TLS for a convenient NodePort HTTPS endpoint.
 2. Proxies to the Dashboard sidecar on loopback (`127.0.0.1:9090`).
-3. Injects `theme.css`, `nav-accordion.js`, and Operators/Addons/Virtualization/Monitoring scripts into HTML responses.
+3. Injects `theme.css`, `nav-accordion.js`, and Operators/Addons/Virtualization/Monitoring/Ceph scripts into HTML responses.
 4. Proxies `/kubeops/virt-ui/` to kubevirt-manager and injects `virt-theme.css`.
 5. Proxies `/kubeops/mon-ui/` to Grafana and injects `mon-theme.css` (kubeops palette, readable panels).
+6. Proxies `/kubeops/ceph-ui/` to the Rook mgr dashboard and injects `ceph-theme.css`.
 
 ### Why this project exists
 
@@ -243,14 +250,15 @@ Cosmetic improvements delivered by `deploy/kube-dashboard/theme.css`:
 - `prefers-reduced-motion` support
 - Improved Events table text containment (in-cell wrapping; no table layout changes)
 
-### In-console Operators, Addons, Virtualization, and Monitoring
+### In-console Operators, Addons, Virtualization, Monitoring, and Ceph
 
-Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `monitoring.js`, `virt-theme.css`, `mon-theme.css`):
+Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `monitoring.js`, `ceph.js`, `virt-theme.css`, `mon-theme.css`, `ceph-theme.css`):
 
 - **Operators** nav item — live status cards for console, authentication, NFS, virtualization, and monitoring
-- **Addons** page — deploy/uninstall `NFSProvisioner`, `Virtualization`, and `Monitoring` CRs without leaving the console
+- **Addons** page — deploy/uninstall `NFSProvisioner`, `Virtualization`, `Monitoring`, and `RookCeph` CRs without leaving the console
 - **Virtualization** nav item (before CRDs) — same-origin iframe of kubevirt-manager at `/kubeops/virt-ui/`
 - **Monitoring** nav item — same-origin iframe of Grafana at `/kubeops/mon-ui/` (default home dashboard: Kubernetes enterprise observability)
+- **Ceph** nav item — same-origin iframe of the Rook mgr dashboard at `/kubeops/ceph-ui/` (NodePort **30448**)
 - Glass theme overlay for kubevirt-manager; opaque kubeops-palette theme for Grafana so graphs stay readable
 - Console OIDC already gates access — Grafana runs anonymous + auth-proxy in the embed (no Grafana login)
 - Brand/nav leave-guards so embeds do not nest the main dashboard or stick on leave
@@ -329,10 +337,12 @@ Browser
 | `kubeops-nfs-controller` | `kubeops-addon-controller` | Reconciles `NFSProvisioner` |
 | `kubeops-virtualization-controller` | `kubeops-addon-controller` | Reconciles `Virtualization` |
 | `kubeops-monitoring-controller` | `kubeops-addon-controller` | Reconciles `Monitoring` |
+| `kubeops-ceph-controller` | `kubeops-addon-controller` | Reconciles `RookCeph` |
 | KubeVirt + CDI + kubevirt-manager | `kubeops-virtualization` | VM stack + UI (NodePort **30444**) |
 | Prometheus + Grafana + Alertmanager | `kubeops-monitoring` | Observability stack (NodePorts **30445–30447**) |
+| Rook + CephCluster + RBD/CephFS | `kubeops-ceph-cluster` | Storage (dashboard NodePort **30448**) |
 
-NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager (`virt-theme.css`) and `/kubeops/mon-ui/` → Grafana (`mon-theme.css`) so the sidebar embeds match the console palette.
+NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager (`virt-theme.css`), `/kubeops/mon-ui/` → Grafana (`mon-theme.css`), and `/kubeops/ceph-ui/` → Rook mgr dashboard (`ceph-theme.css`) so the sidebar embeds match the console palette.
 
 ### Mermaid diagram
 
@@ -343,12 +353,14 @@ flowchart LR
   NGINX --> Dash["Dashboard sidecar"]
   NGINX -->|/kubeops/virt-ui/| KVM["kubevirt-manager"]
   NGINX -->|/kubeops/mon-ui/| Graf["Grafana"]
+  NGINX -->|/kubeops/ceph-ui/| CephUI["Rook mgr dashboard"]
   Dash --> API["Kubernetes API"]
   OpC["kubeops-console"] -.->|owns| NGINX
   OpA["kubeops-authentication"] -.->|owns| Dex
   OpN["kubeops-nfs-controller"] -.->|NFSProvisioner| NFS["kubeops-nfs"]
   OpV["kubeops-virtualization-controller"] -.->|Virtualization| Virt["kubeops-virtualization"]
   OpM["kubeops-monitoring-controller"] -.->|Monitoring| Mon["kubeops-monitoring"]
+  OpCeph["kubeops-ceph-controller"] -.->|RookCeph| CephNS["kubeops-ceph-cluster"]
   Virt --> KVM
   Mon --> Graf
 ```
@@ -887,7 +899,7 @@ No delivery dates are promised.
 
 Stable single-pod **kube-dashboard** console (NGINX + Dashboard sidecar), themed UI, metrics-server packaging, and offline image helpers. No separate upstream dashboard or glass proxy Deployment.
 
-**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager), and Monitoring stack (Prometheus/Grafana/Alertmanager + embedded Grafana with kubeops palette).
+**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager), Monitoring stack (Prometheus/Grafana/Alertmanager + embedded Grafana with kubeops palette), and Ceph addon (Rook + RBD/CephFS + embedded mgr dashboard).
 
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 

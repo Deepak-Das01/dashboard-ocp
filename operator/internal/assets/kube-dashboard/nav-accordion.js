@@ -86,6 +86,7 @@
   var ADDONS_ID = "nav-addons";
   var VIRT_ID = "nav-virtualization";
   var MON_ID = "nav-monitoring";
+  var CEPH_ID = "nav-ceph";
 
   /** Exact Cluster overview only — not clusterrole / clusterrolebinding. */
   function onOperatorsHash() {
@@ -148,6 +149,29 @@
     return "#/workloads?namespace=" + encodeURIComponent(ns || "default") + "&view=monitoring";
   }
 
+  /** Ceph overlay uses workloads path (nav tile after Monitoring). */
+  function onCephHash() {
+    var h = location.hash || "";
+    return /^#\/workloads(?:\?|$)/i.test(h) && /(?:[?&])view=ceph(?:&|$)/.test(h);
+  }
+
+  function cephHref() {
+    if (typeof window.__lgCephHref === "function") {
+      try {
+        return window.__lgCephHref();
+      } catch (e) {
+        /* fall through */
+      }
+    }
+    var ns = "default";
+    try {
+      var m = (location.hash || "").match(/[?&]namespace=([^&]*)/);
+      if (m && m[1]) ns = decodeURIComponent(m[1]);
+    } catch (e) {
+      /* ignore */
+    }
+    return "#/workloads?namespace=" + encodeURIComponent(ns || "default") + "&view=ceph";
+  }
 
   function findCrdNav(root) {
     return (
@@ -503,7 +527,90 @@
     } else {
       root.insertBefore(item, crd);
     }
-    syncWorkloadsActiveForMon(monActive);
+    syncWorkloadsActiveForMon(monActive || onCephHash());
+  }
+
+  /** Top-level Ceph tile immediately after Monitoring (before CRDs). */
+  function ensureCephNav(root) {
+    if (!root) return;
+    var cephActive = onCephHash();
+    var existing = document.getElementById(CEPH_ID);
+    if (existing && existing.parentElement === root) {
+      existing.classList.add("kd-nav-group-item");
+      existing.classList.remove("lg-nav-toggleable", "lg-nav-open", "lg-nav-collapsed");
+      existing.removeAttribute("data-lg-accordion");
+      existing.removeAttribute("aria-expanded");
+      var orphanChevron = existing.querySelector(".lg-nav-chevron");
+      if (orphanChevron) orphanChevron.remove();
+      var link = existing.querySelector("a.kd-nav-item-button");
+      if (link) {
+        link.href = cephHref();
+        link.classList.toggle("kd-nav-item-button-active", cephActive);
+      }
+      var monEl = document.getElementById(MON_ID);
+      if (monEl && monEl.parentElement === root) {
+        if (existing.previousElementSibling !== monEl) {
+          root.insertBefore(existing, monEl.nextElementSibling);
+        }
+      } else {
+        var crd = findCrdNav(root);
+        if (crd && existing.nextElementSibling !== crd) {
+          root.insertBefore(existing, crd);
+        }
+      }
+      syncWorkloadsActiveForMon(cephActive || onMonHash());
+      return;
+    }
+    if (existing) existing.remove();
+
+    var crd = findCrdNav(root);
+    if (!crd) return;
+
+    var item = document.createElement("kd-nav-item");
+    item.id = CEPH_ID;
+    item.className = "kd-nav-item kd-nav-group-item lg-nav-injected";
+    item.setAttribute("data-lg-ceph", "1");
+
+    var a = document.createElement("a");
+    a.className = "kd-nav-item-button mat-button";
+    a.href = cephHref();
+    a.setAttribute("aria-label", "Ceph Cluster");
+    if (cephActive) {
+      a.classList.add("kd-nav-item-button-active");
+    }
+    a.addEventListener("click", function (evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (typeof evt.stopImmediatePropagation === "function") {
+        evt.stopImmediatePropagation();
+      }
+      if (typeof window.__lgEnterCeph === "function") {
+        window.__lgEnterCeph();
+      } else {
+        var next = cephHref();
+        if (location.hash !== next) location.hash = next;
+        else {
+          try {
+            window.dispatchEvent(new Event("hashchange"));
+          } catch (e) {}
+        }
+      }
+      syncWorkloadsActiveForMon(true);
+    });
+
+    var wrap = document.createElement("span");
+    wrap.className = "mat-button-wrapper";
+    wrap.textContent = "Ceph Cluster";
+    a.appendChild(wrap);
+    item.appendChild(a);
+
+    var monEl = document.getElementById(MON_ID);
+    if (monEl && monEl.parentElement === root) {
+      root.insertBefore(item, monEl.nextElementSibling);
+    } else {
+      root.insertBefore(item, crd);
+    }
+    syncWorkloadsActiveForMon(cephActive || onMonHash());
   }
 
   function childrenOf(group) {
@@ -752,6 +859,7 @@
       ensureAddonsNav(roots[i]);
       ensureVirtNav(roots[i]);
       ensureMonNav(roots[i]);
+      ensureCephNav(roots[i]);
       if (apply(roots[i])) ok = true;
     }
     attachObservers();

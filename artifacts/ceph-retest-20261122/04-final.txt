@@ -1,0 +1,102 @@
+=== FINAL VERIFICATION Sun Nov 22 09:29:52 PM UTC 2026 ===
+--- RookCeph ---
+NAME           PHASE   HEALTH      DASHBOARD                       AGE
+kubeops-ceph   Ready   HEALTH_OK   http://192.168.222.141:30448/   2m12s
+phase=Ready health=HEALTH_OK
+Ready — Ceph HEALTH_OK + rook-ceph-block (RWO) + rook-cephfs (RWX)
+http://192.168.222.141:30448/
+--- CephCluster ---
+NAME        DATADIRHOSTPATH   MONCOUNT   AGE     PHASE   MESSAGE                        HEALTH      EXTERNAL   FSID
+rook-ceph   /var/lib/rook     1          2m11s   Ready   Cluster created successfully   HEALTH_OK              bd736c3f-5da0-4323-adaf-1c1c6b49346d
+--- Pods ---
+NAME                                                  READY   STATUS      RESTARTS      AGE     IP                NODE        NOMINATED NODE   READINESS GATES
+cluster-cleanup-job-kube-node-m42l9                   0/1     Completed   0             3m      10.244.0.163      kube-node   <none>           <none>
+csi-cephfsplugin-fvngz                                2/2     Running     0             2m11s   192.168.222.141   kube-node   <none>           <none>
+csi-cephfsplugin-provisioner-5c554b9d8-p5lpm          5/5     Running     0             2m11s   10.244.0.166      kube-node   <none>           <none>
+csi-rbdplugin-provisioner-5876f6d74b-dv6dz            5/5     Running     0             2m11s   10.244.0.165      kube-node   <none>           <none>
+csi-rbdplugin-qmpt2                                   2/2     Running     0             2m11s   192.168.222.141   kube-node   <none>           <none>
+kubeops-ceph-device-wipe-bft9t                        0/1     Completed   0             3m1s    192.168.222.141   kube-node   <none>           <none>
+kubeops-ceph-health-fix-6sfz2                         0/1     Completed   0             49s     10.244.0.182      kube-node   <none>           <none>
+kubeops-ceph-health-fix-89zqs                         0/1     Completed   0             5m59s   10.244.0.160      kube-node   <none>           <none>
+kubeops-ceph-health-fix-jz2jw                         0/1     Completed   0             14m     10.244.0.122      kube-node   <none>           <none>
+kubeops-ceph-health-fix-qpl5g                         1/1     Running     1 (29m ago)   40m     10.244.0.95       kube-node   <none>           <none>
+rook-ceph-crashcollector-kube-node-694587d9c6-dwbxr   1/1     Running     0             46s     10.244.0.188      kube-node   <none>           <none>
+rook-ceph-exporter-kube-node-7fd8b76cbc-j22z4         1/1     Running     0             44s     10.244.0.190      kube-node   <none>           <none>
+rook-ceph-mds-ceph-filesystem-a-74d699f6c7-pkdll      1/1     Running     0             46s     10.244.0.185      kube-node   <none>           <none>
+rook-ceph-mds-ceph-filesystem-b-87675c67b-r6fsb       1/1     Running     0             45s     10.244.0.189      kube-node   <none>           <none>
+rook-ceph-mgr-a-844cd796dd-wvhbx                      1/1     Running     0             100s    10.244.0.169      kube-node   <none>           <none>
+rook-ceph-mon-a-6d8df9cdfc-b9nql                      1/1     Running     0             2m4s    10.244.0.168      kube-node   <none>           <none>
+rook-ceph-operator-59f89bbf7f-rndlt                   1/1     Running     0             7m40s   10.244.0.150      kube-node   <none>           <none>
+rook-ceph-osd-0-649657c56f-jdcsf                      1/1     Running     0             61s     10.244.0.175      kube-node   <none>           <none>
+rook-ceph-osd-1-6fd87c9c74-dtzgg                      1/1     Running     0             61s     10.244.0.173      kube-node   <none>           <none>
+rook-ceph-osd-2-74db746867-7j6wv                      1/1     Running     0             61s     10.244.0.174      kube-node   <none>           <none>
+rook-ceph-osd-prepare-kube-node-xv5n9                 0/1     Completed   0             79s     10.244.0.172      kube-node   <none>           <none>
+rook-ceph-tools-84684bbf85-n6z4c                      1/1     Running     0             49s     10.244.0.179      kube-node   <none>           <none>
+--- ceph -s ---
+  cluster:
+    id:     bd736c3f-5da0-4323-adaf-1c1c6b49346d
+    health: HEALTH_OK
+ 
+  services:
+    mon: 1 daemons, quorum a (age 2m)
+    mgr: a(active, since 64s)
+    mds: 1/1 daemons up, 1 hot standby
+    osd: 3 osds: 3 up (since 49s), 3 in (since 68s)
+ 
+  data:
+    volumes: 1/1 healthy
+    pools:   4 pools, 4 pgs
+    objects: 25 objects, 587 KiB
+    usage:   81 MiB used, 150 GiB / 150 GiB avail
+    pgs:     4 active+clean
+ 
+  io:
+    client:   1.2 KiB/s rd, 2 op/s rd, 0 op/s wr
+ 
+  progress:
+ 
+--- ceph health detail ---
+HEALTH_OK
+--- pools ---
+pool 1 'replicapool' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins pg_num 32 pgp_num 1 pgp_num_target 32 autoscale_mode on last_change 26 lfor 0/0/26 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd read_balance_score 3.00
+pool 2 '.mgr' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins pg_num 1 pgp_num 1 autoscale_mode on last_change 18 flags hashpspool stripe_width 0 pg_num_max 32 pg_num_min 1 application mgr read_balance_score 3.00
+pool 3 'ceph-filesystem-metadata' replicated size 3 min_size 2 crush_rule 3 object_hash rjenkins pg_num 16 pgp_num 1 pgp_num_target 16 autoscale_mode on last_change 26 lfor 0/0/26 flags hashpspool stripe_width 0 pg_autoscale_bias 4 pg_num_min 16 recovery_priority 5 application cephfs read_balance_score 3.00
+pool 4 'ceph-filesystem-data0' replicated size 3 min_size 2 crush_rule 4 object_hash rjenkins pg_num 32 pgp_num 1 pgp_num_target 32 autoscale_mode on last_change 28 lfor 0/0/28 flags hashpspool stripe_width 0 application cephfs read_balance_score 3.00
+
+--- OSDs tree ---
+ID  CLASS  WEIGHT   TYPE NAME           STATUS  REWEIGHT  PRI-AFF
+-1         0.14639  root default                                 
+-3         0.14639      host kube-node                           
+ 0    hdd  0.04880          osd.0           up   1.00000  1.00000
+ 1    hdd  0.04880          osd.1           up   1.00000  1.00000
+ 2    hdd  0.04880          osd.2           up   1.00000  1.00000
+--- StorageClasses ---
+NAME              PROVISIONER                                RECLAIMPOLICY   VOLUMEBINDINGMODE   ALLOWVOLUMEEXPANSION   AGE
+rook-ceph-block   kubeops-ceph-cluster.rbd.csi.ceph.com      Delete          Immediate           true                   50s
+rook-cephfs       kubeops-ceph-cluster.cephfs.csi.ceph.com   Delete          Immediate           true                   50s
+--- Disks ---
+NAME                        SIZE TYPE FSTYPE
+sdb                          50G disk ceph_bluestore
+sdc                          50G disk ceph_bluestore
+sdd                          50G disk ceph_bluestore
+--- Node labels ---
+ceph=storage
+--- Health-fix / wipe jobs history ---
+NAME                              STATUS     COMPLETIONS   DURATION   AGE    CONTAINERS     IMAGES                        SELECTOR
+cluster-cleanup-job-kube-node     Complete   1/1           5s         3m1s   host-cleanup   docker.io/rook/ceph:v1.16.7   batch.kubernetes.io/controller-uid=09eb41cf-adb2-4504-b225-c8cc0d708c29
+kubeops-ceph-device-wipe          Complete   1/1           12s        3m2s   wipe           quay.io/ceph/ceph:v19.2.3     batch.kubernetes.io/controller-uid=bd862ee9-7e8c-441a-a885-b813a6812885
+kubeops-ceph-health-fix           Complete   1/1           10s        50s    health-fix     quay.io/ceph/ceph:v19.2.3     batch.kubernetes.io/controller-uid=570bd6a0-f7b8-4259-8da8-23ef342cdf9b
+rook-ceph-osd-prepare-kube-node   Complete   1/1           21s        80s    provision      quay.io/ceph/ceph:v19.2.3     batch.kubernetes.io/controller-uid=32c899d0-7bef-45b3-90f0-c4556cdf6154
+--- Controller logs (last 40 ceph lines) ---
+2026-11-22T21:21:48Z	INFO	starting kubeops-ceph-controller
+2026-11-22T21:21:48Z	INFO	controller-runtime.metrics	Starting metrics server
+2026-11-22T21:21:48Z	INFO	controller-runtime.metrics	Serving metrics server	{"bindAddress": ":18086", "secure": false}
+2026-11-22T21:21:48Z	INFO	starting disk probe API	{"addr": ":18088"}
+2026-11-22T21:21:48Z	INFO	starting server	{"name": "health probe", "addr": "[::]:18087"}
+2026-11-22T21:21:48Z	INFO	Starting EventSource	{"controller": "rookceph", "controllerGroup": "dashboard.ocp", "controllerKind": "RookCeph", "source": "kind source: *v1alpha1.RookCeph"}
+2026-11-22T21:21:48Z	INFO	Starting Controller	{"controller": "rookceph", "controllerGroup": "dashboard.ocp", "controllerKind": "RookCeph"}
+2026-11-22T21:21:48Z	INFO	Starting workers	{"controller": "rookceph", "controllerGroup": "dashboard.ocp", "controllerKind": "RookCeph", "worker count": 1}
+2026-11-22T21:26:29Z	INFO	KubeAPIWarningLogger	child pods are preserved by default when jobs are deleted; set propagationPolicy=Background to remove them or set propagationPolicy=Orphan to suppress this warning
+2026-11-22T21:26:29Z	INFO	KubeAPIWarningLogger	unknown field "spec.cleanupPolicy.wipeDevicesFromOtherClusters"
+2026-11-22T21:26:51Z	INFO	waiting for device wipe Job	{"controller": "rookceph", "controllerGroup": "dashboard.ocp", "controllerKind": "RookCeph", "RookCeph": {"name":"kubeops-ceph"}, "namespace": "", "name": "kubeops-ceph", "reconcileID": "c66bb0c3-6097-4df9-b1f3-60dc20a011eb"}
+2026-11-22T21:27:06Z	INFO	ceph cleanup complete — disks/host-path sanitized	{"controller": "rookceph", "controllerGroup": "dashboard.ocp", "controllerKind": "RookCeph", "RookCeph": {"name":"kubeops-ceph"}, "namespace": "", "name": "kubeops-ceph", "reconcileID": "06669f81-ff6b-4214-bc07-3c559d226858"}

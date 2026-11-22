@@ -1,0 +1,2 @@
+ROOK_VERSION=v1.16.7
+CEPH_IMAGE=quay.io/ceph/ceph:v19.2.3

@@ -3117,3 +3117,112 @@ body.lg-mon-route .kd-workloads {
   font-size: 18px;
   color: var(--text-primary);
 }
+
+/* ---------- In-console Ceph (Rook mgr dashboard embed) ---------- */
+.kd-scroll-container.lg-ceph-active > *:not(#lg-ceph-view) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.kd-scroll-container.lg-ceph-active {
+  background-image: none !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+html.lg-ceph-route .kd-breadcrumbs-container > :not(.lg-ceph-breadcrumbs),
+body.lg-ceph-route .kd-breadcrumbs-container > :not(.lg-ceph-breadcrumbs),
+html.lg-ceph-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-ceph-breadcrumbs),
+body.lg-ceph-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-ceph-breadcrumbs) {
+  display: none !important;
+}
+
+html.lg-ceph-route kd-workloads,
+html.lg-ceph-route .kd-workloads,
+body.lg-ceph-route kd-workloads,
+body.lg-ceph-route .kd-workloads {
+  display: none !important;
+}
+
+.lg-ceph-view {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 96px);
+  min-height: 480px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.lg-ceph-view[hidden] {
+  display: none !important;
+}
+
+.lg-ceph-shell,
+.lg-ceph-panel {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.lg-ceph-loading {
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.lg-ceph-error {
+  color: var(--text-primary);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.lg-ceph-link {
+  color: var(--accent, #3f9cff);
+}
+
+.lg-ceph-frame-wrap {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.lg-ceph-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+
+.lg-ceph-hint {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(14, 22, 36, 0.92);
+  border: 1px solid rgba(180, 205, 235, 0.22);
+  color: var(--text-secondary, #bccbdd);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.lg-ceph-breadcrumbs {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.lg-ceph-breadcrumbs .kd-current-breadcrumb {
+  font-size: 18px;
+  color: var(--text-primary);
+}

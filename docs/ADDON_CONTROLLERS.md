@@ -20,6 +20,10 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 | Monitoring UI | Grafana (NodePort **30445**; embed `/kubeops/mon-ui/`) | `kubeops-monitoring` |
 | Monitoring workload | Prometheus + Alertmanager + Grafana + exporters | `kubeops-monitoring` |
 | Operator status row | `kubeops-monitoring` (`component: monitoring`) | cluster-scoped |
+| Ceph controller | `kubeops-ceph-controller` | `kubeops-addon-controller` |
+| Ceph UI | Rook mgr dashboard (NodePort **30448**; embed `/kubeops/ceph-ui/`) | `kubeops-ceph-cluster` |
+| Ceph workload | Rook + CephCluster + toolbox + RBD/CephFS SCs | `kubeops-ceph-cluster` |
+| Operator status row | `kubeops-ceph` (`component: ceph`) | cluster-scoped |
 
 ## Registry (source of truth for install)
 
@@ -30,6 +34,7 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 nfs                nfs               kubeops-nfs              kubeops-nfs-controller               nfs               kubeops-addon-controller
 virtualization     virtualization    kubeops-virtualization   kubeops-virtualization-controller    virtualization    kubeops-addon-controller
 monitoring         monitoring        kubeops-monitoring       kubeops-monitoring-controller        monitoring        kubeops-addon-controller
+ceph               ceph              kubeops-ceph             kubeops-ceph-controller              ceph              kubeops-addon-controller
 ```
 
 `install-operators.sh` loops this file to **build, pack, apply, set-image, and
@@ -48,10 +53,26 @@ wait** for every addon controller. Individual addons are not special-cased.
 ## Lifecycle
 
 1. Install script deploys CRDs + every registered `*-controller`.
-2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`, `Virtualization`, `Monitoring`).
+2. Addons UI → Deploy creates the addon CR (e.g. `NFSProvisioner`, `Virtualization`, `Monitoring`, `RookCeph`).
 3. Controller creates workload objects (Deployment, StorageClass, KubeVirt/CDI, …).
 4. Uninstall deletes the CR → controller GC.
 5. Controller pod stays running for the next Deploy.
+
+## kubeops-ceph notes
+
+- Controller runs in **`kubeops-addon-controller`**. Workloads live in
+  **`kubeops-ceph-cluster`** (CR `spec.namespace`). Uninstall removes the
+  CephCluster / pools / StorageClasses / toolbox; Rook operator + CRDs stay for
+  faster re-Deploy. The workload Namespace is not deleted.
+- Vendored Rook **v1.16.7** manifests under `operator/internal/ceph/manifests/`
+  (classic CSI path; `ROOK_USE_CSI_OPERATOR=false`). Ceph image default
+  `quay.io/ceph/ceph:v19.2.3`.
+- Always creates **both** StorageClasses: `rook-ceph-block` (RBD / RWO) and
+  `rook-cephfs` (CephFS / RWX).
+- Dashboard NodePort **30448**; console embed at `/kubeops/ceph-ui/` (sidebar **Ceph**).
+- Disk discovery: Addons “Discover disks” → `/kubeops/api/ceph-disks` probe API.
+- Uninstall requires annotation `kubeops.io/wipe-disks=confirmed` (Addons prompts
+  for `wipe disks`) so Rook `cleanupPolicy` can sanitize host path + devices.
 
 ## kubeops-monitoring notes
 

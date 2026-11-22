@@ -1,0 +1,28 @@
+apiVersion: dashboard.ocp/v1alpha1
+kind: RookCeph
+metadata:
+  annotations: {}
+  name: kubeops-ceph
+spec:
+  cephImage: quay.io/ceph/ceph:v19.2.3
+  dashboardNodePort: 30448
+  dataDirHostPath: /var/lib/rook
+  enableDashboard: true
+  enableToolbox: true
+  mgr:
+    allowMultiplePerNode: true
+    count: 1
+  mon:
+    allowMultiplePerNode: true
+    count: 1
+  namespace: kubeops-ceph-cluster
+  nodeLabel:
+    key: ceph
+    value: storage
+  nodes:
+  - devices:
+    - sdb
+    - sdc
+    - sdd
+    name: kube-node
+

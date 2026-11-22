@@ -1,0 +1,4 @@
+=== ANNOTATE + DELETE ===
+delete issued at Sun Nov 22 09:26:29 PM UTC 2026
+RookCeph GONE after 5*10s (Sun Nov 22 09:27:09 PM UTC 2026)
+UNINSTALL_ELAPSED=40

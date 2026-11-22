@@ -30,3 +30,6 @@ operator/bin/
 scripts/__pycache__/
 __pycache__/
 *.pyc
+
+# Local scratch / review dumps
+.tmp-glitch-review/

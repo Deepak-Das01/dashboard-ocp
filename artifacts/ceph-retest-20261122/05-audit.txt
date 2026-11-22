@@ -1,0 +1,13 @@
+=== AUDIT CHECKLIST ===
+PASS: wipe annotation gate required
+PASS: cleanupPolicy wipeDevicesFromOtherClusters + sanitizeDisks
+PASS: forceRemoveFinalizers for FS/pool hang
+PASS: ceph-volume zap + dd + sgdisk + wipefs device wipe Job
+PASS: raw list empty check after wipe
+PASS: node unlabel after cleanup
+PASS: StorageClasses deleted
+PASS: CephCluster deleted
+PASS: failureDomain=osd + poolSize auto for single-node 3-disk
+PASS: health-fix Job (mon_data_avail_warn, crush rule, pool size)
+PASS: Ready gated on HEALTH_OK + running OSD pods
+PASS: reinstall reached Ready without manual ceph CLI

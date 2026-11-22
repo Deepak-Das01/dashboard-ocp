@@ -73,6 +73,12 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /ceph-theme.css {
+      alias /usr/share/nginx/html/ceph-theme.css;
+      default_type text/css;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /nav-accordion.js {
       alias /usr/share/nginx/html/nav-accordion.js;
       default_type application/javascript;
@@ -94,6 +100,24 @@ http {
     location = /virtualization.js {
       alias /usr/share/nginx/html/virtualization.js;
       default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /monitoring.js {
+      alias /usr/share/nginx/html/monitoring.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /ceph.js {
+      alias /usr/share/nginx/html/ceph.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /mon-theme.css {
+      alias /usr/share/nginx/html/mon-theme.css;
+      default_type text/css;
       add_header Cache-Control "no-cache";
     }
 
@@ -217,6 +241,60 @@ http {
 %s
     }
 
+    location /kubeops/api/rookceps {
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/rookceps;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+%s
+    }
+
+    location /kubeops/api/ceph-disks {
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_probe_upstream kubeops-ceph-controller.kubeops-addon-controller.svc.cluster.local:18088;
+      proxy_pass http://$ceph_probe_upstream/disks$is_args$args;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Accept application/json;
+      proxy_connect_timeout 5s;
+      proxy_read_timeout 120s;
+    }
+
+    location /kubeops/api/ceph-session {
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_probe_upstream kubeops-ceph-controller.kubeops-addon-controller.svc.cluster.local:18088;
+      proxy_pass http://$ceph_probe_upstream/session$is_args$args;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Accept application/json;
+      proxy_connect_timeout 5s;
+      proxy_read_timeout 30s;
+    }
+
+    location /kubeops/ceph-ui/ {
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_ui_upstream rook-ceph-mgr-dashboard.kubeops-ceph-cluster.svc.cluster.local:7000;
+      # Keep /kubeops/ceph-ui prefix — CephCluster dashboard.urlPrefix matches.
+      proxy_pass http://$ceph_ui_upstream;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Prefix /kubeops/ceph-ui;
+      proxy_set_header Accept-Encoding "";
+      proxy_hide_header X-Frame-Options;
+      proxy_hide_header Content-Security-Policy;
+      proxy_buffering on;
+      proxy_read_timeout 3600s;
+      sub_filter_types text/html;
+      sub_filter_once off;
+      sub_filter '</head>' '<link rel="stylesheet" href="/ceph-theme.css?v=addons-embed-38"><script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script><style>html{color-scheme:dark}</style></head>';
+    }
+
     location / {
       proxy_pass http://kd;
       proxy_http_version 1.1;
@@ -229,11 +307,11 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-30" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-30" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-39" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader)
+`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
@@ -336,6 +414,14 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /ceph-theme.css {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/ceph-theme.css;
+      default_type text/css;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /nav-accordion.js {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -372,6 +458,14 @@ http {
       auth_request /oauth2/auth;
       error_page 401 = @login;
       alias /usr/share/nginx/html/monitoring.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /ceph.js {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/ceph.js;
       default_type application/javascript;
       add_header Cache-Control "no-cache";
     }
@@ -509,6 +603,67 @@ http {
       proxy_set_header Authorization "Bearer %s";
     }
 
+    location /kubeops/api/rookceps {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/rookceps;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+      proxy_set_header Authorization "Bearer %s";
+    }
+
+    location /kubeops/api/ceph-disks {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_probe_upstream kubeops-ceph-controller.kubeops-addon-controller.svc.cluster.local:18088;
+      proxy_pass http://$ceph_probe_upstream/disks$is_args$args;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Accept application/json;
+      proxy_connect_timeout 5s;
+      proxy_read_timeout 120s;
+    }
+
+    location /kubeops/api/ceph-session {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_probe_upstream kubeops-ceph-controller.kubeops-addon-controller.svc.cluster.local:18088;
+      proxy_pass http://$ceph_probe_upstream/session$is_args$args;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Accept application/json;
+      proxy_connect_timeout 5s;
+      proxy_read_timeout 30s;
+    }
+
+    location /kubeops/ceph-ui/ {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
+      set $ceph_ui_upstream rook-ceph-mgr-dashboard.kubeops-ceph-cluster.svc.cluster.local:7000;
+      proxy_pass http://$ceph_ui_upstream;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-Prefix /kubeops/ceph-ui;
+      proxy_set_header Accept-Encoding "";
+      proxy_hide_header X-Frame-Options;
+      proxy_hide_header Content-Security-Policy;
+      proxy_buffering on;
+      proxy_read_timeout 3600s;
+      sub_filter_types text/html;
+      sub_filter_once off;
+      sub_filter '</head>' '<link rel="stylesheet" href="/ceph-theme.css?v=addons-embed-38"><script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script><style>html{color-scheme:dark}</style></head>';
+    }
+
     location / {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -524,10 +679,10 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-30" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-30" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-39" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok, tok, tok, tok, tok)
+`, port, port, port, port, port, port, tok, tok, tok, tok, tok, tok)
 }
 

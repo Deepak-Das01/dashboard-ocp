@@ -114,6 +114,14 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 	if err != nil {
 		return err
 	}
+	cephJS, err := assets.FS.ReadFile("kube-dashboard/ceph.js")
+	if err != nil {
+		return err
+	}
+	cephTheme, err := assets.FS.ReadFile("kube-dashboard/ceph-theme.css")
+	if err != nil {
+		return err
+	}
 
 	labels := map[string]string{
 		"app.kubernetes.io/name":    "kube-dashboard",
@@ -126,12 +134,14 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		"theme.css":          string(theme),
 		"virt-theme.css":     string(virtTheme),
 		"mon-theme.css":      string(monTheme),
+		"ceph-theme.css":     string(cephTheme),
 		"nav-accordion.js":   string(nav),
 		"operators.html":     string(opsHTML),
 		"operators.js":       string(opsJS),
 		"addons.js":          string(addonsJS),
 		"virtualization.js":  string(virtJS),
 		"monitoring.js":      string(monJS),
+		"ceph.js":            string(cephJS),
 	}, labels); err != nil {
 		return err
 	}
@@ -184,12 +194,14 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/theme.css", SubPath: "theme.css"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/virt-theme.css", SubPath: "virt-theme.css"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/mon-theme.css", SubPath: "mon-theme.css"},
+			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/ceph-theme.css", SubPath: "ceph-theme.css"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/nav-accordion.js", SubPath: "nav-accordion.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.html", SubPath: "operators.html"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.js", SubPath: "operators.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/addons.js", SubPath: "addons.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/virtualization.js", SubPath: "virtualization.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/monitoring.js", SubPath: "monitoring.js"},
+			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/ceph.js", SubPath: "ceph.js"},
 			{Name: "tls", MountPath: "/etc/nginx/certs", ReadOnly: true},
 		}
 		vols := []corev1.Volume{
