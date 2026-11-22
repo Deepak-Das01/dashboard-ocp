@@ -2561,6 +2561,17 @@ kd-about [footer].kd-muted::after {
   color: var(--text-primary);
 }
 
+/*
+  Native Cluster crumb stays in the toolbar (Angular re-renders it).
+  Hide everything except our Operators bar — keeps a clean "Cluster > Operators".
+*/
+html.lg-ops-route .kd-breadcrumbs-container > :not(.lg-ops-breadcrumbs),
+body.lg-ops-route .kd-breadcrumbs-container > :not(.lg-ops-breadcrumbs),
+html.lg-ops-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-ops-breadcrumbs),
+body.lg-ops-route kd-breadcrumbs .kd-breadcrumbs-container > :not(.lg-ops-breadcrumbs) {
+  display: none !important;
+}
+
 /* ---------- In-console Addons view ---------- */
 .kd-scroll-container.lg-addons-active > *:not(#lg-addons-view) {
   display: none !important;

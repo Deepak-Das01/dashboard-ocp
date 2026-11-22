@@ -220,6 +220,11 @@
     syncClusterGroupActive(opsActive);
   }
 
+  function setRouteClass(active) {
+    document.documentElement.classList.toggle("lg-ops-route", active);
+    if (document.body) document.body.classList.toggle("lg-ops-route", active);
+  }
+
   function setBreadcrumbs(active) {
     var host = document.querySelector("kd-breadcrumbs .kd-breadcrumbs-container, .kd-breadcrumbs-container");
     if (!host) return;
@@ -233,6 +238,7 @@
       }
       return;
     }
+    // Hide Angular's native "Cluster" crumb (CSS also enforces via .lg-ops-route).
     var kids2 = host.children;
     for (var j = 0; j < kids2.length; j++) {
       if (kids2[j].classList && kids2[j].classList.contains("lg-ops-breadcrumbs")) continue;
@@ -242,12 +248,14 @@
     if (!bar) {
       bar = document.createElement("div");
       bar.className = "lg-ops-breadcrumbs kd-inline-breadcrumb";
-      bar.innerHTML =
-        '<a class="kd-faded-breadcrumb" href="#/cluster">Cluster</a>' +
-        '<i class="material-icons kd-faded-breadcrumb kd-breadcrumb-divider" aria-hidden="true">keyboard_arrow_right</i>' +
-        '<span class="kd-current-breadcrumb">Operators</span>';
       host.appendChild(bar);
     }
+    // Parent > child. Angular's native Cluster crumb is hidden via .lg-ops-route CSS
+    // so this does not become "ClusterCluster > Operators".
+    bar.innerHTML =
+      '<a class="kd-faded-breadcrumb" href="#/cluster">Cluster</a>' +
+      '<i class="material-icons kd-faded-breadcrumb kd-breadcrumb-divider" aria-hidden="true">keyboard_arrow_right</i>' +
+      '<span class="kd-current-breadcrumb">Operators</span>';
   }
 
   function show() {
@@ -255,6 +263,7 @@
     if (!host) return false;
     var view = ensureView(host);
     host.classList.add("lg-operators-active");
+    setRouteClass(true);
     view.hidden = false;
     view.style.display = "";
     load(view);
@@ -283,6 +292,7 @@
       clearInterval(timer);
       timer = null;
     }
+    setRouteClass(false);
     setBreadcrumbs(false);
     syncNavActive();
   }

@@ -136,7 +136,7 @@ http {
       sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
       sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
       # Match kube-dashboard glass palette inside the embed.
-      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-17"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -181,9 +181,9 @@ http {
       proxy_set_header Accept-Encoding "";
 %s
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-17"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-17" defer></script><script src="/operators.js?v=addons-embed-17" defer></script><script src="/addons.js?v=addons-embed-17" defer></script><script src="/virtualization.js?v=addons-embed-17" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-19" defer></script><script src="/operators.js?v=addons-embed-19" defer></script><script src="/addons.js?v=addons-embed-19" defer></script><script src="/virtualization.js?v=addons-embed-19" defer></script></body>';
     }
   }
 }
@@ -356,7 +356,7 @@ http {
       sub_filter 'class="brand-link" href="/"' 'class="brand-link" href="/kubeops/virt-ui/"';
       sub_filter 'href="/" class="brand-link"' 'href="/kubeops/virt-ui/" class="brand-link"';
       # Match kube-dashboard glass palette inside the embed.
-      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-17"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/virt-theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
     }
 
     location /kubeops/api/operators {
@@ -410,9 +410,9 @@ http {
       proxy_set_header Accept-Encoding "";
       proxy_set_header Authorization "Bearer %s";
 
-      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-17"><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-19"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-17" defer></script><script src="/operators.js?v=addons-embed-17" defer></script><script src="/addons.js?v=addons-embed-17" defer></script><script src="/virtualization.js?v=addons-embed-17" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-19" defer></script><script src="/operators.js?v=addons-embed-19" defer></script><script src="/addons.js?v=addons-embed-19" defer></script><script src="/virtualization.js?v=addons-embed-19" defer></script></body>';
     }
   }
 }
