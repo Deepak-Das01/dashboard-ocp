@@ -506,14 +506,9 @@ a:hover {
 }
 
 /* ---------- Footer / misc ---------- */
+/* Hide upstream kubevirt-manager copyright/version footer in the embed. */
 .main-footer {
-  background: rgba(10, 18, 32, 0.45) !important;
-  border-top: 1px solid var(--kv-border-soft) !important;
-  color: var(--kv-text-muted) !important;
-}
-
-.main-footer a {
-  color: var(--kv-link) !important;
+  display: none !important;
 }
 
 .preloader,

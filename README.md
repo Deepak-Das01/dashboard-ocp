@@ -24,7 +24,8 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Default HTTPS NodePort | **30443** |
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
 | Dex NodePort | **32056** |
-| Namespaces | `kubeops-console`, `kubeops-authentication` |
+| Virtualization UI NodePort | **30444** (kubevirt-manager; also embedded in console) |
+| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs` |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
 
 ---
@@ -43,9 +44,10 @@ git checkout main
 
 ```bash
 kubectl get ops
-kubectl get kubedashboard,clusteroidc
+kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization
 kubectl get pods -n kubeops-console
 kubectl get pods -n kubeops-authentication
+kubectl get pods -n kubeops-addon-controller
 ```
 
 **Browser:** `https://<node-ip>:30443/` → Dex → sign in as `kubeadmin`
@@ -74,12 +76,14 @@ Full operator docs: [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
 
 ## Operators (`kubeops-*`)
 
-Name = namespace. Role (`spec.component`) is `console` or `oidc`.
+Core operators use **name = namespace**. Addon controllers share `kubeops-addon-controller`.
 
-| Operator | Namespace | Role | Owns |
-|----------|-----------|------|------|
+| Operator / controller | Namespace | Role (`spec.component`) | Owns |
+|-----------------------|-----------|-------------------------|------|
 | **kubeops-console** | `kubeops-console` | `console` | Operator + `kube-dashboard` UI + metrics-scraper |
 | **kubeops-authentication** | `kubeops-authentication` | `oidc` | Operator + Dex IdP + OIDC secrets |
+| **kubeops-nfs-controller** | `kubeops-addon-controller` | `nfs` | `NFSProvisioner` CR → NFS provisioner + StorageClass |
+| **kubeops-virtualization-controller** | `kubeops-addon-controller` | `virtualization` | `Virtualization` CR → KubeVirt + CDI + kubevirt-manager |
 
 ```text
 kubeops-console/
@@ -90,14 +94,25 @@ kubeops-console/
 kubeops-authentication/
   kubeops-authentication   # operator
   dex                      # OIDC login (NodePort 32056)
+
+kubeops-addon-controller/
+  kubeops-nfs-controller
+  kubeops-virtualization-controller
+
+kubeops-nfs/                 # default NFSProvisioner workload ns
+kubeops-virtualization/      # KubeVirt + CDI + kubevirt-manager UI
 ```
 
 ```bash
 kubectl get ops
-# NAME                     COMPONENT   PHASE
-# kubeops-console          console     Ready
-# kubeops-authentication   oidc        Ready
+# NAME                         COMPONENT        PHASE
+# kubeops-console              console          Ready
+# kubeops-authentication       oidc             Ready
+# kubeops-nfs                  nfs              Ready
+# kubeops-virtualization       virtualization   Ready
 ```
+
+Install/uninstall **addon workloads** from the console **Addons** page (creates/deletes CRs). Controllers stay running. Details: [docs/ADDON_CONTROLLERS.md](docs/ADDON_CONTROLLERS.md).
 
 ---
 
@@ -139,7 +154,8 @@ The Dashboard binary runs as a **sidecar** in the `kube-dashboard` pod. NGINX:
 
 1. Terminates TLS for a convenient NodePort HTTPS endpoint.
 2. Proxies to the Dashboard sidecar on loopback (`127.0.0.1:9090`).
-3. Injects `theme.css` and `nav-accordion.js` into HTML responses.
+3. Injects `theme.css`, `nav-accordion.js`, and Operators/Addons/Virtualization scripts into HTML responses.
+4. Proxies `/kubeops/virt-ui/` to kubevirt-manager and injects `virt-theme.css`.
 
 ### Why this project exists
 
@@ -151,6 +167,8 @@ Operators often want a clearer, more modern cluster UI while keeping familiar Da
 - Translucent panels, reflective borders, and layered depth.
 - Polished header, namespace selector, tables, forms, and overlays.
 - The same workload, networking, storage, and RBAC management surfaces provided by Dashboard v2.7.0 (subject to your cluster permissions and services).
+- In-console **Operators** and **Addons** pages for kubeops status and one-click addon install.
+- **Virtualization** sidebar view embedding kubevirt-manager (KubeVirt + CDI) with the same glass theme.
 
 ### What this is not
 
@@ -173,6 +191,9 @@ Screenshots of the live **v1.3.0** Kube Dashboard interface should live under `d
 | `docs/screenshots/deployments.png` | Deployments |
 | `docs/screenshots/namespaces.png` | Namespaces |
 | `docs/screenshots/resource-table.png` | Generic resource table + pagination |
+| `docs/screenshots/operators.png` | In-console Operators status cards |
+| `docs/screenshots/addons.png` | Addons page (NFS + Virtualization tiles) |
+| `docs/screenshots/virtualization.png` | Embedded kubevirt-manager (glass theme) |
 | `docs/screenshots/settings.png` | Settings |
 | `docs/screenshots/yaml-editor.png` | Create from input / YAML editor |
 | `docs/screenshots/create-form.png` | Create from form |
@@ -211,9 +232,19 @@ Cosmetic improvements delivered by `deploy/kube-dashboard/theme.css`:
 - `prefers-reduced-motion` support
 - Improved Events table text containment (in-cell wrapping; no table layout changes)
 
+### In-console Operators, Addons, and Virtualization
+
+Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `virt-theme.css`):
+
+- **Operators** nav item — live status cards for console, authentication, NFS, and virtualization
+- **Addons** page — deploy/uninstall `NFSProvisioner` and `Virtualization` CRs without leaving the console
+- **Virtualization** nav item (before CRDs) — same-origin iframe of kubevirt-manager at `/kubeops/virt-ui/`
+- Glass theme overlay for kubevirt-manager matching the dashboard palette (copyright footer hidden in embed)
+- Brand/nav leave-guards so the embed does not nest the main dashboard or stick on leave
+
 ### Existing Kubernetes management capabilities
 
-Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by Kube Dashboard). Availability depends on Kubernetes RBAC and cluster services:
+Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by the theme). Availability depends on Kubernetes RBAC and cluster services:
 
 - Workload overview and status charts
 - Pods, Deployments, StatefulSets, DaemonSets, ReplicaSets, Replication Controllers
@@ -230,7 +261,7 @@ Inherited from **upstream Kubernetes Dashboard v2.7.0** (not introduced by Kube 
 - Pod logs and terminal access (when permitted)
 - Metrics visualization when the metrics scraper and cluster metrics stack are available
 
-Kube Dashboard does **not** add new Kubernetes management APIs or controllers.
+Addon controllers (`NFSProvisioner`, `Virtualization`) are **additional** kubeops APIs beyond upstream Dashboard.
 
 ---
 
@@ -240,14 +271,16 @@ Kube Dashboard does **not** add new Kubernetes management APIs or controllers.
 |-----------|------------|
 | Base application | Kubernetes Dashboard **v2.7.0** (`kubernetesui/dashboard:v2.7.0`) |
 | UI framework | Upstream Angular + Angular Material (bundled in Dashboard image) |
-| Custom theme | CSS (`deploy/kube-dashboard/theme.css`) |
+| Custom theme | CSS (`theme.css`, `virt-theme.css`) |
 | Reverse proxy | NGINX **1.27-alpine** (`nginx:1.27-alpine`) |
-| Deployment | Kubernetes manifests + Kustomize (`deploy/`) |
+| Deployment | kubeops operators (`install-operators.sh`) + classic Kustomize (`deploy/`) |
 | Configuration | ConfigMaps `kube-dashboard-ui`, `kube-dashboard-nginx` |
 | Metrics | Dashboard metrics scraper `kubernetesui/metrics-scraper:v1.0.8` |
 | Authentication | OIDC (Dex + oauth2-proxy) by default; secret/token modes available |
 | Authorization | Kubernetes RBAC |
 | TLS for console | Secret `kube-dashboard-tls` (self-signed via `scripts/create-tls-secret.sh`) |
+| Virtualization | KubeVirt **1.10.0** + CDI **1.66.1** + kubevirt-manager **1.5.4** |
+| NFS addon | Dynamic NFS provisioner via `NFSProvisioner` CR |
 
 ---
 
@@ -279,6 +312,11 @@ Browser
 | `kube-dashboard` | `kubeops-console` | UI (NGINX + Dashboard + oauth2-proxy) |
 | `kubeops-authentication` | `kubeops-authentication` | Reconciles `ClusterOIDC` |
 | `dex` | `kubeops-authentication` | OIDC IdP / login form |
+| `kubeops-nfs-controller` | `kubeops-addon-controller` | Reconciles `NFSProvisioner` |
+| `kubeops-virtualization-controller` | `kubeops-addon-controller` | Reconciles `Virtualization` |
+| KubeVirt + CDI + kubevirt-manager | `kubeops-virtualization` | VM stack + UI (NodePort **30444**) |
+
+NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager and injects `virt-theme.css` so the Virtualization tab matches the console glass theme.
 
 ### Mermaid diagram
 
@@ -287,9 +325,13 @@ flowchart LR
   Browser -->|HTTPS :30443| NGINX["NGINX + oauth2-proxy"]
   NGINX -->|login| Dex["Dex :32056"]
   NGINX --> Dash["Dashboard sidecar"]
+  NGINX -->|/kubeops/virt-ui/| KVM["kubevirt-manager"]
   Dash --> API["Kubernetes API"]
   OpC["kubeops-console"] -.->|owns| NGINX
   OpA["kubeops-authentication"] -.->|owns| Dex
+  OpN["kubeops-nfs-controller"] -.->|NFSProvisioner| NFS["kubeops-nfs"]
+  OpV["kubeops-virtualization-controller"] -.->|Virtualization| Virt["kubeops-virtualization"]
+  Virt --> KVM
 ```
 
 ---
@@ -424,6 +466,8 @@ Committed defaults in `deploy/kube-dashboard/service.yaml`:
 | `https` | 443 → container 8443 | **30443** |
 | `http` | 80 → container 8080 | **30080** (301 redirect to HTTPS `:30443`) |
 
+Virtualization UI (when installed): kubevirt-manager Service NodePort **30444**, also embedded at `https://<NODE_IP>:30443/` → **Virtualization** sidebar (proxied `/kubeops/virt-ui/`).
+
 Discover values and a node address:
 
 ```bash
@@ -499,46 +543,50 @@ Never commit, paste into issues, or publish real tokens.
 
 ## Deployment verification
 
+### Operator path (recommended)
+
 ```bash
-# Workloads
-kubectl -n kubernetes-dashboard get deploy
-kubectl -n kubernetes-dashboard get pods
-kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard
-kubectl -n kubernetes-dashboard rollout status deploy/kubernetes-dashboard
-kubectl -n kubernetes-dashboard rollout status deploy/dashboard-metrics-scraper
-
-# Networking & config
-kubectl -n kubernetes-dashboard get svc kube-dashboard kubernetes-dashboard dashboard-metrics-scraper
-kubectl -n kubernetes-dashboard get cm kube-dashboard-css kube-dashboard-nginx
-kubectl -n kubernetes-dashboard get endpoints kube-dashboard
-
-# Logs
-kubectl -n kubernetes-dashboard logs deploy/kube-dashboard --tail=100
-kubectl -n kubernetes-dashboard logs deploy/kubernetes-dashboard --tail=100
-kubectl -n kubernetes-dashboard logs deploy/dashboard-metrics-scraper --tail=100
+kubectl get ops
+kubectl get kubedashboard,clusteroidc
+kubectl get nfsprovisioner,virtualization
+kubectl get pods -n kubeops-console
+kubectl get pods -n kubeops-authentication
+kubectl get pods -n kubeops-addon-controller
+kubectl get pods -n kubeops-virtualization   # after Addons → Virtualization Deploy
+kubectl -n kubeops-console rollout status deploy/kube-dashboard
 ```
 
-Expected success signals:
+Expected: Operators `Ready`, console HTTPS on **30443**, virt UI NodePort **30444** when Virtualization is installed.
 
-- Deployments show desired replicas available
-- Pods are `Running` and Ready
-- Service `kube-dashboard` exposes NodePorts `30443` / `30080` (unless customized)
+### Classic path
 
-### Confirm Kube Dashboard CSS is served
+```bash
+kubectl -n kubernetes-dashboard get deploy,pods,svc
+kubectl -n kubernetes-dashboard rollout status deploy/kube-dashboard
+```
+
+### Confirm CSS assets
 
 ```bash
 curl -skI https://127.0.0.1:30443/theme.css
-# or via port-forward:
-# curl -skI https://127.0.0.1:8443/theme.css
+# After Virtualization is Ready (authenticated session / in-cluster):
+# /virt-theme.css is injected into /kubeops/virt-ui/ HTML
 ```
 
-Expect HTTP `200` and `Content-Type` including `text/css`. Hard-refresh the browser after CSS updates.
+Expect HTTP `200`/`302` (OIDC) and hard-refresh the browser after CSS updates.
 
 ---
 
 ## Theme customization
 
-Stylesheet path:
+Primary stylesheets (operator path embeds from `operator/internal/assets/kube-dashboard/`):
+
+```text
+theme.css       # main console glass theme
+virt-theme.css  # kubevirt-manager embed palette (AdminLTE overlay)
+```
+
+Classic packaging still uses:
 
 ```text
 deploy/kube-dashboard/theme.css
@@ -636,6 +684,8 @@ This repository does **not** ship a Helm chart or invented values files.
 | Expired token | Create a new token (`DURATION` / `kubectl create token`) |
 | Theme missing | Confirm HTML includes `/theme.css`; `curl -skI` the stylesheet |
 | Old CSS after update | Rollout restart kube-dashboard Deployment; hard-refresh browser |
+| Virtualization blank / nested UI | Confirm `/kubeops/virt-ui/` proxy + `virt-theme.css`; hard-refresh `?nocache=` |
+| Addons tile stuck Progressing | `kubectl get virtualization,nfsprovisioner -o yaml`; check addon-controller logs |
 | NGINX proxy errors | `logs deploy/kube-dashboard`; confirm upstream Service `kubernetes-dashboard` |
 | Metrics empty / charts waiting | `kubectl top nodes`; metrics-server + scraper logs; wait ~2–5 min for samples |
 | Overlay/dropdown styling | Hard-refresh; confirm served CSS matches repo file |
@@ -727,20 +777,27 @@ dashboard-ocp/
 ├── README.md
 ├── CHANGELOG.md
 ├── VERSION / RELEASE
-├── operator/                 # kubeops-console + kubeops-authentication
-│   ├── cmd/console|oidc/
-│   ├── config/crd|rbac|manager|samples/
-│   └── internal/…
-├── deploy/                   # classic kustomize packaging (install.sh)
+├── operator/                         # kubeops operators + addon controllers
+│   ├── cmd/console|oidc|nfs|virtualization/
+│   ├── config/
+│   │   ├── addons/controllers.list   # addon registry for install-operators.sh
+│   │   ├── crd|rbac|manager|samples/
+│   │   └── manager|rbac/addons/      # NFS + virtualization controller manifests
+│   └── internal/
+│       ├── assets/kube-dashboard/    # theme.css, virt-theme.css, *.js
+│       ├── controller/               # console reconciler + nginx templates
+│       ├── oidc/ nfs/ virtualization/
+├── deploy/                           # classic kustomize packaging (install.sh)
 ├── scripts/
-│   ├── install-operators.sh  # recommended (kubeops + OIDC)
+│   ├── install-operators.sh          # recommended (kubeops + OIDC + addons)
 │   ├── pack-static-image.py
 │   ├── install-phase-c-oidc.sh / configure-apiserver-oidc.sh
 │   ├── install.sh / uninstall.sh
 │   └── download-images.sh / load-images.sh / get-token.sh
-├── artifacts/images/         # local *.tar (gitignored)
+├── artifacts/images/                 # local *.tar (gitignored)
 └── docs/
     ├── OPERATOR_AND_AUTH.md
+    ├── ADDON_CONTROLLERS.md
     └── METRICS_AND_IMAGES.md
 ```
 
@@ -770,6 +827,9 @@ dashboard-ocp/
 - **kubeops-console** / **kubeops-authentication** operators
 - Single-script OIDC install (`./scripts/install-operators.sh`)
 - Dex login + oauth2-proxy gate for the console
+- Shared **kubeops-addon-controller** namespace + Addons page
+- **NFSProvisioner** addon (`kubeops-nfs-controller`)
+- **Virtualization** addon (KubeVirt + CDI + kubevirt-manager embed + glass theme)
 
 ### Possible future work (not implemented)
 
@@ -792,6 +852,8 @@ No delivery dates are promised.
 
 Stable single-pod **kube-dashboard** console (NGINX + Dashboard sidecar), themed UI, metrics-server packaging, and offline image helpers. No separate upstream dashboard or glass proxy Deployment.
 
+**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, and Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager with matching glass theme).
+
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 
 ---
@@ -801,7 +863,7 @@ Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 1. Fork the repository.
 2. Create a feature branch from `main` or a release tag.
 3. Prefer small, reviewable cosmetic or packaging changes.
-4. For CSS work, edit `deploy/kube-dashboard/theme.css`, apply the ConfigMap workflow, and hard-refresh the browser.
+4. For CSS work, edit `operator/internal/assets/kube-dashboard/theme.css` (and `virt-theme.css` for the virt embed), rebuild/pack `kubeops-console`, and hard-refresh the browser.
 5. Open a pull request with a clear summary and test notes.
 6. File bugs with: Kubernetes version, kube-dashboard version, browser, steps to reproduce, and redacted screenshots.
 
@@ -813,6 +875,6 @@ Do **not** include tokens, kubeconfigs, or secrets in issues or PRs.
 
 - This repository currently has **no committed `LICENSE` file**. Treat distribution terms carefully and consult repository owners before redistribution.
 - Upstream [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) is maintained by the Kubernetes / Dashboard contributors and is licensed under **Apache License 2.0**.
-- Acknowledgements: Kubernetes Dashboard contributors, the Kubernetes project, Angular and Angular Material, NGINX, and Apple **macOS / visionOS** solely as **visual design inspiration**.
+- Acknowledgements: Kubernetes Dashboard contributors, the Kubernetes project, Angular and Angular Material, NGINX, [KubeVirt](https://kubevirt.io/) / CDI, [kubevirt-manager](https://kubevirt-manager.io/), and Apple **macOS / visionOS** solely as **visual design inspiration**.
 
-No affiliation, endorsement, or partnership with Apple or the Kubernetes project is implied.
+No affiliation, endorsement, or partnership with Apple, the Kubernetes project, or kubevirt-manager is implied.
