@@ -14,12 +14,13 @@ const (
 	OperatorPhaseDegraded    OperatorPhase = "Degraded"
 )
 
-// OperatorComponent is the operator role (console | oidc | nfs | virtualization | monitoring | ceph).
+// OperatorComponent is the operator role (console | oidc | nfs | virtualization | monitoring | ceph | metallb).
 // Resource names/namespaces use the kubeops-* prefix
 // (kubeops-console, kubeops-authentication, kubeops-nfs / kubeops-nfs-controller,
 // kubeops-virtualization / kubeops-virtualization-controller,
 // kubeops-monitoring / kubeops-monitoring-controller,
-// kubeops-ceph / kubeops-ceph-controller).
+// kubeops-ceph / kubeops-ceph-controller,
+// kubeops-metallb / kubeops-metallb-controller).
 type OperatorComponent string
 
 const (
@@ -29,12 +30,13 @@ const (
 	OperatorComponentVirtualization OperatorComponent = "virtualization"
 	OperatorComponentMonitoring     OperatorComponent = "monitoring"
 	OperatorComponentCeph           OperatorComponent = "ceph"
+	OperatorComponentMetalLB        OperatorComponent = "metallb"
 )
 
 // OperatorSpec is mostly informational; controllers own status.
 type OperatorSpec struct {
-	// Component / role: "console", "oidc", "nfs", "virtualization", "monitoring", or "ceph".
-	// +kubebuilder:validation:Enum=console;oidc;nfs;virtualization;monitoring;ceph
+	// Component / role: "console", "oidc", "nfs", "virtualization", "monitoring", "ceph", or "metallb".
+	// +kubebuilder:validation:Enum=console;oidc;nfs;virtualization;monitoring;ceph;metallb
 	Component OperatorComponent `json:"component"`
 
 	// Version of the operator binary / packaging.

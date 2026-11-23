@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeops-metallb-controller
+  namespace: kubeops-addon-controller
+  labels:
+    app.kubernetes.io/name: kubeops-metallb-controller
+    app.kubernetes.io/part-of: kube-dashboard
+    app.kubernetes.io/component: metallb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubeops-metallb-controller
+  template:
+    metadata:
+      labels:
+        app: kubeops-metallb-controller
+        app.kubernetes.io/name: kubeops-metallb-controller
+        app.kubernetes.io/part-of: kube-dashboard
+        app.kubernetes.io/component: metallb
+    spec:
+      serviceAccountName: kubeops-metallb-controller
+      containers:
+        - name: manager
+          image: kubeops-metallb:1.3.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --leader-elect=false
+            - --health-probe-bind-address=:18085
+            - --metrics-bind-address=:18084
+          ports:
+            - name: health
+              containerPort: 18085
+            - name: metrics
+              containerPort: 18084
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux

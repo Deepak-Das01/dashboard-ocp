@@ -1,0 +1,2 @@
+v0.16.2
+# Source: https://raw.githubusercontent.com/metallb/metallb/v0.16.2/config/manifests/metallb-native.yaml

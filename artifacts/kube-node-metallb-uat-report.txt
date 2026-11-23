@@ -1,0 +1,147 @@
+==============================================
+MetalLB UAT — RESULT: 19 PASS / 0 FAIL
+Pool under test: 192.168.222.230-192.168.222.250
+Cluster: kube-node (192.168.222.141)
+==============================================
+
+Test matrix:
+  T1  Deploy CR → Ready + Operator Ready                 PASS
+  T2  metallb-system controller + speaker Ready          PASS
+  T3  IPAddressPool + L2Advertisement correct            PASS
+  T4  Service LoadBalancer EXTERNAL-IP from pool         PASS (.230)
+  T5  HTTP via EXTERNAL-IP (L2 ARP)                      PASS
+  T6  Second LB gets distinct IP                         PASS (.231)
+  T7  Patch/redeploy pool addresses                      PASS
+  T8  API + nginx /kubeops/api/metallbs                  PASS
+  T9  Uninstall cleans workloads; controller remains     PASS
+  T10 Re-Deploy + LB IP again                            PASS
+
+Fix during UAT:
+  Status reconcile loop kept CR stuck Progressing while
+  pods were healthy — fixed alreadyReady guard in
+  operator/internal/metallb/controller.go and redeployed.
+
+Left running:
+  MetalLB CR Ready, pool 192.168.222.230-250
+  ns metallb-uat with echo-lb (.230) + echo-lb-2 (.231)
+
+==============================================
+kube-node — MetalLB addon UAT (full)
+Started: 2026-11-23T20:33:37+00:00
+Pool: 192.168.222.230-192.168.222.250
+Node: 192.168.222.141 (kube-node)
+==============================================
+
+==> T1 Controller present + idle→deploy Ready
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE    CONTAINERS   IMAGES                  SELECTOR
+kubeops-metallb-controller   1/1     1            1           8m8s   manager      kubeops-metallb:1.3.0   app=kubeops-metallb-controller
+PASS: MetalLB CR Ready (Ready — L2 pool first-pool (192.168.222.230-192.168.222.250))
+PASS: Operator kubeops-metallb Ready
+
+==> T2 Upstream workloads (controller + speaker)
+NAME                              READY   STATUS    RESTARTS   AGE
+pod/controller-77c7b4c5b8-qlmnq   1/1     Running   0          4m36s
+pod/speaker-zx2vl                 1/1     Running   0          4m36s
+
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/controller   1/1     1            1           4m36s
+
+NAME                     DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+daemonset.apps/speaker   1         1         1       1            1           kubernetes.io/os=linux   4m36s
+PASS: MetalLB controller Deployment ready
+PASS: MetalLB speaker DaemonSet ready
+
+==> T3 IPAddressPool + L2Advertisement
+NAME                                  AUTO ASSIGN   AVOID BUGGY IPS   ADDRESSES
+ipaddresspool.metallb.io/first-pool   true          false             ["192.168.222.230-192.168.222.250"]
+
+NAME                                 IPADDRESSPOOLS   IPADDRESSPOOL SELECTORS   INTERFACES   NODE SELECTORS
+l2advertisement.metallb.io/default   ["first-pool"]                                          
+PASS: Pool addresses=192.168.222.230-192.168.222.250
+PASS: L2Advertisement references first-pool
+
+==> T4 LoadBalancer Service gets EXTERNAL-IP from pool
+namespace/metallb-uat created
+deployment.apps/echo created
+service/echo-lb created
+NAME      TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)        AGE   SELECTOR
+echo-lb   LoadBalancer   10.102.163.60   192.168.222.230   80:31042/TCP   0s    app=echo
+NAME                    READY   STATUS              RESTARTS   AGE
+echo-6676fbb6cb-7thft   0/1     ContainerCreating   0          0s
+PASS: EXTERNAL-IP 192.168.222.230 assigned from pool
+
+==> T5 HTTP reachability via EXTERNAL-IP (L2)
+deployment.apps/echo condition met
+  curl http://192.168.222.230/hostname → HTTP 000curl_fail body=''
+  retry curl → HTTP 200 body='echo-6676fbb6cb-7thft'
+PASS: HTTP via EXTERNAL-IP works (retry)
+
+==> T6 Second LB Service gets a different IP from pool
+service/echo-lb-2 created
+NAME        TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)        AGE   SELECTOR
+echo-lb     LoadBalancer   10.102.163.60   192.168.222.230   80:31042/TCP   20s   app=echo
+echo-lb-2   LoadBalancer   10.106.58.234   192.168.222.231   80:30995/TCP   0s    app=echo
+PASS: Second EXTERNAL-IP 192.168.222.231 != first 192.168.222.230
+
+==> T7 Redeploy / patch pool (narrow to .230-.235)
+metallb.dashboard.ocp/kubeops-metallb patched
+NAME              PHASE   POOL         NAMESPACE        AGE
+kubeops-metallb   Ready   first-pool   metallb-system   5m2s
+PASS: Pool updated to 192.168.222.230-192.168.222.235
+metallb.dashboard.ocp/kubeops-metallb patched
+
+==> T8 Console API proxy /kubeops/api/metallbs
+{"apiVersion":"dashboard.ocp/v1alpha1","items":[{"apiVersion":"dashboard.ocp/v1alpha1","kind":"MetalLB","metadata":{"annotations":{"kubectl.kubernetes.io/last-applied-configuration":"{\"apiVersion\":\"dashboard.ocp/v1alpha1\",\"kind\":\"MetalLB\",\"metadata\":{\"annotations\":{},\"name\":\"kubeops-metallb\"},\"spec\":{\"addresses\":[\"192.168.222.230-192.168.222.250\"],\"l2AdvertisementName\":\"de
+PASS: API metallbs lists kubeops-metallb
+PASS: nginx proxies /kubeops/api/metallbs
+
+==> T9 Uninstall (delete CR) cleans workloads, keeps controller
+metallb.dashboard.ocp "kubeops-metallb" deleted
+No resources found
+No resources found in metallb-system namespace.
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+kubeops-metallb-controller   1/1     1            1           8m43s
+  operator phase after uninstall: Unavailable
+PASS: MetalLB CR deleted
+PASS: MetalLB controller Deployment removed
+PASS: IPAddressPool removed
+PASS: kubeops-metallb-controller still running
+PASS: Operator back to Unavailable
+
+==> T10 Re-Deploy after uninstall
+metallb.dashboard.ocp/kubeops-metallb created
+NAME                                    PHASE   POOL         NAMESPACE        AGE
+metallb.dashboard.ocp/kubeops-metallb   Ready   first-pool   metallb-system   15s
+
+NAME                                     COMPONENT   PHASE   URL   MESSAGE                                                        AGE
+operator.dashboard.ocp/kubeops-metallb   metallb     Ready         Ready — L2 pool first-pool (192.168.222.230-192.168.222.250)   9m7s
+PASS: Re-Deploy Ready
+service "echo-lb" deleted from metallb-uat namespace
+service/echo-lb created
+NAME      TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)        AGE   SELECTOR
+echo-lb   LoadBalancer   10.106.75.235   192.168.222.230   80:31087/TCP   1s    app=echo
+PASS: Post re-Deploy EXTERNAL-IP=192.168.222.230
+
+==> Summary
+PASS=19 FAIL=0
+Finished: 2026-11-23T20:34:37+00:00
+Report: /root/dashboard-ocp/artifacts/kube-node-metallb-uat-report.txt
+
+Final cluster:
+NAME                                    PHASE   POOL         NAMESPACE        AGE
+metallb.dashboard.ocp/kubeops-metallb   Ready   first-pool   metallb-system   16s
+
+NAME                                     COMPONENT   PHASE   URL   MESSAGE                                                        AGE
+operator.dashboard.ocp/kubeops-metallb   metallb     Ready         Ready — L2 pool first-pool (192.168.222.230-192.168.222.250)   9m8s
+NAME                              READY   STATUS    RESTARTS   AGE
+pod/controller-77c7b4c5b8-2cqd4   1/1     Running   0          16s
+pod/speaker-889bd                 1/1     Running   0          16s
+
+NAME                                  AUTO ASSIGN   AVOID BUGGY IPS   ADDRESSES
+ipaddresspool.metallb.io/first-pool   true          false             ["192.168.222.230-192.168.222.250"]
+
+NAME                                 IPADDRESSPOOLS   IPADDRESSPOOL SELECTORS   INTERFACES
+l2advertisement.metallb.io/default   ["first-pool"]                             
+NAME        TYPE           CLUSTER-IP      EXTERNAL-IP       PORT(S)        AGE
+echo-lb     LoadBalancer   10.106.75.235   192.168.222.230   80:31087/TCP   1s
+echo-lb-2   LoadBalancer   10.106.58.234   192.168.222.231   80:30995/TCP   37s

@@ -33,3 +33,6 @@ __pycache__/
 
 # Local scratch / review dumps
 .tmp-glitch-review/
+
+# Interactive installer output (logs + kubeadmin password)
+kubeops-installer/

@@ -20,11 +20,30 @@
 #
 # Usage:
 #   ./scripts/install-operators.sh
+#   ./scripts/install-operators.sh --interactive   # progress bar + logs + password file
 #   LOAD_IMAGES=false ./scripts/install-operators.sh
+#
+# Interactive installer writes:
+#   ./kubeops-installer/<YYYY-MM-DD-HHMMSS>-log
+#   ./kubeops-installer/kubeadmin-password
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH="/usr/local/go/bin:${PATH:-}"
+
+# Optional interactive frontend (progress bar, dated log, kubeadmin-password file).
+__interactive=false
+__installer_args=()
+for __arg in "$@"; do
+  case "$__arg" in
+    -i|--interactive) __interactive=true ;;
+    *) __installer_args+=("$__arg") ;;
+  esac
+done
+if $__interactive; then
+  exec "$ROOT/scripts/kubeops-installer.sh" "${__installer_args[@]}"
+fi
+unset __arg __interactive __installer_args
 
 VERSION="${VERSION:-1.3.0}"
 CONSOLE_NAME="kubeops-console"

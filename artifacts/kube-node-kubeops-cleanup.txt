@@ -1,0 +1,406 @@
+==============================================
+kube-node — full kubeops cleanup
+Started: 2026-11-23T19:35:54+00:00
+Cluster: 192.168.222.141
+==============================================
+
+==> 0. Baseline
+NAME        STATUS   ROLES           AGE     VERSION    INTERNAL-IP       EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
+kube-node   Ready    control-plane   4d11h   v1.34.13   192.168.222.141   <none>        Ubuntu 24.04.5 LTS   6.8.0-149-generic   containerd://2.4.2
+kubeops-addon-controller   Active   25h
+kubeops-authentication     Active   25h
+kubeops-ceph-cluster       Active   24h
+kubeops-console            Active   25h
+kubeops-monitoring         Active   25h
+kubeops-nfs                Active   25h
+kubeops-virtualization     Active   25h
+NAME                                         PHASE   AUTH   URL                              AGE
+kubedashboard.dashboard.ocp/kube-dashboard   Ready   oidc   https://192.168.222.141:30443/   25h
+
+NAME                                PHASE   ISSUER                             APISERVER   AGE
+clusteroidc.dashboard.ocp/cluster   Ready   http://192.168.222.141:32056/dex   required    25h
+
+NAME                                            COMPONENT        PHASE         URL                                MESSAGE                                                                                                                                                        AGE
+operator.dashboard.ocp/kubeops-authentication   oidc             Ready         http://192.168.222.141:32056/dex   Dex Ready at http://192.168.222.141:32056/dex — run scripts/configure-apiserver-oidc.sh and scripts/install-phase-c-oidc.sh (or enable console oauth2-proxy)   25h
+operator.dashboard.ocp/kubeops-ceph             ceph             Unavailable                                      Unavailable — Ceph not installed; deploy from Addons                                                                                                           24h
+operator.dashboard.ocp/kubeops-console          console          Ready         https://192.168.222.141:30443/     OIDC: browser redirects to Dex (kubeadmin); password in kubeops-authentication/kubeadmin-oidc-bootstrap                                                        25h
+operator.dashboard.ocp/kubeops-monitoring       monitoring       Unavailable                                      Unavailable — monitoring not installed; deploy from Addons                                                                                                     25h
+operator.dashboard.ocp/kubeops-nfs              nfs              Unavailable                                      Unavailable — NFS provisioner not installed; deploy from Addons with your NFS server details                                                                   25h
+operator.dashboard.ocp/kubeops-virtualization   virtualization   Unavailable                                      Unavailable — virtualization not installed; deploy from Addons                                                                                                 25h
+
+==> 2. Delete console / OIDC / operator CRs
+kubedashboard.dashboard.ocp "kube-dashboard" deleted
+clusteroidc.dashboard.ocp "cluster" deleted
+No resources found
+No resources found
+No resources found
+No resources found
+operator.dashboard.ocp "kubeops-authentication" deleted
+operator.dashboard.ocp "kubeops-ceph" deleted
+operator.dashboard.ocp "kubeops-console" deleted
+operator.dashboard.ocp "kubeops-monitoring" deleted
+operator.dashboard.ocp "kubeops-nfs" deleted
+operator.dashboard.ocp "kubeops-virtualization" deleted
+
+==> 3. Delete kubeops + legacy namespaces
+namespace "kubeops-console" deleted
+namespace "kubeops-authentication" deleted
+namespace "kubeops-addon-controller" deleted
+namespace "kubeops-nfs" deleted
+namespace "kubeops-virtualization" deleted
+namespace "kubeops-monitoring" deleted
+namespace "kubeops-ceph-cluster" deleted
+Waiting for namespaces to terminate…
+  still present: kubeops-addon-controller — clearing ns finalizers if stuck
+  still present: kubeops-authentication — clearing ns finalizers if stuck
+  still present: kubeops-ceph-cluster — clearing ns finalizers if stuck
+  still present: kubeops-console — clearing ns finalizers if stuck
+  still present: kubeops-monitoring — clearing ns finalizers if stuck
+  still present: kubeops-nfs — clearing ns finalizers if stuck
+  still present: kubeops-virtualization — clearing ns finalizers if stuck
+All target namespaces gone
+
+==> 4. Delete product + Rook/Ceph CRDs
+customresourcedefinition.apiextensions.k8s.io "kubedashboards.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "clusteroidcs.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "operators.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "nfsprovisioners.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "virtualizations.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "monitorings.dashboard.ocp" deleted
+customresourcedefinition.apiextensions.k8s.io "rookceps.dashboard.ocp" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephblockpoolradosnamespaces.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephblockpoolradosnamespaces.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephblockpools.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephblockpools.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephbucketnotifications.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephbucketnotifications.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephbuckettopics.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephbuckettopics.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephclients.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephclients.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephclusters.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephclusters.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephcosidrivers.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephcosidrivers.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephfilesystemmirrors.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephfilesystemmirrors.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephfilesystems.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephfilesystems.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephfilesystemsubvolumegroups.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephfilesystemsubvolumegroups.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephnfses.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephnfses.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephobjectrealms.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephobjectrealms.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephobjectstores.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephobjectstores.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephobjectstoreusers.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephobjectstoreusers.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephobjectzonegroups.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephobjectzonegroups.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephobjectzones.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephobjectzones.ceph.rook.io" deleted
+Deleting customresourcedefinition.apiextensions.k8s.io/cephrbdmirrors.ceph.rook.io
+customresourcedefinition.apiextensions.k8s.io "cephrbdmirrors.ceph.rook.io" deleted
+
+==> 5. RBAC / CSI / StorageClass leftovers
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-console" deleted
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-authentication" deleted
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-nfs-controller" deleted
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-virtualization-controller" deleted
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-monitoring-controller" deleted
+clusterrolebinding.rbac.authorization.k8s.io "kubeops-ceph-controller" deleted
+clusterrolebinding.rbac.authorization.k8s.io "dashboard-admin" deleted
+clusterrolebinding.rbac.authorization.k8s.io "oidc-kubeadmin" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rook-ceph-global" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rook-ceph-mgr-cluster" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rook-ceph-object-bucket" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rook-ceph-osd" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rook-ceph-system" deleted
+clusterrolebinding.rbac.authorization.k8s.io "cephfs-csi-nodeplugin-role" deleted
+clusterrolebinding.rbac.authorization.k8s.io "cephfs-csi-provisioner-role" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rbd-csi-nodeplugin" deleted
+clusterrolebinding.rbac.authorization.k8s.io "rbd-csi-provisioner-role" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-cluster-mgmt" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-global" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-mgr-cluster" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-mgr-system" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-object-bucket" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-osd" deleted
+clusterrole.rbac.authorization.k8s.io "rook-ceph-system" deleted
+clusterrole.rbac.authorization.k8s.io "cephfs-csi-nodeplugin" deleted
+clusterrole.rbac.authorization.k8s.io "cephfs-external-provisioner-runner" deleted
+clusterrole.rbac.authorization.k8s.io "rbd-csi-nodeplugin" deleted
+clusterrole.rbac.authorization.k8s.io "rbd-external-provisioner-runner" deleted
+No resources found
+
+==> 6. metrics-server (optional leftover from product install)
+deployment.apps "metrics-server" deleted from kube-system namespace
+service "metrics-server" deleted from kube-system namespace
+serviceaccount "metrics-server" deleted from kube-system namespace
+apiservice.apiregistration.k8s.io "v1beta1.metrics.k8s.io" deleted
+clusterrole.rbac.authorization.k8s.io "system:aggregated-metrics-reader" deleted
+clusterrole.rbac.authorization.k8s.io "system:metrics-server" deleted
+clusterrolebinding.rbac.authorization.k8s.io "metrics-server:system:auth-delegator" deleted
+clusterrolebinding.rbac.authorization.k8s.io "system:metrics-server" deleted
+rolebinding.rbac.authorization.k8s.io "metrics-server-auth-reader" deleted from kube-system namespace
+
+==> 7. Node labels / taints residue
+error: unknown flag: --ignore-not-found
+See 'kubectl label --help' for usage.
+error: unknown flag: --ignore-not-found
+See 'kubectl taint --help' for usage.
+
+==> 8. Local installer output dir
+removed ./kubeops-installer (if present)
+
+==> 7b. Node labels / taints (retry)
+label "ceph" not found.
+label "storage-node" not found.
+label "kubeops" not found.
+node/kube-node not labeled
+taint "storage-node" not found
+taint "kubeops" not found
+
+==> Final verification
+---- namespaces ----
+(none)
+---- CRs / APIs ----
+(no dashboard.ocp / rook APIs)
+---- CRDs ----
+(none)
+---- SC / CSI / PV ----
+(none)
+---- clusterrole(binding) leftovers ----
+(none)
+---- node labels ----
+(no ceph/kubeops labels)
+---- pods any kubeops ----
+---- nodeports 30443-30448 / 32056 ----
+---- metrics-server ----
+Error from server (NotFound): deployments.apps "metrics-server" not found
+Error from server (NotFound): services "metrics-server" not found
+
+CLEAN DONE: 2026-11-23T19:37:12+00:00
+Report: /root/dashboard-ocp/artifacts/kube-node-kubeops-cleanup.txt
+
+Cluster is ready for a fresh interactive install:
+  cd /root/dashboard-ocp
+  ./scripts/kubeops-installer.sh
+  # or: ./scripts/install-operators.sh --interactive
+
+==> RESUME cleanup 2026-11-23T19:37:34+00:00 — namespaces/pods still present
+---- ns status ----
+NAME              STATUS   AGE
+default           Active   4d11h
+kube-flannel      Active   4d11h
+kube-node-lease   Active   4d11h
+kube-public       Active   4d11h
+kube-system       Active   4d11h
+---- pods ----
+kubeops-addon-controller   kubeops-ceph-controller-564d9986b7-rnz7g             1/1     Running   2 (10m ago)      11h
+kubeops-addon-controller   kubeops-monitoring-controller-6bf98546d7-rvdrf       1/1     Running   3 (10m ago)      22h
+kubeops-addon-controller   kubeops-nfs-controller-585c4f777b-ctlt5              1/1     Running   3 (10m ago)      22h
+kubeops-addon-controller   kubeops-virtualization-controller-74c87b667f-6b4fc   1/1     Running   3 (10m ago)      22h
+kubeops-authentication     dex-7b754c476b-xrkmt                                 1/1     Running   1 (10m ago)      4h49m
+kubeops-authentication     kubeops-authentication-5df4785bf5-qqb97              1/1     Running   3 (10m ago)      22h
+kubeops-ceph-cluster       rook-ceph-operator-59f89bbf7f-bzb4h                  1/1     Running   2 (10m ago)      11h
+kubeops-console            dashboard-metrics-scraper-5ffb7d645f-hmjq7           1/1     Running   4 (10m ago)      25h
+kubeops-console            kube-dashboard-77dc44df4b-btfqj                      3/3     Running   10 (9m33s ago)   10h
+kubeops-console            kubeops-console-5d9fc4c7b4-zv5mz                     1/1     Running   2 (10m ago)      10h
+Waiting for ns termination…
+namespaces gone after 1 checks
+---- remaining ns ----
+(none)
+---- remaining pods ----
+---- nodeports ----
+
+==> Orphan cleanup 2026-11-23T19:38:01+00:00 — ns gone but pods/svcs remain
+Orphan namespaces seen via pods: kubeops-addon-controller
+kubeops-authentication
+kubeops-ceph-cluster
+kubeops-console
+Deleting all resources still keyed to ns=kubeops-addon-controller
+namespace/kubeops-addon-controller created
+Deleting all resources still keyed to ns=kubeops-authentication
+namespace/kubeops-authentication created
+Deleting all resources still keyed to ns=kubeops-ceph-cluster
+namespace/kubeops-ceph-cluster created
+Deleting all resources still keyed to ns=kubeops-console
+namespace/kubeops-console created
+-- wipe kubeops-addon-controller --
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "kubeops-ceph-controller-564d9986b7-rnz7g" force deleted from kubeops-addon-controller namespace
+pod "kubeops-monitoring-controller-6bf98546d7-rvdrf" force deleted from kubeops-addon-controller namespace
+pod "kubeops-nfs-controller-585c4f777b-ctlt5" force deleted from kubeops-addon-controller namespace
+pod "kubeops-virtualization-controller-74c87b667f-6b4fc" force deleted from kubeops-addon-controller namespace
+service "kubeops-ceph-controller" force deleted from kubeops-addon-controller namespace
+deployment.apps "kubeops-ceph-controller" force deleted from kubeops-addon-controller namespace
+deployment.apps "kubeops-monitoring-controller" force deleted from kubeops-addon-controller namespace
+deployment.apps "kubeops-nfs-controller" force deleted from kubeops-addon-controller namespace
+deployment.apps "kubeops-virtualization-controller" force deleted from kubeops-addon-controller namespace
+replicaset.apps "kubeops-nfs-controller-585c4f777b" force deleted from kubeops-addon-controller namespace
+replicaset.apps "kubeops-virtualization-controller-74c87b667f" force deleted from kubeops-addon-controller namespace
+replicaset.apps "kubeops-virtualization-controller-75f95d6697" force deleted from kubeops-addon-controller namespace
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+configmap "kube-root-ca.crt" force deleted from kubeops-addon-controller namespace
+serviceaccount "default" force deleted from kubeops-addon-controller namespace
+serviceaccount "kubeops-ceph-controller" force deleted from kubeops-addon-controller namespace
+serviceaccount "kubeops-monitoring-controller" force deleted from kubeops-addon-controller namespace
+serviceaccount "kubeops-nfs-controller" force deleted from kubeops-addon-controller namespace
+serviceaccount "kubeops-virtualization-controller" force deleted from kubeops-addon-controller namespace
+-- wipe kubeops-authentication --
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "dex-7b754c476b-xrkmt" force deleted from kubeops-authentication namespace
+pod "kubeops-authentication-5df4785bf5-qqb97" force deleted from kubeops-authentication namespace
+service "dex" force deleted from kubeops-authentication namespace
+deployment.apps "dex" force deleted from kubeops-authentication namespace
+deployment.apps "kubeops-authentication" force deleted from kubeops-authentication namespace
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+configmap "dex" force deleted from kubeops-authentication namespace
+configmap "dex-theme" force deleted from kubeops-authentication namespace
+configmap "kube-root-ca.crt" force deleted from kubeops-authentication namespace
+secret "kubeadmin-oidc-bootstrap" force deleted from kubeops-authentication namespace
+secret "oauth2-proxy-oidc" force deleted from kubeops-authentication namespace
+serviceaccount "default" force deleted from kubeops-authentication namespace
+serviceaccount "kubeops-authentication" force deleted from kubeops-authentication namespace
+-- wipe kubeops-ceph-cluster --
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "rook-ceph-operator-59f89bbf7f-bzb4h" force deleted from kubeops-ceph-cluster namespace
+deployment.apps "rook-ceph-operator" force deleted from kubeops-ceph-cluster namespace
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+configmap "kube-root-ca.crt" force deleted from kubeops-ceph-cluster namespace
+configmap "rook-ceph-operator-config" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "default" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "objectstorage-provisioner" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-cmd-reporter" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-default" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-mgr" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-osd" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-purge-osd" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-rgw" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-ceph-system" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-csi-cephfs-plugin-sa" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-csi-cephfs-provisioner-sa" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-csi-rbd-plugin-sa" force deleted from kubeops-ceph-cluster namespace
+serviceaccount "rook-csi-rbd-provisioner-sa" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "cephfs-external-provisioner-cfg" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rbd-csi-nodeplugin" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rbd-external-provisioner-cfg" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rook-ceph-cmd-reporter" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rook-ceph-mgr" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rook-ceph-osd" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rook-ceph-purge-osd" force deleted from kubeops-ceph-cluster namespace
+role.rbac.authorization.k8s.io "rook-ceph-system" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "cephfs-csi-provisioner-role-cfg" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rbd-csi-nodeplugin-role-cfg" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rbd-csi-provisioner-role-cfg" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-cluster-mgmt" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-cmd-reporter" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-mgr" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-mgr-system" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-osd" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-purge-osd" force deleted from kubeops-ceph-cluster namespace
+rolebinding.rbac.authorization.k8s.io "rook-ceph-system" force deleted from kubeops-ceph-cluster namespace
+-- wipe kubeops-console --
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+pod "dashboard-metrics-scraper-5ffb7d645f-hmjq7" force deleted from kubeops-console namespace
+pod "kube-dashboard-77dc44df4b-btfqj" force deleted from kubeops-console namespace
+pod "kubeops-console-5d9fc4c7b4-zv5mz" force deleted from kubeops-console namespace
+service "dashboard-metrics-scraper" force deleted from kubeops-console namespace
+service "kube-dashboard" force deleted from kubeops-console namespace
+deployment.apps "dashboard-metrics-scraper" force deleted from kubeops-console namespace
+deployment.apps "kube-dashboard" force deleted from kubeops-console namespace
+deployment.apps "kubeops-console" force deleted from kubeops-console namespace
+replicaset.apps "kube-dashboard-567d7fbc7d" force deleted from kubeops-console namespace
+replicaset.apps "kube-dashboard-57d497cf57" force deleted from kubeops-console namespace
+replicaset.apps "kube-dashboard-66d8958bc" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-546b8685c7" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-5d9fc4c7b4" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-5dc8dbc77d" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-5f76d46574" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-68c86d58c5" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-6d68bc6746" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-7965776b79" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-84df84d9b" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-88694b8fb" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-b9b87794c" force deleted from kubeops-console namespace
+replicaset.apps "kubeops-console-d7689c5bc" force deleted from kubeops-console namespace
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+configmap "kube-dashboard-nginx" force deleted from kubeops-console namespace
+configmap "kube-dashboard-ui" force deleted from kubeops-console namespace
+configmap "kube-root-ca.crt" force deleted from kubeops-console namespace
+configmap "kubernetes-dashboard-settings" force deleted from kubeops-console namespace
+secret "dashboard-admin-token" force deleted from kubeops-console namespace
+secret "kube-dashboard-tls" force deleted from kubeops-console namespace
+secret "kubernetes-dashboard-certs" force deleted from kubeops-console namespace
+secret "kubernetes-dashboard-csrf" force deleted from kubeops-console namespace
+secret "kubernetes-dashboard-key-holder" force deleted from kubeops-console namespace
+secret "oauth2-proxy-oidc" force deleted from kubeops-console namespace
+serviceaccount "dashboard-admin" force deleted from kubeops-console namespace
+serviceaccount "default" force deleted from kubeops-console namespace
+serviceaccount "kubeops-console" force deleted from kubeops-console namespace
+serviceaccount "kubernetes-dashboard" force deleted from kubeops-console namespace
+role.rbac.authorization.k8s.io "kubernetes-dashboard" force deleted from kubeops-console namespace
+rolebinding.rbac.authorization.k8s.io "kubernetes-dashboard" force deleted from kubeops-console namespace
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+namespace "kubeops-addon-controller" force deleted
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+namespace "kubeops-authentication" force deleted
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+namespace "kubeops-ceph-cluster" force deleted
+Warning: Immediate deletion does not wait for confirmation that the running resource has been terminated. The resource may continue to run on the cluster indefinitely.
+namespace "kubeops-console" force deleted
+
+==> containerd/crictl leftovers
+(no crictl pods matched)
+removing cri pod 19909fe39700f313dd746a3e3793c4295009a99dffa186f98eb48a760a427558
+removing cri pod 7ef9689348d155ecca71c2bffa0f50e8b271fdf25e87adadcfbb3130cb6ac8a0
+removing cri pod 5471057951af7851844a40c56927968a5596667be75a3cec7c12ee7dd39c0cce
+removing cri pod bcd124f893feed1a6518d8ad0f54ee3eb0c73bdf6fed59785f8c8f0a355c2bc5
+removing cri pod 46ee9b44efb6d4e9696be5e5cf3308a811c796087f20ca8eb2b878aebeef04fc
+removing cri pod 894080d11a27458b0681ea06dc9ed52715130abb54e83c218ad923cd49d28355
+removing cri pod 078acb7161f9253d360b053a6c606fff9320d4b4989313587fe469a8e57a45b1
+removing cri pod cad1f84a472be59274e8518ffcdea7d629e8f311bfb18a14ac2504723dffd172
+removing cri pod 8df9a67caf495b10a26cea2e8f0b5d363c0f8b2a421ce6e43375cae1810d0139
+removing cri pod ce77e58be147d5f515bccb8c227ce28336f9b4df9db2df330b5a511f77399a5e
+removing cri pod 84751023b28bfe328ff34e926809a0f56c0a6cd0723f273e65d03da3b16936d6
+removing cri pod 18de23965ba85d16ab13b0b80627a667b87e02211cd985c4d4737fefabe952b5
+removing cri pod 9d8b5f7b3ede3e2226b51c0f2ba8d280793da8b738f3e1655693f2a91d0ece8a
+removing cri pod a7caa408577a028234807edd1ce78bbf5c51ceb44a13d8cb6136157ee69218a3
+
+==> verify
+NAME              STATUS   AGE
+default           Active   4d11h
+kube-flannel      Active   4d11h
+kube-node-lease   Active   4d11h
+kube-public       Active   4d11h
+kube-system       Active   4d11h
+(no kubeops pods)
+(no kubeops svcs/nodeports)
+
+==> FINAL VERIFY 2026-11-23T19:39:14+00:00
+---- namespaces ----
+NAME              STATUS   AGE
+default           Active   4d11h
+kube-flannel      Active   4d11h
+kube-node-lease   Active   4d11h
+kube-public       Active   4d11h
+kube-system       Active   4d11h
+---- CRDs dashboard/rook ----
+(none)
+---- kubeops pods/svc ----
+(none)
+---- nodeports ----
+(none)
+---- clusterrole leftovers ----
+(none)
+---- sc/csi/pv ----
+(none)
+---- crictl ----
+(none)
+---- listening nodeports on host ----
+(none bound)
+
+CLEAN COMPLETE: 2026-11-23T19:39:15+00:00
+Report: /root/dashboard-ocp/artifacts/kube-node-kubeops-cleanup.txt

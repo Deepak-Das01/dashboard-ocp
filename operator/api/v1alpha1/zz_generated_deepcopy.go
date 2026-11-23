@@ -513,3 +513,90 @@ func (in *RookCephStatus) DeepCopy() *RookCephStatus {
 	in.DeepCopyInto(out)
 	return out
 }
+
+// MetalLB
+func (in *MetalLB) DeepCopyInto(out *MetalLB) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+func (in *MetalLB) DeepCopy() *MetalLB {
+	if in == nil {
+		return nil
+	}
+	out := new(MetalLB)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *MetalLB) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *MetalLBList) DeepCopyInto(out *MetalLBList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]MetalLB, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+func (in *MetalLBList) DeepCopy() *MetalLBList {
+	if in == nil {
+		return nil
+	}
+	out := new(MetalLBList)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *MetalLBList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+func (in *MetalLBSpec) DeepCopyInto(out *MetalLBSpec) {
+	*out = *in
+	if in.Addresses != nil {
+		in, out := &in.Addresses, &out.Addresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+}
+func (in *MetalLBSpec) DeepCopy() *MetalLBSpec {
+	if in == nil {
+		return nil
+	}
+	out := new(MetalLBSpec)
+	in.DeepCopyInto(out)
+	return out
+}
+func (in *MetalLBStatus) DeepCopyInto(out *MetalLBStatus) {
+	*out = *in
+	if in.Addresses != nil {
+		in, out := &in.Addresses, &out.Addresses
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Conditions != nil {
+		out.Conditions = make([]metav1.Condition, len(in.Conditions))
+		for i := range in.Conditions {
+			in.Conditions[i].DeepCopyInto(&out.Conditions[i])
+		}
+	}
+}
+func (in *MetalLBStatus) DeepCopy() *MetalLBStatus {
+	if in == nil {
+		return nil
+	}
+	out := new(MetalLBStatus)
+	in.DeepCopyInto(out)
+	return out
+}

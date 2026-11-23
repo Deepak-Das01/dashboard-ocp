@@ -24,6 +24,9 @@ the console Addons page (create/delete CRs) — they do not install controllers.
 | Ceph UI | Rook mgr dashboard (NodePort **30448**; embed `/kubeops/ceph-ui/`) | `kubeops-ceph-cluster` |
 | Ceph workload | Rook + CephCluster + toolbox + RBD/CephFS SCs | `kubeops-ceph-cluster` |
 | Operator status row | `kubeops-ceph` (`component: ceph`) | cluster-scoped |
+| MetalLB controller | `kubeops-metallb-controller` | `kubeops-addon-controller` |
+| MetalLB workload | MetalLB controller + speaker + IPAddressPool + L2Advertisement | `metallb-system` (CR `spec.namespace`) |
+| Operator status row | `kubeops-metallb` (`component: metallb`) | cluster-scoped |
 
 ## Registry (source of truth for install)
 
@@ -35,6 +38,7 @@ nfs                nfs               kubeops-nfs              kubeops-nfs-contro
 virtualization     virtualization    kubeops-virtualization   kubeops-virtualization-controller    virtualization    kubeops-addon-controller
 monitoring         monitoring        kubeops-monitoring       kubeops-monitoring-controller        monitoring        kubeops-addon-controller
 ceph               ceph              kubeops-ceph             kubeops-ceph-controller              ceph              kubeops-addon-controller
+metallb            metallb           kubeops-metallb          kubeops-metallb-controller          metallb          kubeops-addon-controller
 ```
 
 `install-operators.sh` loops this file to **build, pack, apply, set-image, and
@@ -104,3 +108,14 @@ wait** for every addon controller. Individual addons are not special-cased.
   are `Deployed` and the UI Deployment is ready.
 - UI URL (NodePort **30444**) is written to `status.uiURL` / Operators URL column.
 - Set `spec.useEmulation: true` (Addons checkbox) on labs without `/dev/kvm`.
+
+## kubeops-metallb notes
+
+- Controller runs in **`kubeops-addon-controller`**. Workloads live in
+  **`metallb-system`** (CR `spec.namespace`, upstream default).
+- Vendored MetalLB **v0.16.2** `metallb-native.yaml` under
+  `operator/internal/metallb/manifests/`.
+- Deploy creates `IPAddressPool` + `L2Advertisement` from form values (L2 only; no BGP in v1).
+- Pick a free LAN range that does not overlap node or DHCP addresses.
+- Uninstall removes the pool/L2 CRs and stamped MetalLB workloads; CRDs + namespace stay
+  for faster re-Deploy. The controller pod remains for the next Deploy.

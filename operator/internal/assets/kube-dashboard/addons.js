@@ -16,6 +16,7 @@
   var VIRT_API = "/kubeops/api/virtualizations";
   var MON_API = "/kubeops/api/monitorings";
   var CEPH_API = "/kubeops/api/rookceps";
+  var MLB_API = "/kubeops/api/metallbs";
   var CEPH_DISKS_API = "/kubeops/api/ceph-disks";
   var OPS_API = "/kubeops/api/operators";
   var VIEW_ID = "lg-addons-view";
@@ -28,6 +29,10 @@
   var DEFAULT_CEPH_RELEASE = "kubeops-ceph";
   var DEFAULT_CEPH_NS = "kubeops-ceph-cluster";
   var DEFAULT_CEPH_IMAGE = "quay.io/ceph/ceph:v19.2.3";
+  var DEFAULT_MLB_RELEASE = "kubeops-metallb";
+  var DEFAULT_MLB_NS = "metallb-system";
+  var DEFAULT_MLB_POOL = "first-pool";
+  var DEFAULT_MLB_ADDRESSES = "192.168.222.200-192.168.222.210";
   var DEFAULT_KV_VERSION = "v1.10.0";
   var DEFAULT_CDI_VERSION = "v1.66.1";
 
@@ -39,11 +44,22 @@
   var loading = false;
   var submitting = false;
   var panel = "catalog"; // catalog | form
-  var formKind = "nfs"; // nfs | virt | mon | ceph
+  var formKind = "nfs"; // nfs | virt | mon | ceph | mlb
   var editingName = "";
   var draft = null; // preserved form values while on the form panel
   var lastStatusKey = "";
-  var catalogCache = { nfs: null, virt: null, mon: null, ceph: null, nfsOp: false, virtOp: false, monOp: false, cephOp: false };
+  var catalogCache = {
+    nfs: null,
+    virt: null,
+    mon: null,
+    ceph: null,
+    mlb: null,
+    nfsOp: false,
+    virtOp: false,
+    monOp: false,
+    cephOp: false,
+    mlbOp: false,
+  };
 
   function esc(s) {
     return String(s == null ? "" : s)
@@ -104,7 +120,9 @@
               ? "kubeops-monitoring-controller is not installed (ns kubeops-addon-controller)."
               : kind === "ceph"
                 ? "kubeops-ceph-controller is not installed (ns kubeops-addon-controller)."
-                : "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
+                : kind === "mlb"
+                  ? "kubeops-metallb-controller is not installed (ns kubeops-addon-controller)."
+                  : "kubeops-nfs-controller is not installed (ns kubeops-addon-controller).",
       };
     }
     if (!cr) {
@@ -118,7 +136,9 @@
               ? "Not installed — click Install to deploy Prometheus + Grafana."
               : kind === "ceph"
                 ? "Not installed — click Install to deploy Rook Ceph."
-                : "Not installed — click Install and Deploy with your NFS server details.",
+                : kind === "mlb"
+                  ? "Not installed — click Install and Deploy with an L2 address pool."
+                  : "Not installed — click Install and Deploy with your NFS server details.",
       };
     }
     var phase = String((cr.status && cr.status.phase) || "Progressing");
@@ -195,6 +215,8 @@
       if (!document.getElementById("mon-release")) return;
     } else if (formKind === "ceph") {
       if (!document.getElementById("ceph-release")) return;
+    } else if (formKind === "mlb") {
+      if (!document.getElementById("mlb-release")) return;
     } else if (!document.getElementById("nfs-server")) {
       return;
     }
@@ -277,6 +299,14 @@
               taintStorageNodes: false,
               dashboardNodePort: 30448,
               release: DEFAULT_CEPH_RELEASE,
+            };
+          } else if (formKind === "mlb") {
+            draft = {
+              namespace: DEFAULT_MLB_NS,
+              poolName: DEFAULT_MLB_POOL,
+              addressesText: DEFAULT_MLB_ADDRESSES,
+              l2AdvertisementName: "default",
+              release: DEFAULT_MLB_RELEASE,
             };
           } else {
             draft = {
@@ -361,7 +391,7 @@
     );
   }
 
-  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp, monCr, monOp, cephCr, cephOp) {
+  function renderCatalog(root, nfsCr, nfsOp, virtCr, virtOp, monCr, monOp, cephCr, cephOp, mlbCr, mlbOp) {
     lastStatusKey = "";
     root.className = "lg-addons-body";
     root.innerHTML =
@@ -393,6 +423,13 @@
         "Rook Ceph — block (RWO) + CephFS (RWX) StorageClasses, toolbox, and dashboard embed.",
         cephCr,
         cephOp
+      ) +
+      tileHTML(
+        "mlb",
+        "MetalLB",
+        "MetalLB L2 — assign LoadBalancer EXTERNAL-IPs from a free address pool on your LAN.",
+        mlbCr,
+        mlbOp
       ) +
       "</div>";
   }
@@ -602,6 +639,24 @@
         release: release || DEFAULT_CEPH_RELEASE,
       };
     }
+    if (formKind === "mlb") {
+      if (draft && draft.addressesText != null) {
+        return {
+          namespace: draft.namespace || DEFAULT_MLB_NS,
+          poolName: draft.poolName || DEFAULT_MLB_POOL,
+          addressesText: draft.addressesText || "",
+          l2AdvertisementName: draft.l2AdvertisementName || "default",
+          release: draft.release || release || DEFAULT_MLB_RELEASE,
+        };
+      }
+      return {
+        namespace: spec.namespace || DEFAULT_MLB_NS,
+        poolName: spec.poolName || DEFAULT_MLB_POOL,
+        addressesText: (spec.addresses || []).join("\n"),
+        l2AdvertisementName: spec.l2AdvertisementName || "default",
+        release: release || DEFAULT_MLB_RELEASE,
+      };
+    }
     if (draft && draft.server != null) {
       return {
         server: draft.server,
@@ -751,6 +806,28 @@
         "</label>" +
         field("ceph-nodeport", "Dashboard NodePort", false, "30448", String(vals.dashboardNodePort || 30448)) +
         field("ceph-release", "Release name", false, DEFAULT_CEPH_RELEASE, vals.release);
+    } else if (formKind === "mlb") {
+      title = "MetalLB";
+      missingCtrl =
+        "Install kubeops-metallb-controller (shipped with install-operators.sh) before Deploy.";
+      callout =
+        "Installs MetalLB (L2) in metallb-system and creates an IPAddressPool + L2Advertisement. Use a free LAN range that does not overlap node or DHCP addresses. BGP is not configured in v1.";
+      releaseId = "mlb-release";
+      fields =
+        field("mlb-namespace", "Namespace", false, DEFAULT_MLB_NS, vals.namespace) +
+        field("mlb-pool", "IPAddressPool name", false, DEFAULT_MLB_POOL, vals.poolName) +
+        '<label class="lg-addon-field" for="mlb-addresses">' +
+        '<span class="lg-addon-label">Addresses <span class="lg-addon-req">*</span></span>' +
+        '<textarea class="lg-addon-input" id="mlb-addresses" name="mlb-addresses" rows="3" placeholder="' +
+        esc(DEFAULT_MLB_ADDRESSES) +
+        '">' +
+        esc(vals.addressesText || "") +
+        "</textarea>" +
+        '<span class="lg-addon-hint">One CIDR or range per line (e.g. 192.168.222.200-192.168.222.210).</span>' +
+        '<span class="lg-addon-error" id="mlb-addresses-err" hidden></span>' +
+        "</label>" +
+        field("mlb-l2", "L2Advertisement name", false, "default", vals.l2AdvertisementName) +
+        field("mlb-release", "Release name", false, DEFAULT_MLB_RELEASE, vals.release);
     } else {
       title = "kubeops-nfs";
       missingCtrl =
@@ -850,7 +927,9 @@
           ? "#mon-release"
           : formKind === "ceph"
             ? "#ceph-release"
-            : "#nfs-release"
+            : formKind === "mlb"
+              ? "#mlb-release"
+              : "#nfs-release"
     );
     if (releaseInput) {
       releaseInput.readOnly = isEdit;
@@ -930,6 +1009,16 @@
         release: val("ceph-release") || DEFAULT_CEPH_RELEASE,
       };
     }
+    if (formKind === "mlb") {
+      var addrEl = document.getElementById("mlb-addresses");
+      return {
+        namespace: val("mlb-namespace") || DEFAULT_MLB_NS,
+        poolName: val("mlb-pool") || DEFAULT_MLB_POOL,
+        addressesText: addrEl && addrEl.value != null ? String(addrEl.value) : "",
+        l2AdvertisementName: val("mlb-l2") || "default",
+        release: val("mlb-release") || DEFAULT_MLB_RELEASE,
+      };
+    }
     var defEl = document.getElementById("nfs-default");
     return {
       server: val("nfs-server"),
@@ -989,6 +1078,16 @@
         showFieldError("ceph-nodes", "Replace REPLACE_ME with real node/device names");
         ok = false;
       }
+      return ok;
+    }
+    if (formKind === "mlb") {
+      req("mlb-namespace", vals.namespace, "Namespace");
+      req("mlb-pool", vals.poolName, "IPAddressPool name");
+      req("mlb-addresses", (vals.addressesText || "").trim(), "Addresses");
+      req("mlb-release", vals.release, "Release name");
+      dns1123("mlb-release", vals.release);
+      dns1123("mlb-namespace", vals.namespace);
+      dns1123("mlb-pool", vals.poolName);
       return ok;
     }
     req("nfs-server", vals.server, "NFS server");
@@ -1116,7 +1215,9 @@
           ? MON_API
           : formKind === "ceph"
             ? CEPH_API
-            : NFS_API;
+            : formKind === "mlb"
+              ? MLB_API
+              : NFS_API;
     var kind =
       formKind === "virt"
         ? "Virtualization"
@@ -1124,7 +1225,9 @@
           ? "Monitoring"
           : formKind === "ceph"
             ? "RookCeph"
-            : "NFSProvisioner";
+            : formKind === "mlb"
+              ? "MetalLB"
+              : "NFSProvisioner";
     var spec;
     if (formKind === "virt") {
       spec = {
@@ -1155,6 +1258,18 @@
         taintStorageNodes: !!vals.taintStorageNodes,
         dashboardNodePort: vals.dashboardNodePort || 30448,
         poolSize: vals.poolSize || 0,
+      };
+    } else if (formKind === "mlb") {
+      spec = {
+        namespace: vals.namespace || DEFAULT_MLB_NS,
+        poolName: vals.poolName || DEFAULT_MLB_POOL,
+        addresses: String(vals.addressesText || "")
+          .split(/\n|,/)
+          .map(function (a) {
+            return String(a || "").trim();
+          })
+          .filter(Boolean),
+        l2AdvertisementName: vals.l2AdvertisementName || "default",
       };
     } else {
       spec = {
@@ -1225,7 +1340,9 @@
           ? 'Uninstall kubeops-monitoring "' + name + '"? Prometheus/Grafana workloads will be removed.'
           : formKind === "ceph"
             ? 'Uninstall kubeops-ceph "' + name + '"? This WIPEs Rook host path and selected disks. Type confirm next.'
-            : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
+            : formKind === "mlb"
+              ? 'Uninstall MetalLB "' + name + '"? Speaker/controller and the IP pool will be removed.'
+              : 'Uninstall kubeops-nfs provisioner "' + name + '"? Owned workloads and StorageClass will be removed.';
     if (!window.confirm(label)) return;
     var wipePatch = Promise.resolve();
     if (formKind === "ceph") {
@@ -1244,7 +1361,9 @@
           ? MON_API
           : formKind === "ceph"
             ? CEPH_API
-            : NFS_API;
+            : formKind === "mlb"
+              ? MLB_API
+              : NFS_API;
     if (formKind === "ceph") {
       wipePatch = fetchJSON(api + "/" + encodeURIComponent(name), {
         method: "PATCH",
@@ -1311,6 +1430,8 @@
       fetchJSON(OPS_API + "/kubeops-monitoring"),
       fetchJSON(CEPH_API),
       fetchJSON(OPS_API + "/kubeops-ceph"),
+      fetchJSON(MLB_API),
+      fetchJSON(OPS_API + "/kubeops-metallb"),
     ])
       .then(function (pair) {
         if (!onAddonsRoute()) return;
@@ -1322,14 +1443,18 @@
         var monOp = pair[5];
         var cephItems = (pair[6] && pair[6].items) || [];
         var cephOp = pair[7];
+        var mlbItems = (pair[8] && pair[8].items) || [];
+        var mlbOp = pair[9];
         var nfsCr = pickCR(nfsItems, formKind === "nfs" ? editingName : null);
         var virtCr = pickCR(virtItems, formKind === "virt" ? editingName : null);
         var monCr = pickCR(monItems, formKind === "mon" ? editingName : null);
         var cephCr = pickCR(cephItems, formKind === "ceph" ? editingName : null);
+        var mlbCr = pickCR(mlbItems, formKind === "mlb" ? editingName : null);
         if (!nfsCr && nfsItems.length) nfsCr = nfsItems[0];
         if (!virtCr && virtItems.length) virtCr = virtItems[0];
         if (!monCr && monItems.length) monCr = monItems[0];
         if (!cephCr && cephItems.length) cephCr = cephItems[0];
+        if (!mlbCr && mlbItems.length) mlbCr = mlbItems[0];
 
         var nfsOpReady = !!(nfsOp && nfsOp.metadata && nfsOp.metadata.name === "kubeops-nfs");
         var virtOpReady = !!(
@@ -1343,15 +1468,18 @@
           monOp.metadata.name === "kubeops-monitoring"
         );
         var cephOpReady = !!(cephOp && cephOp.metadata && cephOp.metadata.name === "kubeops-ceph");
+        var mlbOpReady = !!(mlbOp && mlbOp.metadata && mlbOp.metadata.name === "kubeops-metallb");
         catalogCache = {
           nfs: nfsCr,
           virt: virtCr,
           mon: monCr,
           ceph: cephCr,
+          mlb: mlbCr,
           nfsOp: nfsOpReady,
           virtOp: virtOpReady,
           monOp: monOpReady,
           cephOp: cephOpReady,
+          mlbOp: mlbOpReady,
         };
 
         if (panel === "form") {
@@ -1362,7 +1490,9 @@
                 ? monCr
                 : formKind === "ceph"
                   ? cephCr
-                  : nfsCr;
+                  : formKind === "mlb"
+                    ? mlbCr
+                    : nfsCr;
           var opReady =
             formKind === "virt"
               ? virtOpReady
@@ -1370,7 +1500,9 @@
                 ? monOpReady
                 : formKind === "ceph"
                   ? cephOpReady
-                  : nfsOpReady;
+                  : formKind === "mlb"
+                    ? mlbOpReady
+                    : nfsOpReady;
           if (cr && cr.metadata && cr.metadata.name) editingName = cr.metadata.name;
           var formAlive = !!root.querySelector("[data-addons-form]");
           if (formAlive && !forceFull) {
@@ -1380,12 +1512,26 @@
           }
           schedulePoll(view, cr);
         } else {
-          renderCatalog(root, nfsCr, nfsOpReady, virtCr, virtOpReady, monCr, monOpReady, cephCr, cephOpReady);
+          renderCatalog(
+            root,
+            nfsCr,
+            nfsOpReady,
+            virtCr,
+            virtOpReady,
+            monCr,
+            monOpReady,
+            cephCr,
+            cephOpReady,
+            mlbCr,
+            mlbOpReady
+          );
           var pollCr =
+            (mlbCr && mlbCr.status && mlbCr.status.phase === "Progressing" && mlbCr) ||
             (cephCr && cephCr.status && cephCr.status.phase === "Progressing" && cephCr) ||
             (monCr && monCr.status && monCr.status.phase === "Progressing" && monCr) ||
             (virtCr && virtCr.status && virtCr.status.phase === "Progressing" && virtCr) ||
             (nfsCr && nfsCr.status && nfsCr.status.phase === "Progressing" && nfsCr) ||
+            mlbCr ||
             cephCr ||
             monCr ||
             virtCr ||

@@ -48,7 +48,7 @@ spec:
               properties:
                 component:
                   type: string
-                  enum: [console, oidc, nfs, virtualization, monitoring, ceph]
+                  enum: [console, oidc, nfs, virtualization, monitoring, ceph, metallb]
                 version:
                   type: string
             status:

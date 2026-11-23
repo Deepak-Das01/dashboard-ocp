@@ -1,0 +1,12 @@
+# Example shape — prefer deploying from the console Addons form.
+# Pick a free range on your LAN that does not overlap node/DHCP addresses.
+apiVersion: dashboard.ocp/v1alpha1
+kind: MetalLB
+metadata:
+  name: kubeops-metallb
+spec:
+  namespace: metallb-system
+  poolName: first-pool
+  addresses:
+    - 192.168.222.200-192.168.222.210
+  l2AdvertisementName: default

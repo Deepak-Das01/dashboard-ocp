@@ -16,3 +16,4 @@ nfs              nfs              kubeops-nfs              kubeops-nfs-controlle
 virtualization   virtualization   kubeops-virtualization   kubeops-virtualization-controller   virtualization   kubeops-addon-controller
 monitoring       monitoring       kubeops-monitoring       kubeops-monitoring-controller       monitoring       kubeops-addon-controller
 ceph             ceph             kubeops-ceph             kubeops-ceph-controller             ceph             kubeops-addon-controller
+metallb          metallb          kubeops-metallb          kubeops-metallb-controller          metallb          kubeops-addon-controller

@@ -277,6 +277,17 @@ http {
 %s
     }
 
+    location /kubeops/api/metallbs {
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/metallbs;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+%s
+    }
+
     location /kubeops/api/ceph-disks {
       resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;
       set $ceph_probe_upstream kubeops-ceph-controller.kubeops-addon-controller.svc.cluster.local:18088;
@@ -332,11 +343,11 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-42" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-43" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader), dnsIP)
+`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader), dnsIP)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
@@ -649,6 +660,19 @@ http {
       proxy_set_header Authorization "Bearer %s";
     }
 
+    location /kubeops/api/metallbs {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      proxy_pass https://kubernetes.default.svc/apis/dashboard.ocp/v1alpha1/metallbs;
+      proxy_http_version 1.1;
+      proxy_ssl_server_name on;
+      proxy_ssl_verify off;
+      proxy_set_header Host kubernetes.default.svc;
+      proxy_set_header Accept application/json;
+      proxy_set_header Content-Type $http_content_type;
+      proxy_set_header Authorization "Bearer %s";
+    }
+
     location /kubeops/api/ceph-disks {
       auth_request /oauth2/auth;
       error_page 401 = @login;
@@ -712,10 +736,10 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-42" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-43" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok, tok, tok, tok, tok, tok), dnsIP)
+`, port, port, port, port, port, port, tok, tok, tok, tok, tok, tok, tok), dnsIP)
 }
 

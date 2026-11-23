@@ -1,0 +1,16 @@
+kubeops-metallb hard audit fixes (2026-11-23)
+Packed: artifacts/images/kubeops-metallb-1.3.0-amd64.tar
+
+Bugs fixed:
+1. Status reconcile loop (Progressing↔Ready thrash) — alreadyReady steady-state path;
+   patchStatus retries conflicts and no-ops identical status.
+2. Full native YAML re-applied every reconcile — skipped when Ready + workloads healthy;
+   only pool/L2 kept in sync.
+3. Unconditional Update of Deploy/DS/CRD/Secret — create-only for CRD/Secret/webhooks;
+   skip Update when spec unchanged + managed label present; prefer MergeFrom patch.
+4. ensureIPAddressPool / L2Advertisement always Updated — no-op when addresses/pools match.
+5. Webhook clientConfig.service.namespace not rewritten on ns relocate — fixed.
+6. Uninstall removed finalizer before workloads gone — wait up to 90s for controller+speaker.
+7. Speaker ready check too weak (any 1 ready) — require NumberReady == DesiredNumberScheduled.
+
+Verify: CR Ready, logs quiet after annotate, LB services retain EXTERNAL-IPs.
