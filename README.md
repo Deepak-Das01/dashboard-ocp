@@ -29,7 +29,8 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Prometheus NodePort | **30446** |
 | Alertmanager NodePort | **30447** |
 | Ceph dashboard NodePort | **30448** (also embedded in console at `/kubeops/ceph-ui/`) |
-| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring`, `kubeops-ceph-cluster` |
+| MetalLB | L2 LoadBalancer IPs via Addons → MetalLB (`metallb-system`, vendored **v0.16.2**) |
+| Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring`, `kubeops-ceph-cluster`, `metallb-system` |
 | Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
 
 ---
@@ -43,17 +44,23 @@ git clone https://github.com/Deepak-Das01/dashboard-ocp.git
 cd dashboard-ocp
 git checkout main
 
+# Interactive (progress bar + status, dated log, kubeadmin-password file):
+./scripts/kubeops-installer.sh
+# or: ./scripts/install-operators.sh --interactive
+
+# Non-interactive:
 ./scripts/install-operators.sh
 ```
 
 ```bash
 kubectl get ops
-kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization,monitoring,rookceph
+kubectl get kubedashboard,clusteroidc,nfsprovisioner,virtualization,monitoring,rookceph,metallb
 kubectl get pods -n kubeops-console
 kubectl get pods -n kubeops-authentication
 kubectl get pods -n kubeops-addon-controller
 kubectl get pods -n kubeops-monitoring   # after Addons → Monitoring Deploy
 kubectl get pods -n kubeops-ceph-cluster # after Addons → Ceph Deploy
+kubectl get pods -n metallb-system       # after Addons → MetalLB Deploy
 ```
 
 **Browser:** `https://<node-ip>:30443/` → Dex → sign in as `kubeadmin`
@@ -61,6 +68,7 @@ kubectl get pods -n kubeops-ceph-cluster # after Addons → Ceph Deploy
 ```bash
 kubectl -n kubeops-authentication get secret kubeadmin-oidc-bootstrap \
   -o jsonpath='{.data.password}' | base64 -d; echo
+# Interactive installer also writes: ./kubeops-installer/kubeadmin-password
 ```
 
 Use a private window if old cookies interfere. CLI stays on your existing kubeconfig.
@@ -74,7 +82,15 @@ Use a private window if old cookies interfere. CLI stays on your existing kubeco
 ```bash
 LOAD_IMAGES=false ./scripts/install-operators.sh
 AUTH_MODE=secret ./scripts/install-operators.sh   # NGINX basic auth instead of Dex
+./scripts/kubeops-installer.sh --yes --no-load-images   # non-interactive UI wrapper
 ```
+
+Installer output (interactive):
+
+| Path | Contents |
+|------|----------|
+| `./kubeops-installer/<YYYY-MM-DD-HHMMSS>-log` | Full install transcript |
+| `./kubeops-installer/kubeadmin-password` | Username, password, console URL |
 
 Full operator docs: [docs/OPERATOR_AND_AUTH.md](docs/OPERATOR_AND_AUTH.md).
 
@@ -92,6 +108,7 @@ Core operators use **name = namespace**. Addon controllers share `kubeops-addon-
 | **kubeops-virtualization-controller** | `kubeops-addon-controller` | `virtualization` | `Virtualization` CR → KubeVirt + CDI + kubevirt-manager |
 | **kubeops-monitoring-controller** | `kubeops-addon-controller` | `monitoring` | `Monitoring` CR → Prometheus + Grafana + Alertmanager + exporters |
 | **kubeops-ceph-controller** | `kubeops-addon-controller` | `ceph` | `RookCeph` CR → Rook + CephCluster + RBD/CephFS StorageClasses |
+| **kubeops-metallb-controller** | `kubeops-addon-controller` | `metallb` | `MetalLB` CR → MetalLB L2 + `IPAddressPool` + `L2Advertisement` |
 
 ```text
 kubeops-console/
@@ -108,11 +125,13 @@ kubeops-addon-controller/
   kubeops-virtualization-controller
   kubeops-monitoring-controller
   kubeops-ceph-controller
+  kubeops-metallb-controller
 
 kubeops-nfs/                 # default NFSProvisioner workload ns
 kubeops-virtualization/      # KubeVirt + CDI + kubevirt-manager UI
 kubeops-monitoring/          # Prometheus + Grafana + Alertmanager (+ exporters)
 kubeops-ceph-cluster/        # Rook + CephCluster + toolbox + CSI
+metallb-system/              # MetalLB controller + speaker + IP pool (after Deploy)
 ```
 
 ```bash
@@ -124,6 +143,7 @@ kubectl get ops
 # kubeops-virtualization       virtualization   Ready
 # kubeops-monitoring           monitoring       Ready
 # kubeops-ceph                 ceph             Unavailable  # until Addons Deploy
+# kubeops-metallb              metallb          Unavailable  # until Addons Deploy
 ```
 
 Install/uninstall **addon workloads** from the console **Addons** page (creates/deletes CRs). Controllers stay running. Details: [docs/ADDON_CONTROLLERS.md](docs/ADDON_CONTROLLERS.md).
@@ -212,7 +232,7 @@ Screenshots of the live **v1.3.0** Kube Dashboard interface should live under `d
 | `docs/screenshots/namespaces.png` | Namespaces |
 | `docs/screenshots/resource-table.png` | Generic resource table + pagination |
 | `docs/screenshots/operators.png` | In-console Operators status cards |
-| `docs/screenshots/addons.png` | Addons page (NFS + Virtualization + Monitoring tiles) |
+| `docs/screenshots/addons.png` | Addons page (NFS + Virtualization + Monitoring + Ceph + MetalLB tiles) |
 | `docs/screenshots/virtualization.png` | Embedded kubevirt-manager (glass theme) |
 | `docs/screenshots/monitoring.png` | Embedded Grafana enterprise observability dashboard |
 | `docs/screenshots/settings.png` | Settings |
@@ -253,15 +273,16 @@ Cosmetic improvements delivered by `deploy/kube-dashboard/theme.css`:
 - `prefers-reduced-motion` support
 - Improved Events table text containment (in-cell wrapping; no table layout changes)
 
-### In-console Operators, Addons, Virtualization, Monitoring, and Ceph
+### In-console Operators, Addons, Virtualization, Monitoring, Ceph, and MetalLB
 
 Delivered by kubeops operators + injected UI assets (`operators.js`, `addons.js`, `virtualization.js`, `monitoring.js`, `ceph.js`, `virt-theme.css`, `mon-theme.css`, `ceph-theme.css`):
 
-- **Operators** nav item — live status cards for console, authentication, NFS, virtualization, and monitoring
-- **Addons** page — deploy/uninstall `NFSProvisioner`, `Virtualization`, `Monitoring`, and `RookCeph` CRs without leaving the console
+- **Operators** nav item — live status cards for console, authentication, NFS, virtualization, monitoring, Ceph, and MetalLB
+- **Addons** page — deploy/uninstall `NFSProvisioner`, `Virtualization`, `Monitoring`, `RookCeph`, and `MetalLB` CRs without leaving the console
 - **Virtualization** nav item (before CRDs) — same-origin iframe of kubevirt-manager at `/kubeops/virt-ui/`
 - **Monitoring** nav item — same-origin iframe of Grafana at `/kubeops/mon-ui/` (default home dashboard: Kubernetes enterprise observability)
 - **Ceph** nav item — same-origin iframe of the Rook mgr dashboard at `/kubeops/ceph-ui/` (NodePort **30448**)
+- **MetalLB** (Addons only) — L2 LoadBalancer IP pool; no separate sidebar embed (use Services with `type: LoadBalancer`)
 - Glass theme overlay for kubevirt-manager; opaque kubeops-palette theme for Grafana so graphs stay readable
 - Console OIDC already gates access — Grafana runs anonymous + auth-proxy in the embed (no Grafana login)
 - Brand/nav leave-guards so embeds do not nest the main dashboard or stick on leave
@@ -341,11 +362,13 @@ Browser
 | `kubeops-virtualization-controller` | `kubeops-addon-controller` | Reconciles `Virtualization` |
 | `kubeops-monitoring-controller` | `kubeops-addon-controller` | Reconciles `Monitoring` |
 | `kubeops-ceph-controller` | `kubeops-addon-controller` | Reconciles `RookCeph` |
+| `kubeops-metallb-controller` | `kubeops-addon-controller` | Reconciles `MetalLB` |
 | KubeVirt + CDI + kubevirt-manager | `kubeops-virtualization` | VM stack + UI (NodePort **30444**) |
 | Prometheus + Grafana + Alertmanager | `kubeops-monitoring` | Observability stack (NodePorts **30445–30447**) |
 | Rook + CephCluster + RBD/CephFS | `kubeops-ceph-cluster` | Storage (dashboard NodePort **30448**) |
+| MetalLB controller + speaker + pool | `metallb-system` | L2 LoadBalancer IPs (after MetalLB Deploy) |
 
-NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager (`virt-theme.css`), `/kubeops/mon-ui/` → Grafana (`mon-theme.css`), and `/kubeops/ceph-ui/` → Rook mgr dashboard (`ceph-theme.css`) so the sidebar embeds match the console palette.
+NGINX also proxies `/kubeops/virt-ui/` → kubevirt-manager (`virt-theme.css`), `/kubeops/mon-ui/` → Grafana (`mon-theme.css`), and `/kubeops/ceph-ui/` → Rook mgr dashboard (`ceph-theme.css`) so the sidebar embeds match the console palette. Addons APIs include `/kubeops/api/metallbs`.
 
 ### Mermaid diagram
 
@@ -364,6 +387,7 @@ flowchart LR
   OpV["kubeops-virtualization-controller"] -.->|Virtualization| Virt["kubeops-virtualization"]
   OpM["kubeops-monitoring-controller"] -.->|Monitoring| Mon["kubeops-monitoring"]
   OpCeph["kubeops-ceph-controller"] -.->|RookCeph| CephNS["kubeops-ceph-cluster"]
+  OpMLB["kubeops-metallb-controller"] -.->|MetalLB| MLB["metallb-system"]
   Virt --> KVM
   Mon --> Graf
 ```
@@ -411,8 +435,9 @@ Figures below are **practical lab / UAT guidance** (not hard product limits). Co
 | **kubeops-virtualization-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Virtualization Deploy. |
 | **kubeops-monitoring-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Monitoring Deploy. |
 | **kubeops-ceph-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Ceph Deploy. Disk probe API is lightweight. |
+| **kubeops-metallb-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → MetalLB Deploy. |
 
-Shared addon-controller namespace holds all four controllers; budget **~0.5–1 GB RAM** for controllers together.
+Shared addon-controller namespace holds all five controllers; budget **~0.5–1 GB RAM** for controllers together.
 
 #### Per addon workload (after Addons → Deploy)
 
@@ -422,6 +447,7 @@ Shared addon-controller namespace holds all four controllers; budget **~0.5–1 
 | **Monitoring** (`monitoring`) | `kubeops-monitoring` | +2–4 GB RAM, +10–20 GB disk for TSDB | **4 GB RAM**, PVC on NFS/Ceph SC | Prometheus **30446**, Grafana **30445**, Alertmanager **30447**. Without a StorageClass, metrics use emptyDir (lost on restart). |
 | **Virtualization** (`virtualization`) | `kubeops-virtualization` | +2–4 GB RAM idle (KubeVirt + CDI + UI) | **8+ GB** free for guest VMs | KubeVirt **v1.10** + CDI + kubevirt-manager (**30444**). Prefer `/dev/kvm`; set `spec.useEmulation: true` only for labs without KVM (slower). First Deploy pulls many images. |
 | **RookCeph** (`ceph`) | `kubeops-ceph-cluster` | +4–8 GB RAM; **≥3 unused disks** (SNO lab) | **8 GB RAM**, 3× 20–50 GB+ raw disks | Rook **v1.16.7** / Ceph **v19.2.3**. Disks must **not** be the OS disk (`Discover disks` filters boot/nbd/loop). Multi-node: dedicated storage nodes, mon≥3, pool size 3. Dashboard **30448** / embed `/kubeops/ceph-ui/`. Uninstall wipe needs `kubeops.io/wipe-disks=confirmed`. |
+| **MetalLB** (`metallb`) | `metallb-system` | +128–256 MiB RAM | Free LAN range for L2 | Vendored MetalLB **v0.16.2** (L2 only). Form fields: address pool (CIDR/range), pool name. Pick IPs that do **not** overlap node or DHCP addresses. `Service type: LoadBalancer` gets an EXTERNAL-IP from the pool. No BGP in v1. |
 
 #### Combined UAT checklist (2 machines)
 
@@ -892,18 +918,19 @@ dashboard-ocp/
 ├── CHANGELOG.md
 ├── VERSION / RELEASE
 ├── operator/                         # kubeops operators + addon controllers
-│   ├── cmd/console|oidc|nfs|virtualization|monitoring/
+│   ├── cmd/console|oidc|nfs|virtualization|monitoring|ceph|metallb/
 │   ├── config/
 │   │   ├── addons/controllers.list   # addon registry for install-operators.sh
 │   │   ├── crd|rbac|manager|samples/
-│   │   └── manager|rbac/addons/      # NFS + virtualization + monitoring controllers
+│   │   └── manager|rbac/addons/      # NFS + virt + mon + ceph + metallb controllers
 │   └── internal/
 │       ├── assets/kube-dashboard/    # theme.css, virt-theme.css, mon-theme.css, *.js
 │       ├── controller/               # console reconciler + nginx templates
-│       ├── oidc/ nfs/ virtualization/ monitoring/
+│       ├── oidc/ nfs/ virtualization/ monitoring/ ceph/ metallb/
 ├── deploy/                           # classic kustomize packaging (install.sh)
 ├── scripts/
-│   ├── install-operators.sh          # recommended (kubeops + OIDC + addons)
+│   ├── kubeops-installer.sh          # interactive CLI (progress bar + logs + password file)
+│   ├── install-operators.sh          # recommended (kubeops + OIDC + addons); --interactive
 │   ├── pack-static-image.py
 │   ├── install-phase-c-oidc.sh / configure-apiserver-oidc.sh
 │   ├── install.sh / uninstall.sh
@@ -940,15 +967,19 @@ dashboard-ocp/
 - Packaging via NGINX + ConfigMap CSS injection
 - **kubeops-console** / **kubeops-authentication** operators
 - Single-script OIDC install (`./scripts/install-operators.sh`)
+- Interactive installer (`./scripts/kubeops-installer.sh`) with progress bar, dated logs, and `kubeadmin-password`
 - Dex login + oauth2-proxy gate for the console
 - Shared **kubeops-addon-controller** namespace + Addons page
 - **NFSProvisioner** addon (`kubeops-nfs-controller`)
 - **Virtualization** addon (KubeVirt + CDI + kubevirt-manager embed + glass theme)
 - **Monitoring** addon (Prometheus + Grafana + Alertmanager embed + kubeops palette theme)
+- **Ceph** addon (Rook + RBD/CephFS + embedded mgr dashboard)
+- **MetalLB** addon (L2 IPAddressPool + L2Advertisement; vendored MetalLB v0.16.2)
 
 ### Possible future work (not implemented)
 
 - Published operator container images on a registry
+- MetalLB BGP mode / multi-pool UI
 - Additional theme options
 - Improved responsive layouts
 - Broader accessibility testing
@@ -968,7 +999,7 @@ No delivery dates are promised.
 
 Stable single-pod **kube-dashboard** console (NGINX + Dashboard sidecar), themed UI, metrics-server packaging, and offline image helpers. No separate upstream dashboard or glass proxy Deployment.
 
-**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, NFS provisioner addon, Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager), Monitoring stack (Prometheus/Grafana/Alertmanager + embedded Grafana with kubeops palette), and Ceph addon (Rook + RBD/CephFS + embedded mgr dashboard).
+**On `main` beyond the v1.3.0 tag:** kubeops Operators/Addons UI, interactive `kubeops-installer.sh`, NFS provisioner addon, Virtualization stack (KubeVirt/CDI + embedded kubevirt-manager), Monitoring stack (Prometheus/Grafana/Alertmanager + embedded Grafana with kubeops palette), Ceph addon (Rook + RBD/CephFS + embedded mgr dashboard), and MetalLB addon (L2 LoadBalancer pools via Addons).
 
 Prior verified tags: `v1.2.1`, `v1.2.0`, `v1.1.0`, `v1.0.0`.
 
@@ -991,6 +1022,6 @@ Do **not** include tokens, kubeconfigs, or secrets in issues or PRs.
 
 - This repository currently has **no committed `LICENSE` file**. Treat distribution terms carefully and consult repository owners before redistribution.
 - Upstream [Kubernetes Dashboard](https://github.com/kubernetes/dashboard) is maintained by the Kubernetes / Dashboard contributors and is licensed under **Apache License 2.0**.
-- Acknowledgements: Kubernetes Dashboard contributors, the Kubernetes project, Angular and Angular Material, NGINX, [KubeVirt](https://kubevirt.io/) / CDI, [kubevirt-manager](https://kubevirt-manager.io/), and Apple **macOS / visionOS** solely as **visual design inspiration**.
+- Acknowledgements: Kubernetes Dashboard contributors, the Kubernetes project, Angular and Angular Material, NGINX, [KubeVirt](https://kubevirt.io/) / CDI, [kubevirt-manager](https://kubevirt-manager.io/), [MetalLB](https://metallb.universe.tf/), [Rook](https://rook.io/) / Ceph, and Apple **macOS / visionOS** solely as **visual design inspiration**.
 
-No affiliation, endorsement, or partnership with Apple, the Kubernetes project, or kubevirt-manager is implied.
+No affiliation, endorsement, or partnership with Apple, the Kubernetes project, MetalLB, Rook, or kubevirt-manager is implied.
