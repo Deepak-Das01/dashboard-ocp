@@ -7,6 +7,7 @@ import (
 
 	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -40,6 +41,10 @@ type clusterOpts struct {
 	DashboardNodePort           int32
 	PoolSize                    int
 	FailureDomain               string
+	TaintStorageNodes           bool
+	// wipeGeneration tags the device-wipe Job so each uninstall runs a fresh wipe
+	// even if a prior Succeeded wipe Job is still present (TTL not expired).
+	wipeGeneration string
 }
 
 func deviceCount(nodes []dashboardv1alpha1.RookCephNode) int {
@@ -137,6 +142,7 @@ func defaultsFromCR(cr *dashboardv1alpha1.RookCeph) clusterOpts {
 		DashboardNodePort:           port,
 		PoolSize:                    poolSize,
 		FailureDomain:               failureDomainFor(cr.Spec.Nodes, poolSize),
+		TaintStorageNodes:           cr.Spec.TaintStorageNodes,
 	}
 }
 
@@ -188,6 +194,191 @@ func unlabelNodes(ctx context.Context, c client.Client, opt clusterOpts) error {
 		}
 	}
 	return nil
+}
+
+func storageTaint(opt clusterOpts) corev1.Taint {
+	return corev1.Taint{
+		Key:    opt.LabelKey,
+		Value:  opt.LabelValue,
+		Effect: corev1.TaintEffectNoSchedule,
+	}
+}
+
+func storageToleration(opt clusterOpts) map[string]interface{} {
+	return map[string]interface{}{
+		"key":      opt.LabelKey,
+		"operator": "Equal",
+		"value":    opt.LabelValue,
+		"effect":   "NoSchedule",
+	}
+}
+
+func hasStorageTaint(node *corev1.Node, want corev1.Taint) bool {
+	for _, t := range node.Spec.Taints {
+		if t.Key == want.Key && t.Value == want.Value && t.Effect == want.Effect {
+			return true
+		}
+	}
+	return false
+}
+
+// taintNodes applies nodeLabel as NoSchedule on CR-selected nodes (dedicated storage).
+func taintNodes(ctx context.Context, c client.Client, opt clusterOpts) error {
+	if !opt.TaintStorageNodes {
+		return nil
+	}
+	want := storageTaint(opt)
+	for _, n := range opt.Nodes {
+		name := strings.TrimSpace(n.Name)
+		if name == "" || name == "REPLACE_ME" {
+			continue
+		}
+		node := &corev1.Node{}
+		if err := c.Get(ctx, types.NamespacedName{Name: name}, node); err != nil {
+			return fmt.Errorf("node %s: %w", name, err)
+		}
+		if hasStorageTaint(node, want) {
+			continue
+		}
+		base := node.DeepCopy()
+		node.Spec.Taints = append(node.Spec.Taints, want)
+		if err := c.Patch(ctx, node, client.MergeFrom(base)); err != nil {
+			return fmt.Errorf("taint node %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// untaintNodes removes the storage taint we manage (same key/value/effect as nodeLabel).
+func untaintNodes(ctx context.Context, c client.Client, opt clusterOpts) error {
+	want := storageTaint(opt)
+	for _, n := range opt.Nodes {
+		name := strings.TrimSpace(n.Name)
+		if name == "" || name == "REPLACE_ME" {
+			continue
+		}
+		node := &corev1.Node{}
+		if err := c.Get(ctx, types.NamespacedName{Name: name}, node); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return err
+		}
+		if !hasStorageTaint(node, want) {
+			continue
+		}
+		base := node.DeepCopy()
+		filtered := node.Spec.Taints[:0]
+		for _, t := range node.Spec.Taints {
+			if t.Key == want.Key && t.Value == want.Value && t.Effect == want.Effect {
+				continue
+			}
+			filtered = append(filtered, t)
+		}
+		node.Spec.Taints = filtered
+		if err := c.Patch(ctx, node, client.MergeFrom(base)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureStorageTaintTolerations makes rook-ceph-operator + CSI schedule on tainted storage nodes.
+func ensureStorageTaintTolerations(ctx context.Context, c client.Client, opt clusterOpts) error {
+	if !opt.TaintStorageNodes {
+		return nil
+	}
+	tolYAML := fmt.Sprintf("- key: %s\n  operator: Equal\n  value: %s\n  effect: NoSchedule\n",
+		opt.LabelKey, opt.LabelValue)
+
+	cm := &corev1.ConfigMap{}
+	if err := c.Get(ctx, types.NamespacedName{Namespace: opt.Namespace, Name: "rook-ceph-operator-config"}, cm); err == nil {
+		base := cm.DeepCopy()
+		if cm.Data == nil {
+			cm.Data = map[string]string{}
+		}
+		cm.Data["CSI_PLUGIN_TOLERATIONS"] = tolYAML
+		cm.Data["CSI_PROVISIONER_TOLERATIONS"] = tolYAML
+		if err := c.Patch(ctx, cm, client.MergeFrom(base)); err != nil {
+			return fmt.Errorf("CSI tolerations: %w", err)
+		}
+	}
+
+	dep := &appsv1.Deployment{}
+	if err := c.Get(ctx, types.NamespacedName{Namespace: opt.Namespace, Name: "rook-ceph-operator"}, dep); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if deploymentHasToleration(&dep.Spec.Template.Spec, opt) {
+		return nil
+	}
+	base := dep.DeepCopy()
+	dep.Spec.Template.Spec.Tolerations = append(dep.Spec.Template.Spec.Tolerations, corev1.Toleration{
+		Key:      opt.LabelKey,
+		Operator: corev1.TolerationOpEqual,
+		Value:    opt.LabelValue,
+		Effect:   corev1.TaintEffectNoSchedule,
+	})
+	return c.Patch(ctx, dep, client.MergeFrom(base))
+}
+
+func deploymentHasToleration(spec *corev1.PodSpec, opt clusterOpts) bool {
+	for _, t := range spec.Tolerations {
+		if t.Key == opt.LabelKey && t.Value == opt.LabelValue && t.Effect == corev1.TaintEffectNoSchedule {
+			return true
+		}
+	}
+	return false
+}
+
+func ensureToolboxToleration(ctx context.Context, c client.Client, opt clusterOpts) error {
+	if !opt.TaintStorageNodes {
+		return nil
+	}
+	dep := &appsv1.Deployment{}
+	if err := c.Get(ctx, types.NamespacedName{Namespace: opt.Namespace, Name: "rook-ceph-tools"}, dep); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	if deploymentHasToleration(&dep.Spec.Template.Spec, opt) {
+		return nil
+	}
+	base := dep.DeepCopy()
+	dep.Spec.Template.Spec.Tolerations = append(dep.Spec.Template.Spec.Tolerations, corev1.Toleration{
+		Key:      opt.LabelKey,
+		Operator: corev1.TolerationOpEqual,
+		Value:    opt.LabelValue,
+		Effect:   corev1.TaintEffectNoSchedule,
+	})
+	return c.Patch(ctx, dep, client.MergeFrom(base))
+}
+
+func placementAll(opt clusterOpts) map[string]interface{} {
+	all := map[string]interface{}{
+		"nodeAffinity": map[string]interface{}{
+			"requiredDuringSchedulingIgnoredDuringExecution": map[string]interface{}{
+				"nodeSelectorTerms": []interface{}{
+					map[string]interface{}{
+						"matchExpressions": []interface{}{
+							map[string]interface{}{
+								"key":      opt.LabelKey,
+								"operator": "In",
+								"values":   []interface{}{opt.LabelValue},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	if opt.TaintStorageNodes {
+		all["tolerations"] = []interface{}{storageToleration(opt)}
+	}
+	return all
 }
 
 func ensureCephCluster(ctx context.Context, c client.Client, opt clusterOpts) error {
@@ -257,23 +448,7 @@ func ensureCephCluster(ctx context.Context, c client.Client, opt clusterOpts) er
 				"nodes":         nodes,
 			},
 			"placement": map[string]interface{}{
-				"all": map[string]interface{}{
-					"nodeAffinity": map[string]interface{}{
-						"requiredDuringSchedulingIgnoredDuringExecution": map[string]interface{}{
-							"nodeSelectorTerms": []interface{}{
-								map[string]interface{}{
-									"matchExpressions": []interface{}{
-										map[string]interface{}{
-											"key":      opt.LabelKey,
-											"operator": "In",
-											"values":   []interface{}{opt.LabelValue},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
+				"all": placementAll(opt),
 			},
 			"healthCheck": map[string]interface{}{
 				"daemonHealth": map[string]interface{}{

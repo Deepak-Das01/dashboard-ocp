@@ -146,9 +146,10 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		return err
 	}
 
-	nginxConf := renderNginxConf(basicAuth, bearer)
+	dnsIP := r.clusterDNSIP(ctx)
+	nginxConf := renderNginxConf(basicAuth, bearer, dnsIP)
 	if oidcAuth {
-		nginxConf = renderNginxOIDC(bearer, nodeIP, kd.Spec.Service.HTTPSNodePort)
+		nginxConf = renderNginxOIDC(bearer, nodeIP, kd.Spec.Service.HTTPSNodePort, dnsIP)
 	}
 	if err := r.ensureConfigMap(ctx, ns, "kube-dashboard-nginx", map[string]string{
 		"nginx.conf": nginxConf,
@@ -335,6 +336,17 @@ func (r *KubeDashboardReconciler) ensureNamespace(ctx context.Context, name stri
 			"app.kubernetes.io/part-of": "kube-dashboard",
 		},
 	}})
+}
+
+// clusterDNSIP returns the kube-dns/CoreDNS Service ClusterIP for nginx resolver.
+func (r *KubeDashboardReconciler) clusterDNSIP(ctx context.Context) string {
+	svc := &corev1.Service{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: "kube-system", Name: "kube-dns"}, svc); err == nil {
+		if ip := strings.TrimSpace(svc.Spec.ClusterIP); ip != "" && ip != "None" && net.ParseIP(ip) != nil {
+			return ip
+		}
+	}
+	return "10.96.0.10"
 }
 
 // dashboardAdminToken returns a bearer token for SA dashboard-admin.

@@ -25,3 +25,4 @@ spec:
   setBlockDefaultStorageClass: false
   dashboardNodePort: 30448
   # poolSize: 0 = auto (3 when ≥3 nodes/devices; uses failureDomain=osd on single-node)
+  # taintStorageNodes: true  # taints nodes ceph=storage:NoSchedule + auto tolerations

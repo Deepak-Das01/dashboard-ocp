@@ -75,6 +75,7 @@ spec:
                 setBlockDefaultStorageClass: { type: boolean }
                 dashboardNodePort: { type: integer, format: int32 }
                 poolSize: { type: integer }
+                taintStorageNodes: { type: boolean }
             status:
               type: object
               properties:

@@ -11,7 +11,11 @@ func TestFilterCandidateDisks(t *testing.T) {
     ]},
     {"name":"sdb","size":"500G","type":"disk","mountpoint":null,"rota":true,"model":null,"serial":null},
     {"name":"sdc","size":"50G","type":"disk","mountpoint":null,"rota":false,"model":"SSD","serial":"ABC"},
-    {"name":"loop0","size":"1G","type":"loop","mountpoint":null}
+    {"name":"loop0","size":"1G","type":"loop","mountpoint":null},
+    {"name":"nbd0","size":"0B","type":"disk","mountpoint":null},
+    {"name":"nbd15","size":"0B","type":"disk","mountpoint":null},
+    {"name":"zram0","size":"8G","type":"disk","mountpoint":null},
+    {"name":"sr0","size":"3.8G","type":"rom","mountpoint":null}
   ]
 }`
 	got := FilterCandidateDevices(raw)

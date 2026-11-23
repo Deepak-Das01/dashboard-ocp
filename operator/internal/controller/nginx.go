@@ -2,10 +2,29 @@ package controller
 
 import (
 	"fmt"
+	"net"
 	"strings"
 )
 
-func renderNginxConf(basicAuth bool, bearerToken string) string {
+// nginxResolverLine uses a ClusterIP (not a DNS name). nginx resolves the
+// "resolver" argument at process start; using kube-dns.svc… fails when CoreDNS
+// is briefly unreachable (e.g. after node reboot) and leaves proxy CrashLooping.
+func nginxResolverLine(dnsIP string) string {
+	ip := strings.TrimSpace(dnsIP)
+	if ip == "" || net.ParseIP(ip) == nil {
+		ip = "10.96.0.10" // kubeadm default ClusterIP for kube-dns
+	}
+	return "resolver " + ip + " valid=10s ipv6=off;"
+}
+
+func withNginxResolver(conf, dnsIP string) string {
+	return strings.ReplaceAll(conf,
+		"resolver kube-dns.kube-system.svc.cluster.local valid=10s ipv6=off;",
+		nginxResolverLine(dnsIP),
+	)
+}
+
+func renderNginxConf(basicAuth bool, bearerToken, dnsIP string) string {
 	authBlock := ""
 	if basicAuth {
 		authBlock = `
@@ -21,7 +40,7 @@ func renderNginxConf(basicAuth bool, bearerToken string) string {
 		authzHeader = fmt.Sprintf(`      proxy_set_header Authorization "Bearer %s";`, tok)
 	}
 
-	return fmt.Sprintf(`worker_processes auto;
+	return withNginxResolver(fmt.Sprintf(`worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /tmp/nginx.pid;
 
@@ -307,23 +326,23 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-39" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-42" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader)
+`, authBlock, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader, authzHeader), dnsIP)
 }
 
 // renderNginxOIDC gates the console with oauth2-proxy auth_request, then injects
 // a dashboard-admin SA bearer into upstream Dashboard API calls.
-func renderNginxOIDC(bearerToken, nodeIP string, httpsNodePort int32) string {
+func renderNginxOIDC(bearerToken, nodeIP string, httpsNodePort int32, dnsIP string) string {
 	tok := strings.ReplaceAll(bearerToken, `"`, "")
 	port := httpsNodePort
 	if port == 0 {
 		port = 30443
 	}
 	_ = nodeIP
-	return fmt.Sprintf(`worker_processes auto;
+	return withNginxResolver(fmt.Sprintf(`worker_processes auto;
 error_log /var/log/nginx/error.log warn;
 pid /tmp/nginx.pid;
 
@@ -679,10 +698,10 @@ http {
 
       sub_filter '</head>' '<link rel="stylesheet" href="/theme.css?v=addons-embed-30"><style>html{color-scheme:dark}</style></head>';
       sub_filter '<body>' '<body class="kd-theme">';
-      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-39" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
+      sub_filter '</body>' '<script src="/nav-accordion.js?v=addons-embed-39" defer></script><script src="/operators.js?v=addons-embed-30" defer></script><script src="/addons.js?v=addons-embed-42" defer></script><script src="/virtualization.js?v=addons-embed-30" defer></script><script src="/monitoring.js?v=addons-embed-30" defer></script><script src="/ceph.js?v=addons-embed-39" defer></script></body>';
     }
   }
 }
-`, port, port, port, port, port, port, tok, tok, tok, tok, tok, tok)
+`, port, port, port, port, port, port, tok, tok, tok, tok, tok, tok), dnsIP)
 }
 

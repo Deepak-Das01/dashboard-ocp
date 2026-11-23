@@ -274,6 +274,7 @@
               enableDashboard: true,
               enableToolbox: true,
               setBlockDefaultStorageClass: false,
+              taintStorageNodes: false,
               dashboardNodePort: 30448,
               release: DEFAULT_CEPH_RELEASE,
             };
@@ -577,6 +578,7 @@
           enableDashboard: draft.enableDashboard !== false,
           enableToolbox: draft.enableToolbox !== false,
           setBlockDefaultStorageClass: !!draft.setBlockDefaultStorageClass,
+          taintStorageNodes: !!draft.taintStorageNodes,
           dashboardNodePort: draft.dashboardNodePort || 30448,
           release: draft.release || release || DEFAULT_CEPH_RELEASE,
         };
@@ -595,6 +597,7 @@
         enableDashboard: spec.enableDashboard !== false,
         enableToolbox: spec.enableToolbox !== false,
         setBlockDefaultStorageClass: !!spec.setBlockDefaultStorageClass,
+        taintStorageNodes: !!spec.taintStorageNodes,
         dashboardNodePort: spec.dashboardNodePort || 30448,
         release: release || DEFAULT_CEPH_RELEASE,
       };
@@ -696,7 +699,7 @@
       missingCtrl =
         "Install kubeops-ceph-controller (shipped with install-operators.sh) before Deploy.";
       callout =
-        "Deploys Rook + CephCluster with both rook-ceph-block (RWO) and rook-cephfs (RWX). Lab defaults use mon/mgr=1 and pool size auto. Nodes format: one line per node as name=device1,device2. Uninstall requires wipe confirmation.";
+        "Deploys Rook + CephCluster with both rook-ceph-block (RWO) and rook-cephfs (RWX). Works on single-node (SNO) labs and multi-node clusters. Discover scans every Ready node in parallel and lists unused disks for OSD creation (one line per node: name=disk1,disk2). Review the list before Deploy — do not select OS/boot disks. Optional taint checkbox dedicates storage nodes and auto-adds Ceph/CSI tolerations. Uninstall requires wipe confirmation. Production / large clusters: prefer dedicated storage nodes (taint), mon count 3+, pool size 3, and verify discovered disks per node before Deploy.";
       releaseId = "ceph-release";
       fields =
         field("ceph-namespace", "Namespace", false, DEFAULT_CEPH_NS, vals.namespace) +
@@ -713,9 +716,10 @@
         "</label>" +
         '<label class="lg-addon-field" for="ceph-nodes">' +
         '<span class="lg-addon-label">Nodes and disks <span class="lg-addon-req">*</span></span>' +
-        '<textarea class="lg-addon-input" id="ceph-nodes" name="ceph-nodes" rows="4" placeholder="node-a=sdb,sdc">' +
+        '<textarea class="lg-addon-input" id="ceph-nodes" name="ceph-nodes" rows="4" placeholder="node-a=sdb,sdc&#10;node-b=nvme0n1">' +
         esc(vals.nodesText || "") +
         "</textarea>" +
+        '<span class="lg-addon-hint">Discover fills every Ready node with candidate free disks (excludes OS/boot, nbd, loop, zero-size). Edit before Deploy.</span>' +
         '<span class="lg-addon-error" id="ceph-nodes-err" hidden></span>' +
         "</label>" +
         '<div class="lg-addon-form-actions" style="margin:0 0 12px">' +
@@ -738,6 +742,12 @@
         (vals.setBlockDefaultStorageClass ? " checked" : "") +
         " />" +
         "<span>Set rook-ceph-block as default StorageClass</span>" +
+        "</label>" +
+        '<label class="lg-addon-field lg-addon-check">' +
+        '<input type="checkbox" id="ceph-taint" name="ceph-taint"' +
+        (vals.taintStorageNodes ? " checked" : "") +
+        " />" +
+        "<span>Taint storage nodes (ceph=storage:NoSchedule) and auto-add Ceph/CSI tolerations</span>" +
         "</label>" +
         field("ceph-nodeport", "Dashboard NodePort", false, "30448", String(vals.dashboardNodePort || 30448)) +
         field("ceph-release", "Release name", false, DEFAULT_CEPH_RELEASE, vals.release);
@@ -901,6 +911,7 @@
       var dash = document.getElementById("ceph-dashboard");
       var toolbox = document.getElementById("ceph-toolbox");
       var defSC = document.getElementById("ceph-default-sc");
+      var taint = document.getElementById("ceph-taint");
       var nodesEl = document.getElementById("ceph-nodes");
       return {
         namespace: val("ceph-namespace") || DEFAULT_CEPH_NS,
@@ -914,6 +925,7 @@
         enableDashboard: !!(dash && dash.checked),
         enableToolbox: !!(toolbox && toolbox.checked),
         setBlockDefaultStorageClass: !!(defSC && defSC.checked),
+        taintStorageNodes: !!(taint && taint.checked),
         dashboardNodePort: parseInt(val("ceph-nodeport") || "30448", 10) || 30448,
         release: val("ceph-release") || DEFAULT_CEPH_RELEASE,
       };
@@ -1040,10 +1052,14 @@
     fetchJSON(CEPH_DISKS_API + "?namespace=" + ns)
       .then(function (data) {
         var lines = [];
+        var errors = [];
         ((data && data.nodes) || []).forEach(function (n) {
           var disks = (n.disks || []).map(function (d) {
             return d.name;
           });
+          if (n.error) {
+            errors.push(n.node + ": " + n.error);
+          }
           if (n.error && !disks.length) {
             lines.push(n.node + "=");
           } else {
@@ -1053,7 +1069,25 @@
         var el = document.getElementById("ceph-nodes");
         if (el) el.value = lines.join("\n");
         captureDraft();
-        var msg = lines.length ? "Filled candidate disks — review before Deploy." : "No disks found — enter devices manually.";
+        var diskCount = 0;
+        lines.forEach(function (ln) {
+          var rhs = ln.split("=")[1] || "";
+          if (rhs.trim()) diskCount += rhs.split(",").filter(Boolean).length;
+        });
+        var nodeCount = ((data && data.nodes) || []).length;
+        if (errors.length && !diskCount) {
+          setFormMsg(view, "Disk discovery failed — " + errors.join("; "), true);
+          return;
+        }
+        var msg = diskCount
+          ? "Filled " +
+            diskCount +
+            " candidate disk(s) across " +
+            nodeCount +
+            " node(s) — review before Deploy."
+          : "No free disks found on " + nodeCount + " node(s) — enter devices manually.";
+        if (data && data.message) msg += " (" + data.message + ")";
+        if (errors.length) msg += " Warnings: " + errors.join("; ");
         setFormMsg(view, msg, false);
       })
       .catch(function (err) {
@@ -1118,6 +1152,7 @@
         enableDashboard: !!vals.enableDashboard,
         enableToolbox: !!vals.enableToolbox,
         setBlockDefaultStorageClass: !!vals.setBlockDefaultStorageClass,
+        taintStorageNodes: !!vals.taintStorageNodes,
         dashboardNodePort: vals.dashboardNodePort || 30448,
         poolSize: vals.poolSize || 0,
       };

@@ -97,6 +97,12 @@ type RookCephSpec struct {
 	// Single-node multi-disk uses failureDomain=osd so replicas place across devices.
 	// +optional
 	PoolSize int `json:"poolSize,omitempty"`
+
+	// TaintStorageNodes taints selected nodes with nodeLabel (default ceph=storage:NoSchedule)
+	// and adds matching tolerations to Ceph daemons, CSI plugins, toolbox, and rook-ceph-operator
+	// so workloads still schedule on dedicated storage nodes.
+	// +optional
+	TaintStorageNodes bool `json:"taintStorageNodes,omitempty"`
 }
 
 // RookCephStatus is written by kubeops-ceph-controller.

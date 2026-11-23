@@ -71,8 +71,14 @@ wait** for every addon controller. Individual addons are not special-cased.
   `rook-cephfs` (CephFS / RWX).
 - Dashboard NodePort **30448**; console embed at `/kubeops/ceph-ui/` (sidebar **Ceph**).
 - Disk discovery: Addons “Discover disks” → `/kubeops/api/ceph-disks` probe API.
+  Probes **all Ready nodes in parallel** (SNO or multi-node) and returns candidate
+  free disks per node (`node=disk1,disk2` lines). Filters out OS/boot, `nbd*`,
+  `loop*`, zero-size, and similar non-OSD devices. Review before Deploy.
+  **Production / large clusters:** use dedicated storage nodes (taint option),
+  mon≥3, pool size 3, and confirm discovered disks per node; discovery concurrency
+  is capped (8) with a timeout that scales with node count.
 - Uninstall requires annotation `kubeops.io/wipe-disks=confirmed` (Addons prompts
-  for `wipe disks`) so Rook `cleanupPolicy` can sanitize host path + devices.
+  for `wipe disks`) so Rook `cleanupPolicy` + blueStore wipe sanitize host path + devices.
 
 ## kubeops-monitoring notes
 

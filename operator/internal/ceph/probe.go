@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -69,11 +70,10 @@ func (s *DiskProbeServer) handleDisks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-	defer cancel()
 
 	nodesParam := strings.TrimSpace(r.URL.Query().Get("nodes"))
 	var nodeNames []string
+	notReady := map[string]string{}
 	if nodesParam != "" {
 		for _, n := range strings.Split(nodesParam, ",") {
 			n = strings.TrimSpace(n)
@@ -83,14 +83,30 @@ func (s *DiskProbeServer) handleDisks(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var list corev1.NodeList
-		if err := s.Client.List(ctx, &list); err != nil {
+		if err := s.Client.List(r.Context(), &list); err != nil {
 			writeJSON(w, http.StatusInternalServerError, probeResponse{Message: err.Error()})
 			return
 		}
 		for i := range list.Items {
-			nodeNames = append(nodeNames, list.Items[i].Name)
+			n := &list.Items[i]
+			nodeNames = append(nodeNames, n.Name)
+			if !nodeIsReady(n) {
+				notReady[n.Name] = "node NotReady — skipped disk probe"
+			}
 		}
 	}
+	if len(nodeNames) == 0 {
+		writeJSON(w, http.StatusOK, probeResponse{Nodes: []NodeDisks{}, Message: "no nodes found"})
+		return
+	}
+
+	// Parallel per-node probes (SNO = 1; large clusters probe many nodes at once).
+	timeout := time.Duration(60+15*len(nodeNames)) * time.Second
+	if timeout > 5*time.Minute {
+		timeout = 5 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	defer cancel()
 
 	ns := strings.TrimSpace(r.URL.Query().Get("namespace"))
 	if ns == "" {
@@ -98,16 +114,44 @@ func (s *DiskProbeServer) handleDisks(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = ensureWorkloadNamespace(ctx, s.Client, ns)
 
-	out := probeResponse{Nodes: []NodeDisks{}}
-	for _, name := range nodeNames {
-		nd, err := s.probeNodeDisks(ctx, ns, name)
-		if err != nil {
-			out.Nodes = append(out.Nodes, NodeDisks{Node: name, Disks: []DiskInfo{}, Error: err.Error()})
-			continue
-		}
-		out.Nodes = append(out.Nodes, nd)
+	results := make([]NodeDisks, len(nodeNames))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 8) // cap concurrency for very large clusters
+	for i, name := range nodeNames {
+		wg.Add(1)
+		go func(i int, name string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			if msg, skip := notReady[name]; skip {
+				results[i] = NodeDisks{Node: name, Disks: []DiskInfo{}, Error: msg}
+				return
+			}
+			nd, err := s.probeNodeDisks(ctx, ns, name)
+			if err != nil {
+				results[i] = NodeDisks{Node: name, Disks: []DiskInfo{}, Error: err.Error()}
+				return
+			}
+			results[i] = nd
+		}(i, name)
 	}
-	writeJSON(w, http.StatusOK, out)
+	wg.Wait()
+
+	diskTotal := 0
+	for _, nd := range results {
+		diskTotal += len(nd.Disks)
+	}
+	msg := fmt.Sprintf("probed %d node(s), %d candidate disk(s) (excludes OS/boot, nbd, loop, zero-size)", len(results), diskTotal)
+	writeJSON(w, http.StatusOK, probeResponse{Nodes: results, Message: msg})
+}
+
+func nodeIsReady(n *corev1.Node) bool {
+	for _, c := range n.Status.Conditions {
+		if c.Type == corev1.NodeReady {
+			return c.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }
 
 func writeJSON(w http.ResponseWriter, code int, v interface{}) {
@@ -140,6 +184,9 @@ func (s *DiskProbeServer) probeNodeDisks(ctx context.Context, ns, nodeName strin
 				Command: []string{
 					"/bin/sh", "-c",
 					// Use the node's lsblk via host root mount (no heavy Ceph image pull).
+					// Do NOT bind-mount host /dev over container /dev — that breaks the
+					// kubelet termination-log mount (read-only /dev) and the pod fails
+					// before lsblk runs, so the form sees empty disks.
 					`chroot /host lsblk -J -o NAME,SIZE,TYPE,MOUNTPOINT,ROTA,MODEL,SERIAL,PKNAME 2>/dev/null || chroot /host lsblk -J`,
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -147,7 +194,6 @@ func (s *DiskProbeServer) probeNodeDisks(ctx context.Context, ns, nodeName strin
 				},
 				VolumeMounts: []corev1.VolumeMount{
 					{Name: "host", MountPath: "/host", ReadOnly: true},
-					{Name: "dev", MountPath: "/dev", ReadOnly: true},
 				},
 			}},
 			Volumes: []corev1.Volume{
@@ -155,12 +201,6 @@ func (s *DiskProbeServer) probeNodeDisks(ctx context.Context, ns, nodeName strin
 					Name: "host",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{Path: "/", Type: &hostPathDir},
-					},
-				},
-				{
-					Name: "dev",
-					VolumeSource: corev1.VolumeSource{
-						HostPath: &corev1.HostPathVolumeSource{Path: "/dev"},
 					},
 				},
 			},
@@ -184,11 +224,18 @@ func (s *DiskProbeServer) probeNodeDisks(ctx context.Context, ns, nodeName strin
 		case corev1.PodSucceeded, corev1.PodFailed:
 			logs, err := s.readPodLogs(ctx, ns, podName)
 			if err != nil {
-				return NodeDisks{Node: nodeName, Disks: []DiskInfo{}, Error: "probe logs: " + err.Error()}, nil
+				msg := "probe logs: " + err.Error()
+				if cur.Status.Phase == corev1.PodFailed {
+					msg = probeFailReason(cur) + "; " + msg
+				}
+				return NodeDisks{Node: nodeName, Disks: []DiskInfo{}, Error: msg}, nil
 			}
 			disks := filterCandidateDisks(logs)
 			if disks == nil {
 				disks = []DiskInfo{}
+			}
+			if cur.Status.Phase == corev1.PodFailed && len(disks) == 0 {
+				return NodeDisks{Node: nodeName, Disks: disks, Error: probeFailReason(cur)}, nil
 			}
 			return NodeDisks{Node: nodeName, Disks: disks}, nil
 		}
@@ -222,6 +269,24 @@ func deleteProbePod(ctx context.Context, c client.Client, ns, name string) error
 		return nil
 	}
 	return err
+}
+
+func probeFailReason(p *corev1.Pod) string {
+	for _, cs := range p.Status.ContainerStatuses {
+		if cs.State.Terminated != nil && cs.State.Terminated.Message != "" {
+			return cs.State.Terminated.Message
+		}
+		if cs.State.Waiting != nil && cs.State.Waiting.Message != "" {
+			return cs.State.Waiting.Message
+		}
+	}
+	if p.Status.Message != "" {
+		return p.Status.Message
+	}
+	if p.Status.Reason != "" {
+		return p.Status.Reason
+	}
+	return "probe pod failed"
 }
 
 func boolPtr(b bool) *bool { return &b }
@@ -322,7 +387,15 @@ func isCandidateDisk(d lsblkDev) bool {
 		return false
 	}
 	lower := strings.ToLower(name)
-	if strings.HasPrefix(lower, "loop") || strings.HasPrefix(lower, "sr") || strings.HasPrefix(lower, "fd") {
+	// Virtual / non-attachable devices. nbd* often appears as type=disk with 0B.
+	for _, p := range []string{"loop", "nbd", "sr", "fd", "ram", "zram", "md", "dm-", "rbd"} {
+		if strings.HasPrefix(lower, p) {
+			return false
+		}
+	}
+	// Skip empty / unbacked devices.
+	size := strings.TrimSpace(strings.ToUpper(d.Size))
+	if size == "" || size == "0" || size == "0B" {
 		return false
 	}
 	if d.Mountpoint != nil && strings.TrimSpace(*d.Mountpoint) != "" {

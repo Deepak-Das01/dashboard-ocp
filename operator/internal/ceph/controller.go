@@ -100,6 +100,10 @@ func (r *RookCephReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if err := applyRookOperator(ctx, r.Client, opt.Namespace); err != nil {
 		return r.fail(ctx, cr, opt, fmt.Errorf("rook operator: %w", err))
 	}
+	// Tolerations before taints so rook-ceph-operator/CSI survive dedicated-node taints.
+	if err := ensureStorageTaintTolerations(ctx, r.Client, opt); err != nil {
+		return r.fail(ctx, cr, opt, fmt.Errorf("storage taint tolerations: %w", err))
+	}
 	if !operatorDeployReady(ctx, r.Client, opt.Namespace) {
 		msg := "Waiting for rook-ceph-operator Deployment…"
 		_ = r.patchStatus(ctx, cr, dashboardv1alpha1.RookCephPhaseProgressing, msg, opt.Namespace, "", nil, "")
@@ -110,6 +114,9 @@ func (r *RookCephReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	if err := labelNodes(ctx, r.Client, opt); err != nil {
 		return r.fail(ctx, cr, opt, err)
+	}
+	if err := taintNodes(ctx, r.Client, opt); err != nil {
+		return r.fail(ctx, cr, opt, fmt.Errorf("taint storage nodes: %w", err))
 	}
 
 	if err := ensureCephCluster(ctx, r.Client, opt); err != nil {
@@ -135,6 +142,9 @@ func (r *RookCephReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	if opt.EnableToolbox {
 		if err := applyToolbox(ctx, r.Client, opt.Namespace, opt.CephImage); err != nil {
 			logger.Info("toolbox (non-fatal)", "err", err)
+		}
+		if err := ensureToolboxToleration(ctx, r.Client, opt); err != nil {
+			logger.Info("toolbox toleration (non-fatal)", "err", err)
 		}
 	}
 
@@ -173,6 +183,11 @@ func (r *RookCephReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			dashboardv1alpha1.OperatorPhaseProgressing, "", msg)
 		return ctrl.Result{RequeueAfter: 20 * time.Second}, nil
 	}
+
+	// Sweep leftover Job pods from prior installs / non-cascading Job deletes.
+	_ = deleteJob(ctx, r.Client, opt.Namespace, healthFixJobName)
+	_ = deleteFinishedCleanupJobs(ctx, r.Client, opt.Namespace)
+	_ = gcOrphanJobPods(ctx, r.Client, opt.Namespace)
 
 	scs := []string{blockSCName, fsSCName}
 	url := ""

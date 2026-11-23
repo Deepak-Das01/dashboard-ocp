@@ -105,16 +105,16 @@ func ensureHealthFixJob(ctx context.Context, c client.Client, opt clusterOpts) (
 	if err == nil {
 		if job.Status.Succeeded > 0 {
 			if ok, _, _ := cephHealthOK(ctx, c, opt.Namespace); ok {
+				// Drop finished Job+Pods now (do not wait for TTL / avoid orphan pods).
+				_ = deleteJob(ctx, c, opt.Namespace, healthFixJobName)
 				return true, nil
 			}
 			// Status lag or regression — drop job so the next reconcile recreates it.
-			prop := metav1.DeletePropagationBackground
-			_ = c.Delete(ctx, &job, &client.DeleteOptions{PropagationPolicy: &prop})
+			_ = deleteJob(ctx, c, opt.Namespace, healthFixJobName)
 			return false, nil
 		}
 		if job.Status.Failed > 0 && isJobComplete(&job) {
-			prop := metav1.DeletePropagationBackground
-			_ = c.Delete(ctx, &job, &client.DeleteOptions{PropagationPolicy: &prop})
+			_ = deleteJob(ctx, c, opt.Namespace, healthFixJobName)
 			return false, nil
 		}
 		return false, nil

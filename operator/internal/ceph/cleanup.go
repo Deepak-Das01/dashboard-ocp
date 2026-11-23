@@ -31,10 +31,18 @@ func (r *RookCephReconciler) cleanup(ctx context.Context, cr *dashboardv1alpha1.
 		return false, fmt.Errorf("refusing uninstall without annotation %s=confirmed (Addons prompts for \"wipe disks\") — required so disks/host-path are sanitized for reuse", wipeAnnotation)
 	}
 
-	// Stop health-fix Job so it does not race teardown.
-	_ = deleteTyped(ctx, r.Client, &batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{Namespace: opt.Namespace, Name: healthFixJobName},
-	})
+	// Unique per uninstall so ensureDeviceWipeJob never skips on a stale Succeeded Job.
+	if cr.UID != "" {
+		opt.wipeGeneration = string(cr.UID)
+	} else if cr.DeletionTimestamp != nil {
+		opt.wipeGeneration = cr.DeletionTimestamp.UTC().Format(time.RFC3339Nano)
+	} else {
+		opt.wipeGeneration = fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+
+	// Stop health-fix Job so it does not race teardown (Background cascades pods).
+	_ = deleteJob(ctx, r.Client, opt.Namespace, healthFixJobName)
+	_ = gcOrphanJobPods(ctx, r.Client, opt.Namespace)
 
 	// Patch cleanupPolicy BEFORE deleting the CephCluster.
 	if err := patchCleanupPolicy(ctx, r.Client, opt); err != nil && !apierrors.IsNotFound(err) {
@@ -118,6 +126,11 @@ func (r *RookCephReconciler) cleanup(ctx context.Context, cr *dashboardv1alpha1.
 		return false, nil
 	}
 
+	// Rook cleanup Jobs have no TTL — delete finished ones so pods do not linger.
+	_ = deleteFinishedCleanupJobs(ctx, r.Client, opt.Namespace)
+	_ = gcOrphanJobPods(ctx, r.Client, opt.Namespace)
+
+	_ = untaintNodes(ctx, r.Client, opt)
 	_ = unlabelNodes(ctx, r.Client, opt)
 	logger.Info("ceph cleanup complete — disks/host-path sanitized")
 	return true, nil
@@ -226,10 +239,102 @@ func deleteTyped(ctx context.Context, c client.Client, obj client.Object) error 
 	return err
 }
 
-const deviceWipeJobName = "kubeops-ceph-device-wipe"
+// deleteJob removes a Job and its Pods. Default Job deletion orphans child pods.
+func deleteJob(ctx context.Context, c client.Client, ns, name string) error {
+	prop := metav1.DeletePropagationBackground
+	err := c.Delete(ctx, &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: name},
+	}, &client.DeleteOptions{PropagationPolicy: &prop})
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
 
-// ensureDeviceWipeJob zeros the start of each CR-listed disk so a reinstall does
-// not inherit blueStore headers from a previous cluster FSID.
+// deleteFinishedCleanupJobs removes Rook host-cleanup Jobs (no TTL) after wipe.
+func deleteFinishedCleanupJobs(ctx context.Context, c client.Client, ns string) error {
+	var jobs batchv1.JobList
+	if err := c.List(ctx, &jobs, client.InNamespace(ns)); err != nil {
+		return err
+	}
+	prop := metav1.DeletePropagationBackground
+	for i := range jobs.Items {
+		j := &jobs.Items[i]
+		name := j.Name
+		if !strings.Contains(name, "cleanup") && !strings.Contains(name, "sanitize") {
+			continue
+		}
+		if j.Status.Succeeded == 0 && !(j.Status.Failed > 0 && isJobComplete(j)) {
+			continue
+		}
+		_ = c.Delete(ctx, j, &client.DeleteOptions{PropagationPolicy: &prop})
+	}
+	return nil
+}
+
+// gcOrphanJobPods deletes finished/orphan pods from health-fix, wipe, and cleanup Jobs.
+// These linger when a Job was deleted without propagationPolicy=Background.
+func gcOrphanJobPods(ctx context.Context, c client.Client, ns string) error {
+	var pods corev1.PodList
+	if err := c.List(ctx, &pods, client.InNamespace(ns)); err != nil {
+		return err
+	}
+	for i := range pods.Items {
+		p := &pods.Items[i]
+		if !isManagedJobPod(p) {
+			continue
+		}
+		orphan := len(p.OwnerReferences) == 0
+		finished := p.Status.Phase == corev1.PodSucceeded ||
+			p.Status.Phase == corev1.PodFailed ||
+			p.Status.Phase == corev1.PodUnknown
+		if !orphan && !finished {
+			continue
+		}
+		// Keep pods still owned by an active Job.
+		if !orphan {
+			ownedByLiveJob := false
+			for _, o := range p.OwnerReferences {
+				if o.Kind == "Job" && o.Controller != nil && *o.Controller {
+					ownedByLiveJob = true
+					break
+				}
+			}
+			if ownedByLiveJob && !finished {
+				continue
+			}
+			// Finished + still owned: Job lacks TTL (Rook cleanup) — leave until Job GC.
+			if ownedByLiveJob {
+				continue
+			}
+		}
+		_ = c.Delete(ctx, p)
+	}
+	return nil
+}
+
+func isManagedJobPod(p *corev1.Pod) bool {
+	n := p.Name
+	if strings.HasPrefix(n, healthFixJobName) ||
+		strings.HasPrefix(n, deviceWipeJobName) ||
+		strings.Contains(n, "cluster-cleanup-job") ||
+		strings.Contains(n, "sanitize") {
+		return true
+	}
+	if p.Labels != nil {
+		app := p.Labels["app"]
+		if app == healthFixJobName || app == deviceWipeJobName {
+			return true
+		}
+	}
+	return false
+}
+
+const deviceWipeJobName = "kubeops-ceph-device-wipe"
+const deviceWipeFreshAnno = "kubeops.io/wipe-generation"
+
+// ensureDeviceWipeJob destroys blueStore/LVM signatures on CR-listed disks and
+// clears dataDirHostPath leftovers so a reinstall never inherits a prior FSID.
 func ensureDeviceWipeJob(ctx context.Context, c client.Client, opt clusterOpts) (done bool, err error) {
 	devs := []string{}
 	for _, n := range opt.Nodes {
@@ -245,51 +350,88 @@ func ensureDeviceWipeJob(ctx context.Context, c client.Client, opt clusterOpts) 
 		return true, nil
 	}
 
+	// Always wipe once per uninstall. A Succeeded Job left from a prior uninstall
+	// (TTL not expired) must not skip wiping the disks we just tore down.
+	wipeGen := ""
+	if opt.wipeGeneration != "" {
+		wipeGen = opt.wipeGeneration
+	}
+
 	var job batchv1.Job
 	err = c.Get(ctx, client.ObjectKey{Namespace: opt.Namespace, Name: deviceWipeJobName}, &job)
 	if err == nil {
-		if job.Status.Succeeded > 0 {
-			// Keep the succeeded Job until the CR finalizer is removed (TTL GC later).
-			// Deleting it here would recreate it forever on the next reconcile.
+		sameGen := wipeGen != "" && job.Annotations != nil && job.Annotations[deviceWipeFreshAnno] == wipeGen
+		if job.Status.Succeeded > 0 && sameGen {
 			return true, nil
 		}
-		if job.Status.Failed > 0 && isJobComplete(&job) {
+		// Stale Succeeded Job or failed Job — delete and recreate for this uninstall.
+		if job.Status.Succeeded > 0 || (job.Status.Failed > 0 && isJobComplete(&job)) || !sameGen {
 			prop := metav1.DeletePropagationBackground
 			_ = c.Delete(ctx, &job, &client.DeleteOptions{PropagationPolicy: &prop})
-			return false, fmt.Errorf("device wipe Job failed")
+			if job.Status.Failed > 0 && isJobComplete(&job) && sameGen {
+				return false, fmt.Errorf("device wipe Job failed")
+			}
+			return false, nil
 		}
-		return false, nil
+		return false, nil // still running
 	}
 	if !apierrors.IsNotFound(err) {
 		return false, err
 	}
 
+	hostPath := strings.TrimSpace(opt.DataDirHostPath)
+	if hostPath == "" {
+		hostPath = defaultHostPath
+	}
+	ns := opt.Namespace
+
 	var script strings.Builder
 	script.WriteString("set -euo pipefail\n")
+	script.WriteString("echo '=== host-path cleanup ==='\n")
+	script.WriteString(fmt.Sprintf("rm -rf %q/%q || true\n", hostPath, ns))
+	script.WriteString(fmt.Sprintf("rm -rf %q/mon-* || true\n", hostPath))
+	script.WriteString(fmt.Sprintf("rm -rf %q/log || true\n", hostPath))
 	for _, d := range devs {
-		// ceph-volume zap needs udev + root; plain dd is not enough for blueStore.
-		script.WriteString(fmt.Sprintf("echo zapping /dev/%s\n", d))
-		script.WriteString(fmt.Sprintf("ceph-volume lvm zap --destroy /dev/%s\n", d))
-		script.WriteString(fmt.Sprintf("dd if=/dev/zero of=/dev/%s bs=1M count=100 conv=fsync status=none\n", d))
+		// Raw OSDs (ceph-volume raw prepare) are NOT fully cleared by lvm zap alone.
+		// ceph-bluestore-tool zap-device is required; otherwise reinstall skips disks
+		// as "belonging to a different ceph cluster".
+		script.WriteString(fmt.Sprintf("echo '=== zapping /dev/%s ==='\n", d))
+		script.WriteString(fmt.Sprintf("ceph-volume lvm zap --destroy /dev/%s || true\n", d))
+		script.WriteString(fmt.Sprintf("ceph-bluestore-tool zap-device --dev /dev/%s --yes-i-really-really-mean-it || true\n", d))
+		script.WriteString(fmt.Sprintf("dd if=/dev/zero of=/dev/%s bs=1M count=200 conv=fsync status=none || true\n", d))
 		script.WriteString(fmt.Sprintf("sgdisk --zap-all /dev/%s || true\n", d))
 		script.WriteString(fmt.Sprintf("wipefs -af /dev/%s || true\n", d))
 	}
-	script.WriteString("echo 'post-zap raw list:'\n")
+	script.WriteString("echo '=== verify raw list empty ==='\n")
 	script.WriteString("out=$(ceph-volume raw list --format json 2>/dev/null || echo {})\n")
 	script.WriteString("echo \"$out\"\n")
-	script.WriteString("if [ \"$out\" != \"{}\" ] && [ -n \"$out\" ]; then echo 'ERROR: devices still have OSD signatures' >&2; exit 1; fi\n")
+	script.WriteString("if [ \"$out\" != \"{}\" ] && [ -n \"$out\" ] && [ \"$out\" != \"null\" ]; then\n")
+	script.WriteString("  echo 'ERROR: devices still have OSD signatures' >&2\n")
+	script.WriteString("  exit 1\n")
+	script.WriteString("fi\n")
+	for _, d := range devs {
+		// show-label must fail on a clean disk
+		script.WriteString(fmt.Sprintf("if ceph-bluestore-tool show-label --dev /dev/%s >/tmp/blabel-%s 2>/dev/null; then\n", d, d))
+		script.WriteString(fmt.Sprintf("  echo \"ERROR: /dev/%s still has blueStore label:\" >&2\n", d))
+		script.WriteString(fmt.Sprintf("  cat /tmp/blabel-%s >&2 || true\n", d))
+		script.WriteString("  exit 1\n")
+		script.WriteString("fi\n")
+	}
 	script.WriteString("echo device wipe complete\n")
 
-	// Pick first node that owns devices (lab is single-node; multi-node would need per-node Jobs).
 	nodeName := strings.TrimSpace(opt.Nodes[0].Name)
 	img := opt.CephImage
 	if img == "" {
 		img = defaultCephImage
 	}
+	hostPathType := corev1.HostPathDirectoryOrCreate
 	job = batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      deviceWipeJobName,
 			Namespace: opt.Namespace,
+			Annotations: map[string]string{
+				deviceWipeFreshAnno: wipeGen,
+			},
 			Labels: map[string]string{
 				managedLabel: managedValue,
 				"app":        deviceWipeJobName,
@@ -297,7 +439,7 @@ func ensureDeviceWipeJob(ctx context.Context, c client.Client, opt clusterOpts) 
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit:            ptrInt32(2),
-			TTLSecondsAfterFinished: ptrInt32(600),
+			TTLSecondsAfterFinished: ptrInt32(300),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": deviceWipeJobName}},
 				Spec: corev1.PodSpec{
@@ -316,11 +458,13 @@ func ensureDeviceWipeJob(ctx context.Context, c client.Client, opt clusterOpts) 
 						VolumeMounts: []corev1.VolumeMount{
 							{Name: "dev", MountPath: "/dev"},
 							{Name: "udev", MountPath: "/run/udev"},
+							{Name: "rook", MountPath: hostPath},
 						},
 					}},
 					Volumes: []corev1.Volume{
 						{Name: "dev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/dev"}}},
 						{Name: "udev", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: "/run/udev"}}},
+						{Name: "rook", VolumeSource: corev1.VolumeSource{HostPath: &corev1.HostPathVolumeSource{Path: hostPath, Type: &hostPathType}}},
 					},
 					Tolerations: []corev1.Toleration{{
 						Operator: corev1.TolerationOpExists,
