@@ -122,6 +122,10 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 	if err != nil {
 		return err
 	}
+	cephCharts, err := assets.FS.ReadFile("kube-dashboard/ceph-charts.js")
+	if err != nil {
+		return err
+	}
 
 	labels := map[string]string{
 		"app.kubernetes.io/name":    "kube-dashboard",
@@ -135,6 +139,7 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		"virt-theme.css":     string(virtTheme),
 		"mon-theme.css":      string(monTheme),
 		"ceph-theme.css":     string(cephTheme),
+		"ceph-charts.js":     string(cephCharts),
 		"nav-accordion.js":   string(nav),
 		"operators.html":     string(opsHTML),
 		"operators.js":       string(opsJS),
@@ -196,6 +201,7 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/virt-theme.css", SubPath: "virt-theme.css"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/mon-theme.css", SubPath: "mon-theme.css"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/ceph-theme.css", SubPath: "ceph-theme.css"},
+			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/ceph-charts.js", SubPath: "ceph-charts.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/nav-accordion.js", SubPath: "nav-accordion.js"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.html", SubPath: "operators.html"},
 			{Name: "ui-assets", MountPath: "/usr/share/nginx/html/operators.js", SubPath: "operators.js"},

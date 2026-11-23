@@ -98,6 +98,12 @@ http {
       add_header Cache-Control "no-cache";
     }
 
+    location = /ceph-charts.js {
+      alias /usr/share/nginx/html/ceph-charts.js;
+      default_type application/javascript;
+      add_header Cache-Control "no-cache";
+    }
+
     location = /nav-accordion.js {
       alias /usr/share/nginx/html/nav-accordion.js;
       default_type application/javascript;
@@ -311,7 +317,7 @@ http {
       proxy_read_timeout 3600s;
       sub_filter_types text/html;
       sub_filter_once off;
-      sub_filter '</head>' '<link rel="stylesheet" href="/ceph-theme.css?v=addons-embed-38"><script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script></head>';
     }
 
     location / {
@@ -438,6 +444,14 @@ http {
       error_page 401 = @login;
       alias /usr/share/nginx/html/ceph-theme.css;
       default_type text/css;
+      add_header Cache-Control "no-cache";
+    }
+
+    location = /ceph-charts.js {
+      auth_request /oauth2/auth;
+      error_page 401 = @login;
+      alias /usr/share/nginx/html/ceph-charts.js;
+      default_type application/javascript;
       add_header Cache-Control "no-cache";
     }
 
@@ -680,7 +694,7 @@ http {
       proxy_read_timeout 3600s;
       sub_filter_types text/html;
       sub_filter_once off;
-      sub_filter '</head>' '<link rel="stylesheet" href="/ceph-theme.css?v=addons-embed-38"><script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script><style>html{color-scheme:dark}</style></head>';
+      sub_filter '</head>' '<script>(function(){function p(a){a=a||[];return{read:a.indexOf("read")>=0,create:a.indexOf("create")>=0,update:a.indexOf("update")>=0,delete:a.indexOf("delete")>=0}}function n(r){r=r||{};return{hosts:p(r.hosts),configOpt:p(r["config-opt"]),pool:p(r.pool),osd:p(r.osd),monitor:p(r.monitor),rbdImage:p(r["rbd-image"]),iscsi:p(r.iscsi),nvmeof:p(r["nvme-of"]),rbdMirroring:p(r["rbd-mirroring"]),rgw:p(r.rgw),cephfs:p(r.cephfs),manager:p(r.manager),log:p(r.log),user:p(r.user),grafana:p(r.grafana),prometheus:p(r.prometheus),nfs:p(r["nfs-ganesha"])}}try{var x=new XMLHttpRequest();x.open("GET","/kubeops/api/ceph-session?namespace=kubeops-ceph-cluster",false);x.withCredentials=true;x.setRequestHeader("Accept","application/json");x.send(null);if(x.status>=200&&x.status<300){var d=JSON.parse(x.responseText);if(d.username){localStorage.setItem("dashboard_username",d.username);localStorage.setItem("dashboard_permissions",JSON.stringify(n(d.permissions)));localStorage.setItem("sso",String(!!d.sso));localStorage.setItem("user_pwd_update_required",String(!!d.pwdUpdateRequired));if(d.pwdExpirationDate!=null)localStorage.setItem("user_pwd_expiration_date",String(d.pwdExpirationDate));else localStorage.removeItem("user_pwd_expiration_date")}}}catch(e){}var h=location.hash||"";if(!h||h==="#"||h==="#/"||h.indexOf("#/login")===0){location.replace(location.pathname+location.search+"#/dashboard")}})();</script></head>';
     }
 
     location / {
