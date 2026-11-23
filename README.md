@@ -128,6 +128,8 @@ kubectl get ops
 
 Install/uninstall **addon workloads** from the console **Addons** page (creates/deletes CRs). Controllers stay running. Details: [docs/ADDON_CONTROLLERS.md](docs/ADDON_CONTROLLERS.md).
 
+Hardware sizing per operator/addon: [Prerequisites → Hardware requirements](#hardware-requirements-operator--addon).
+
 ---
 
 ## Table of contents
@@ -140,6 +142,7 @@ Install/uninstall **addon workloads** from the console **Addons** page (creates/
 - [Technology stack](#technology-stack)
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
+  - [Hardware requirements (operator / addon)](#hardware-requirements-operator--addon)
 - [Classic install (scripts/install.sh)](#classic-install-scriptsinstallsh)
 - [Detailed manual installation](#detailed-manual-installation)
 - [Accessing the dashboard](#accessing-the-dashboard)
@@ -369,34 +372,100 @@ flowchart LR
 
 ## Prerequisites
 
-### Mandatory
+### Mandatory (software / cluster)
 
-- A working Kubernetes cluster
-- `kubectl` configured for the target context
-- Permission to apply the upstream Dashboard manifests and this repository’s `deploy/` package
-- Network access to pull (or locally preload):
+- A working Kubernetes cluster with **containerd** (lab uses `containerd://2.x`)
+- `kubectl` configured for the target context (cluster-admin for install)
+- For `./scripts/install-operators.sh`: `go`, `python3`, `ctr` (containerd CLI)
+- Permission to create namespaces, CRDs, ClusterRoles, Deployments, and NodePorts
+- Network access to pull (or locally preload) console images:
   - `kubernetesui/dashboard:v2.7.0`
   - `kubernetesui/metrics-scraper:v1.0.8`
   - `nginx:1.27-alpine`
-- `openssl` (used by `scripts/create-tls-secret.sh`)
-- `bash`, `git`, and a modern browser
+  - Plus Dex / oauth2-proxy and any **addon** images you Deploy from Addons
+- `openssl` (TLS secret helpers), `bash`, `git`, and a modern browser
+- Swap disabled on nodes (kubeadm requirement)
+
+### Hardware requirements (operator / addon)
+
+Figures below are **practical lab / UAT guidance** (not hard product limits). Controllers themselves are small; **workloads** created by Addons → Deploy dominate RAM, CPU, and disk.
+
+#### Node profiles (whole cluster)
+
+| Profile | What you run | vCPU | RAM | OS disk | Extra disks / notes |
+|---------|--------------|------|-----|---------|---------------------|
+| **Core only** | `kubeops-console` + `kubeops-authentication` + addon **controllers** (no Addons Deploy yet) | 2–4 | **8 GB** | 40+ GB | NodePort **30443** reachable |
+| **Core + NFS + Monitoring** | Above + NFS provisioner + Prometheus/Grafana stack | 4–8 | **16 GB** | 80+ GB | Prefer a StorageClass for Prometheus PVC; else emptyDir (ephemeral) |
+| **Full lab (recommended UAT)** | Core + Monitoring + **Ceph** (+ optional Virt) | **8** | **16–24 GB** | **80–120 GB** | **≥3 raw disks** for Ceph OSDs (lab uses 3× ~50 GB); Virt needs KVM or emulation |
+| **Virt-heavy** | Full lab + several VMs | 8+ | **32 GB** | 100+ GB | Nested virt (`/dev/kvm`) strongly preferred |
+
+**Lab reference node:** Ubuntu 24.04, **8 vCPU / ~23 GB RAM / 120 GB OS + 3×50 GB Ceph disks**, Kubernetes **v1.34.13** — console + Ceph + monitoring fit comfortably (~6 GB RAM used at idle).
+
+#### Per operator / controller
+
+| Operator / controller | Namespace | Idle footprint (approx.) | Notes |
+|-----------------------|-----------|--------------------------|-------|
+| **kubeops-console** | `kubeops-console` | ~256–512 MiB RAM, low CPU | Operator + `kube-dashboard` (NGINX + Dashboard + oauth2-proxy) + metrics-scraper. Always required for the UI. |
+| **kubeops-authentication** | `kubeops-authentication` | ~128–256 MiB RAM | Operator + Dex. Required for default OIDC (`kubeadmin`). |
+| **kubeops-nfs-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → NFS Deploy. |
+| **kubeops-virtualization-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Virtualization Deploy. |
+| **kubeops-monitoring-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Monitoring Deploy. |
+| **kubeops-ceph-controller** | `kubeops-addon-controller` | Controller ~64–128 MiB | Controller only until Addons → Ceph Deploy. Disk probe API is lightweight. |
+
+Shared addon-controller namespace holds all four controllers; budget **~0.5–1 GB RAM** for controllers together.
+
+#### Per addon workload (after Addons → Deploy)
+
+| Addon CR | Workload namespace | Minimum practical HW | Recommended | Special requirements |
+|----------|-------------------|----------------------|-------------|----------------------|
+| **NFSProvisioner** (`nfs`) | `kubeops-nfs` | +0.5–1 GB RAM, small PVC/hostPath for export | 1 GB RAM | Host path or volume for NFS export data; creates StorageClass `kubeops-nfs-storage` (used by Monitoring when present). |
+| **Monitoring** (`monitoring`) | `kubeops-monitoring` | +2–4 GB RAM, +10–20 GB disk for TSDB | **4 GB RAM**, PVC on NFS/Ceph SC | Prometheus **30446**, Grafana **30445**, Alertmanager **30447**. Without a StorageClass, metrics use emptyDir (lost on restart). |
+| **Virtualization** (`virtualization`) | `kubeops-virtualization` | +2–4 GB RAM idle (KubeVirt + CDI + UI) | **8+ GB** free for guest VMs | KubeVirt **v1.10** + CDI + kubevirt-manager (**30444**). Prefer `/dev/kvm`; set `spec.useEmulation: true` only for labs without KVM (slower). First Deploy pulls many images. |
+| **RookCeph** (`ceph`) | `kubeops-ceph-cluster` | +4–8 GB RAM; **≥3 unused disks** (SNO lab) | **8 GB RAM**, 3× 20–50 GB+ raw disks | Rook **v1.16.7** / Ceph **v19.2.3**. Disks must **not** be the OS disk (`Discover disks` filters boot/nbd/loop). Multi-node: dedicated storage nodes, mon≥3, pool size 3. Dashboard **30448** / embed `/kubeops/ceph-ui/`. Uninstall wipe needs `kubeops.io/wipe-disks=confirmed`. |
+
+#### Combined UAT checklist (2 machines)
+
+Use the same **Kubernetes patch** you intend to validate (lab: **v1.34.13**). Example split:
+
+| Machine | OS | Suggested role | HW |
+|---------|-----|----------------|-----|
+| Ubuntu | 22.04 / 24.04 | Match lab / full stack (console + Ceph + monitoring) | 8 vCPU, 16–24 GB RAM, 120 GB OS, **3× raw disks** |
+| RHEL | 8 / 9 | Core + monitoring (or second k8s minor) | 4–8 vCPU, 16 GB RAM, 80+ GB OS |
+
+Both: containerd, swap off, firewall allows NodePorts above (at least **30443** for console).
+
+### Network (NodePorts)
+
+| Port | Service |
+|------|---------|
+| **30443** | Console HTTPS (primary) |
+| **30080** | Console HTTP → HTTPS redirect |
+| **32056** | Dex OIDC |
+| **30444** | kubevirt-manager (after Virtualization Deploy) |
+| **30445–30447** | Grafana / Prometheus / Alertmanager (after Monitoring Deploy) |
+| **30448** | Ceph mgr dashboard (after Ceph Deploy) |
 
 ### Optional
 
 - NodePort reachability from your workstation (or use port-forward)
-- Cluster metrics components if you want populated Dashboard charts
+- Cluster metrics-server if you want populated upstream Dashboard resource charts
 - A custom TLS certificate to replace the generated self-signed secret
+- Extra Kubernetes minors for multi-version UAT (**1.35.x / 1.36.x**); keep one cluster matching lab **1.34.13**
 
 ### Lab-tested Kubernetes version
 
-This packaging was exercised in a lab on **Kubernetes v1.34.13**. Compatibility with every distribution or version is **not** claimed.
+This packaging was exercised in a lab on **Kubernetes v1.34.13** (Ubuntu 24.04). Compatibility with every distribution or version is **not** claimed.
 
 ### Pre-flight checks
 
 ```bash
 kubectl config current-context
 kubectl cluster-info
-kubectl get nodes
+kubectl get nodes -o wide
+# RAM / disk sanity on each node (example)
+free -h
+lsblk -d -o NAME,SIZE,TYPE,MOUNTPOINT
+# Confirm unused disks before Ceph Deploy (console Addons → Discover disks)
 ```
 
 ---
