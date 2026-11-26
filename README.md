@@ -2,7 +2,7 @@
 
 Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` operators**, with Dex OIDC login by default.
 
-[![Release](https://img.shields.io/badge/release-v1.3.0-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/dashboard-ocp/releases/tag/v1.3.0)
+[![Release](https://img.shields.io/badge/release-v1.3.0-0B5FFF?style=flat-square)](https://github.com/Deepak-Das01/kubeops-platform/releases/tag/v1.3.0)
 [![Upstream Dashboard](https://img.shields.io/badge/Kubernetes%20Dashboard-v2.7.0-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](https://github.com/kubernetes/dashboard/releases/tag/v2.7.0)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-1.34%20lab--tested-326CE5?style=flat-square&logo=kubernetes&logoColor=white)](#prerequisites)
 [![NGINX](https://img.shields.io/badge/NGINX-1.27--alpine-009639?style=flat-square&logo=nginx&logoColor=white)](deploy/kube-dashboard/deployment.yaml)
@@ -31,7 +31,7 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Ceph dashboard NodePort | **30448** (also embedded in console at `/kubeops/ceph-ui/`) |
 | MetalLB | L2 LoadBalancer IPs via Addons → MetalLB (`metallb-system`, vendored **v0.16.2**) |
 | Namespaces | `kubeops-console`, `kubeops-authentication`, `kubeops-addon-controller`, `kubeops-virtualization`, `kubeops-nfs`, `kubeops-monitoring`, `kubeops-ceph-cluster`, `metallb-system` |
-| Repository | [github.com/Deepak-Das01/dashboard-ocp](https://github.com/Deepak-Das01/dashboard-ocp) |
+| Repository | [github.com/Deepak-Das01/kubeops-platform](https://github.com/Deepak-Das01/kubeops-platform) |
 
 ---
 
@@ -40,8 +40,8 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 Requires: `kubectl`, `go`, `python3`, `ctr` (containerd), cluster-admin kubeconfig.
 
 ```bash
-git clone https://github.com/Deepak-Das01/dashboard-ocp.git
-cd dashboard-ocp
+git clone https://github.com/Deepak-Das01/kubeops-platform.git
+cd kubeops-platform
 git checkout main
 
 # Interactive (progress bar + status, dated log, kubeadmin-password file):
@@ -830,7 +830,7 @@ Prefer diagnose → targeted fix. Avoid destructive cluster cleanup as a first s
 Publishing a Git tag does **not** update a live cluster automatically.
 
 ```bash
-cd dashboard-ocp
+cd kubeops-platform
 git pull origin main
 # Preserve local theme edits if you customized theme.css
 ./scripts/install.sh
@@ -913,7 +913,7 @@ REMOVE_UPSTREAM=true REMOVE_METRICS_SERVER=true ./scripts/uninstall.sh
 ## Repository structure
 
 ```text
-dashboard-ocp/
+kubeops-platform/
 ├── README.md
 ├── CHANGELOG.md
 ├── VERSION / RELEASE
@@ -992,7 +992,7 @@ No delivery dates are promised.
 
 ## Releases and changelog
 
-- Tags / releases: [github.com/Deepak-Das01/dashboard-ocp/tags](https://github.com/Deepak-Das01/dashboard-ocp/tags)
+- Tags / releases: [github.com/Deepak-Das01/kubeops-platform/tags](https://github.com/Deepak-Das01/kubeops-platform/tags)
 - Detailed notes: [`CHANGELOG.md`](CHANGELOG.md)
 
 ### v1.3.0 highlights

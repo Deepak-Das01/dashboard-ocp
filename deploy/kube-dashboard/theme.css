@@ -2249,7 +2249,7 @@ kd-about [footer].kd-muted::before {
 
 kd-about .kd-muted[footer]::after,
 kd-about [footer].kd-muted::after {
-  content: "Based on upstream Kubernetes Dashboard v2.7.0  ·  github.com/Deepak-Das01/dashboard-ocp" !important;
+  content: "Based on upstream Kubernetes Dashboard v2.7.0  ·  github.com/Deepak-Das01/kubeops-platform" !important;
   display: block !important;
   font-size: 12px !important;
   line-height: 1.55 !important;

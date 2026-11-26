@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
-	opstatus "github.com/Deepak-Das01/dashboard-ocp/operator/internal/status"
+	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	opstatus "github.com/Deepak-Das01/kubeops-platform/operator/internal/status"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

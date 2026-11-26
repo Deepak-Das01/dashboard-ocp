@@ -125,7 +125,7 @@ PASS: Post re-Deploy EXTERNAL-IP=192.168.222.230
 ==> Summary
 PASS=19 FAIL=0
 Finished: 2026-11-23T20:34:37+00:00
-Report: /root/dashboard-ocp/artifacts/kube-node-metallb-uat-report.txt
+Report: /root/kubeops-platform/artifacts/kube-node-metallb-uat-report.txt
 
 Final cluster:
 NAME                                    PHASE   POOL         NAMESPACE        AGE

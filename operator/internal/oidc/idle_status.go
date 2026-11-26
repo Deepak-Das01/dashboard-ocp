@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
-	opstatus "github.com/Deepak-Das01/dashboard-ocp/operator/internal/status"
+	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	opstatus "github.com/Deepak-Das01/kubeops-platform/operator/internal/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"

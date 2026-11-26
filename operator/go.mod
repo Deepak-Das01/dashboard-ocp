@@ -1,4 +1,4 @@
-module github.com/Deepak-Das01/dashboard-ocp/operator
+module github.com/Deepak-Das01/kubeops-platform/operator
 
 go 1.22.10
 

@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 IMG_DIR="${IMG_DIR:-$ROOT/artifacts/images}"
 IMAGE_RELEASE_TAG="${IMAGE_RELEASE_TAG:-images-v1.2.2}"
-REPO="${REPO:-Deepak-Das01/dashboard-ocp}"
+REPO="${REPO:-Deepak-Das01/kubeops-platform}"
 BASE="https://github.com/${REPO}/releases/download/${IMAGE_RELEASE_TAG}"
 
 FILES=(

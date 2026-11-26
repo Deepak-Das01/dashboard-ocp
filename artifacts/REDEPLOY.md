@@ -18,6 +18,6 @@ Packed 2026-11-23T08:05:48Z
 
 ## Redeploy
 ```bash
-cd /root/dashboard-ocp
+cd /root/kubeops-platform
 LOAD_IMAGES=false BUILD_OPERATORS=false PACK_IMAGES=false ./scripts/install-operators.sh
 ```

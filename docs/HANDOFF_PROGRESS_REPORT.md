@@ -2,8 +2,8 @@
 
 **Generated:** 2026-11-20  
 **Purpose:** Preserve every important fact so another Cursor/GitHub account (or human) can continue from the **exact same progress** without re-discovering history.  
-**Repo:** https://github.com/Deepak-Das01/dashboard-ocp  
-**Local path (lab):** `/root/dashboard-ocp`
+**Repo:** https://github.com/Deepak-Das01/kubeops-platform  
+**Local path (lab):** `/root/kubeops-platform`
 
 ---
 
@@ -43,7 +43,7 @@
 
 ### Remote
 ```text
-origin  https://github.com/Deepak-Das01/dashboard-ocp.git
+origin  https://github.com/Deepak-Das01/kubeops-platform.git
 ```
 
 ### Branch
@@ -159,8 +159,8 @@ Login SA: `dashboard-admin` (cluster-admin binding) — use **fresh** token afte
 ## 7. How to install / reinstall (member flow)
 
 ```bash
-git clone https://github.com/Deepak-Das01/dashboard-ocp.git
-cd dashboard-ocp
+git clone https://github.com/Deepak-Das01/kubeops-platform.git
+cd kubeops-platform
 git checkout main
 ./scripts/install.sh
 ./scripts/get-token.sh
@@ -220,7 +220,7 @@ Useful env flags:
 
 ## 11. Prompt for the next account / agent
 
-Copy everything below the line into a new Cursor chat on another account (after cloning `main` or opening `/root/dashboard-ocp` on this lab).
+Copy everything below the line into a new Cursor chat on another account (after cloning `main` or opening `/root/kubeops-platform` on this lab).
 
 ---
 
@@ -228,9 +228,9 @@ Copy everything below the line into a new Cursor chat on another account (after 
 You are continuing work on the Liquid Glass Kubernetes Dashboard packaging repo.
 
 ## Project
-- Repo: https://github.com/Deepak-Das01/dashboard-ocp
+- Repo: https://github.com/Deepak-Das01/kubeops-platform
 - Branch: main (HEAD should be e88825f or later)
-- Local lab path if same machine: /root/dashboard-ocp
+- Local lab path if same machine: /root/kubeops-platform
 - Full handoff doc: docs/HANDOFF_PROGRESS_REPORT.md — READ IT FIRST end-to-end
 
 ## Product
@@ -272,7 +272,7 @@ Start by confirming: git log -1, kubectl -n kubernetes-dashboard get deploy, and
 ## 12. Quick verify checklist for the next person
 
 ```bash
-cd /root/dashboard-ocp   # or clone fresh
+cd /root/kubeops-platform   # or clone fresh
 git fetch origin && git checkout main && git pull
 git log -1 --oneline     # expect e88825f or newer
 kubectl -n kubernetes-dashboard get deploy,svc

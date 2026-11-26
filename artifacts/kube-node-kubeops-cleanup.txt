@@ -182,10 +182,10 @@ Error from server (NotFound): deployments.apps "metrics-server" not found
 Error from server (NotFound): services "metrics-server" not found
 
 CLEAN DONE: 2026-11-23T19:37:12+00:00
-Report: /root/dashboard-ocp/artifacts/kube-node-kubeops-cleanup.txt
+Report: /root/kubeops-platform/artifacts/kube-node-kubeops-cleanup.txt
 
 Cluster is ready for a fresh interactive install:
-  cd /root/dashboard-ocp
+  cd /root/kubeops-platform
   ./scripts/kubeops-installer.sh
   # or: ./scripts/install-operators.sh --interactive
 
@@ -403,4 +403,4 @@ kube-system       Active   4d11h
 (none bound)
 
 CLEAN COMPLETE: 2026-11-23T19:39:15+00:00
-Report: /root/dashboard-ocp/artifacts/kube-node-kubeops-cleanup.txt
+Report: /root/kubeops-platform/artifacts/kube-node-kubeops-cleanup.txt

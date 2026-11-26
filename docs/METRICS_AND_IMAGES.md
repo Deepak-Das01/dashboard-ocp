@@ -24,8 +24,8 @@ Checksums: `deploy/images/SHA256SUMS`
 ## Member install (self-contained flow)
 
 ```bash
-git clone https://github.com/Deepak-Das01/dashboard-ocp.git
-cd dashboard-ocp
+git clone https://github.com/Deepak-Das01/kubeops-platform.git
+cd kubeops-platform
 git checkout main
 
 ./scripts/download-images.sh   # from GitHub Release images-v1.2.2

@@ -88,7 +88,7 @@ Browser visual capture over self-signed HTTPS was **blocked** in the automation 
 ## 11. Rollback
 
 ```bash
-cd /root/dashboard-ocp
+cd /root/kubeops-platform
 git checkout v1.2.0 -- deploy/glass/glass-theme.css
 kubectl apply -k deploy/
 kubectl -n kubernetes-dashboard rollout restart deploy/dashboard-glass

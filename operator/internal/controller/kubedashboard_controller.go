@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
-	opstatus "github.com/Deepak-Das01/dashboard-ocp/operator/internal/status"
+	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	opstatus "github.com/Deepak-Das01/kubeops-platform/operator/internal/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

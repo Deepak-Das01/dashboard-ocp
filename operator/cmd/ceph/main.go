@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
-	cephctrl "github.com/Deepak-Das01/dashboard-ocp/operator/internal/ceph"
+	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	cephctrl "github.com/Deepak-Das01/kubeops-platform/operator/internal/ceph"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

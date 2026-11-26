@@ -4,8 +4,8 @@ import (
 	"flag"
 	"os"
 
-	dashboardv1alpha1 "github.com/Deepak-Das01/dashboard-ocp/operator/api/v1alpha1"
-	virtctrl "github.com/Deepak-Das01/dashboard-ocp/operator/internal/virtualization"
+	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	virtctrl "github.com/Deepak-Das01/kubeops-platform/operator/internal/virtualization"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"

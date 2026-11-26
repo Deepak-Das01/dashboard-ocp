@@ -1,4 +1,4 @@
-Continue work on the kube-dashboard packaging repo (github.com/Deepak-Das01/dashboard-ocp).
+Continue work on the kube-dashboard packaging repo (github.com/Deepak-Das01/kubeops-platform).
 
 Product: Kube Dashboard (single pod `kube-dashboard`: nginx + Dashboard sidecar)
 Namespace: kubernetes-dashboard
