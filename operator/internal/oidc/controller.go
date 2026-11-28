@@ -12,6 +12,9 @@ import (
 
 	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
 	"github.com/Deepak-Das01/kubeops-platform/operator/internal/assets"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/endpoint"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/images"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/placement"
 	opstatus "github.com/Deepak-Das01/kubeops-platform/operator/internal/status"
 	"golang.org/x/crypto/bcrypt"
 	appsv1 "k8s.io/api/apps/v1"
@@ -57,7 +60,18 @@ func (r *ClusterOIDCReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	applyDefaults(co)
 
-	nodeIP := r.nodeIP(ctx)
+	// Prefer a Ready node InternalIP for Dex NodePort reachability. VIP
+	// (controlPlaneEndpoint) often only fronts :6443, not Dex :32056.
+	nodeIP := endpoint.PreferredPublicIP(ctx, r.Client)
+	if vip := endpoint.ControlPlaneEndpointHost(ctx, r.Client); vip != "" {
+		// Keep node IP for Dex/NodePort if VIP differs; still record VIP in secrets via redirect hosts below.
+		nodes := endpoint.NodeInternalIPs(ctx, r.Client)
+		if len(nodes) > 0 {
+			nodeIP = nodes[0]
+		}
+	} else if nodeIP == "" {
+		nodeIP = r.nodeIP(ctx)
+	}
 	issuer := co.Spec.IssuerURL
 	if issuer == "" && nodeIP != "" {
 		issuer = fmt.Sprintf("http://%s:%d/dex", nodeIP, defaultDexNodePort)
@@ -65,10 +79,18 @@ func (r *ClusterOIDCReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	if issuer == "" {
 		issuer = fmt.Sprintf("http://dex.%s.svc:5556/dex", co.Spec.Namespace)
 	}
-	redirect := fmt.Sprintf("https://%s:30443/oauth2/callback", nodeIP)
-	if nodeIP == "" {
-		redirect = "https://127.0.0.1:30443/oauth2/callback"
+	redirectHosts := endpoint.AllPublicIPs(ctx, r.Client)
+	if len(redirectHosts) == 0 && nodeIP != "" {
+		redirectHosts = []string{nodeIP}
 	}
+	if len(redirectHosts) == 0 {
+		redirectHosts = []string{"127.0.0.1"}
+	}
+	redirects := make([]string, 0, len(redirectHosts))
+	for _, h := range redirectHosts {
+		redirects = append(redirects, fmt.Sprintf("https://%s:30443/oauth2/callback", h))
+	}
+	redirect := redirects[0]
 
 	if err := r.ensureNamespace(ctx, co.Spec.Namespace); err != nil {
 		return r.fail(ctx, co, err)
@@ -83,7 +105,7 @@ func (r *ClusterOIDCReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	}
 	_ = cookieSecret
 
-	cfg := renderDexConfig(issuer, co.Spec.ClientID, clientSecret, redirect, co.Spec.BootstrapAdmin.Username, hash)
+	cfg := renderDexConfig(issuer, co.Spec.ClientID, clientSecret, redirects, co.Spec.BootstrapAdmin.Username, hash)
 	cm := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "dex", Namespace: co.Spec.Namespace}}
 	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, cm, func() error {
 		cm.Data = map[string]string{"config.yaml": cfg}
@@ -148,6 +170,8 @@ func applyDefaults(co *dashboardv1alpha1.ClusterOIDC) {
 	}
 	if co.Spec.DexImage == "" {
 		co.Spec.DexImage = defaultDexImage
+	} else {
+		co.Spec.DexImage = images.Qualify(co.Spec.DexImage)
 	}
 	if co.Spec.BootstrapAdmin.Username == "" {
 		co.Spec.BootstrapAdmin.Username = defaultUser
@@ -321,10 +345,11 @@ func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1al
 			deploy.Spec.Template.ObjectMeta.Annotations = map[string]string{}
 		}
 		deploy.Spec.Template.ObjectMeta.Annotations["kubeops.io/dex-theme-hash"] = themeHash
+		dexImage := images.Qualify(co.Spec.DexImage)
 		// Seed theme logos + overlay glass CSS and custom login templates.
 		deploy.Spec.Template.Spec.InitContainers = []corev1.Container{{
 			Name:  "theme-seed",
-			Image: co.Spec.DexImage,
+			Image: dexImage,
 			Command: []string{"/bin/sh", "-c", strings.Join([]string{
 				"cp -r /srv/dex/web/themes/dark/. /theme/",
 				"cp /theme-in/styles.css /theme/styles.css",
@@ -341,7 +366,7 @@ func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1al
 		}}
 		deploy.Spec.Template.Spec.Containers = []corev1.Container{{
 			Name:  "dex",
-			Image: co.Spec.DexImage,
+			Image: dexImage,
 			Args:  []string{"dex", "serve", "/etc/dex/config.yaml"},
 			Ports: []corev1.ContainerPort{{Name: "http", ContainerPort: 5556}},
 			VolumeMounts: []corev1.VolumeMount{
@@ -371,6 +396,7 @@ func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1al
 			{Name: "theme", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 			{Name: "templates", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},
 		}
+		placement.EnsureControlPlaneTolerations(&deploy.Spec.Template.Spec)
 		return nil
 	})
 	if err != nil {
@@ -389,7 +415,16 @@ func (r *ClusterOIDCReconciler) ensureDex(ctx context.Context, co *dashboardv1al
 	return err
 }
 
-func renderDexConfig(issuer, clientID, clientSecret, redirect, username, bcryptHash string) string {
+func renderDexConfig(issuer, clientID, clientSecret string, redirects []string, username, bcryptHash string) string {
+	if len(redirects) == 0 {
+		redirects = []string{"https://127.0.0.1:30443/oauth2/callback"}
+	}
+	var b strings.Builder
+	for _, r := range redirects {
+		b.WriteString("      - ")
+		b.WriteString(r)
+		b.WriteByte('\n')
+	}
 	return fmt.Sprintf(`issuer: %s
 storage:
   type: memory
@@ -406,14 +441,13 @@ staticClients:
     secret: %s
     name: kube-dashboard
     redirectURIs:
-      - %s
-enablePasswordDB: true
+%senablePasswordDB: true
 staticPasswords:
   - email: "%s"
     username: "%s"
     userID: "kubeadmin"
     hash: '%s'
-`, issuer, clientID, clientSecret, redirect, username, username, bcryptHash)
+`, issuer, clientID, clientSecret, b.String(), username, username, bcryptHash)
 }
 
 func randomPassword(n int) (string, error) {

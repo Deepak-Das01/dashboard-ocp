@@ -23,7 +23,7 @@ spec:
       serviceAccountName: kubeops-metallb-controller
       containers:
         - name: manager
-          image: kubeops-metallb:1.3.0
+          image: localhost/kubeops-metallb:1.3.0
           imagePullPolicy: IfNotPresent
           args:
             - --leader-elect=false
@@ -63,5 +63,12 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
+        - key: node-role.kubernetes.io/master
+          operator: Exists
+          effect: NoSchedule
       nodeSelector:
         kubernetes.io/os: linux

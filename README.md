@@ -17,9 +17,10 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 | Product | Kube Dashboard |
 | Release | **v1.3.0** (stable packaging) + **kubeops operators** on `main` |
 | Version | **1.3.0** |
-| Upstream Dashboard | `kubernetesui/dashboard:v2.7.0` |
-| Metrics scraper | `kubernetesui/metrics-scraper:v1.0.8` |
-| Console image (proxy) | `nginx:1.27-alpine` |
+| Upstream Dashboard | `docker.io/kubernetesui/dashboard:v2.7.0` |
+| Metrics scraper | `docker.io/kubernetesui/metrics-scraper:v1.0.8` |
+| Console image (proxy) | `docker.io/library/nginx:1.27-alpine` |
+| Operator images | `localhost/kubeops-*:1.3.0` (airgap / CRI-O on FCOS) |
 | Auth (default) | **OIDC via Dex** (`kubeadmin`) |
 | Default HTTPS NodePort | **30443** |
 | Default HTTP NodePort | **30080** (redirects to HTTPS) |
@@ -37,7 +38,9 @@ Themed Kubernetes console based on Dashboard v2.7.0, managed by **`kubeops-*` op
 
 ## Quick start (recommended)
 
-Requires: `kubectl`, `go`, `python3`, `ctr` (containerd), cluster-admin kubeconfig.
+Requires: `kubectl`, `go`, `python3`, and **`podman` (CRI-O / Fedora CoreOS) or `ctr` (containerd)**, plus cluster-admin kubeconfig.
+
+> **Fedora CoreOS / CRI-O:** use fully-qualified image refs (never short names like `nginx:…` — CRI-O cannot prompt for short-name aliases without a TTY). Platform workloads always tolerate `node-role.kubernetes.io/control-plane` for CP-only labs. Prefers `podman load`/`podman pull` when `ctr` is absent.
 
 ```bash
 git clone https://github.com/Deepak-Das01/kubeops-platform.git
@@ -398,15 +401,17 @@ flowchart LR
 
 ### Mandatory (software / cluster)
 
-- A working Kubernetes cluster with **containerd** (lab uses `containerd://2.x`)
+- A working Kubernetes cluster with **containerd** or **CRI-O** (Fedora CoreOS lab uses `cri-o://1.32`)
 - `kubectl` configured for the target context (cluster-admin for install)
-- For `./scripts/install-operators.sh`: `go`, `python3`, `ctr` (containerd CLI)
+- For `./scripts/install-operators.sh`: `go`, `python3`, and **`podman` or `ctr`**
 - Permission to create namespaces, CRDs, ClusterRoles, Deployments, and NodePorts
-- Network access to pull (or locally preload) console images:
-  - `kubernetesui/dashboard:v2.7.0`
-  - `kubernetesui/metrics-scraper:v1.0.8`
-  - `nginx:1.27-alpine`
-  - Plus Dex / oauth2-proxy and any **addon** images you Deploy from Addons
+- Network access to pull (or locally preload on **every** node) fully-qualified console images:
+  - `docker.io/kubernetesui/dashboard:v2.7.0`
+  - `docker.io/kubernetesui/metrics-scraper:v1.0.8`
+  - `docker.io/library/nginx:1.27-alpine`
+  - `ghcr.io/dexidp/dex:v2.41.1`, `quay.io/oauth2-proxy/oauth2-proxy:v7.7.1`
+  - `localhost/kubeops-*:1.3.0` (operators) plus any **addon** images you Deploy from Addons
+  - On CP-only clusters, platform pods tolerate `node-role.kubernetes.io/control-plane`
 - `openssl` (TLS secret helpers), `bash`, `git`, and a modern browser
 - Swap disabled on nodes (kubeadm requirement)
 

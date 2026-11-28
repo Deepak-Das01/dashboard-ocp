@@ -7,6 +7,7 @@ import (
 	"time"
 
 	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/placement"
 	opstatus "github.com/Deepak-Das01/kubeops-platform/operator/internal/status"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -268,6 +269,7 @@ func (r *NFSProvisionerReconciler) ensureDeployment(ctx context.Context, ns, rel
 				NFS: &corev1.NFSVolumeSource{Server: server, Path: path},
 			},
 		}}
+		placement.EnsureControlPlaneTolerations(&d.Spec.Template.Spec)
 	}
 
 	var lastErr error

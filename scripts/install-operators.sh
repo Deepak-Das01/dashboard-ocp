@@ -52,8 +52,10 @@ ADDON_NS="${ADDON_NS:-kubeops-addon-controller}"
 ADDON_REGISTRY="${ADDON_REGISTRY:-$ROOT/operator/config/addons/controllers.list}"
 CONSOLE_NS="${CONSOLE_NS:-$CONSOLE_NAME}"
 AUTH_NS="${AUTH_NS:-$AUTH_NAME}"
-CONSOLE_IMG="${CONSOLE_IMG:-${CONSOLE_NAME}:${VERSION}}"
-AUTH_IMG="${AUTH_IMG:-${AUTH_NAME}:${VERSION}}"
+# Fully-qualified refs for CRI-O on FCOS (short names fail without TTY short-name prompt).
+# Host-built/airgap operator images are imported as localhost/kubeops-*:VERSION.
+CONSOLE_IMG="${CONSOLE_IMG:-localhost/${CONSOLE_NAME}:${VERSION}}"
+AUTH_IMG="${AUTH_IMG:-localhost/${AUTH_NAME}:${VERSION}}"
 # Back-compat aliases
 OIDC_IMG="${OIDC_IMG:-$AUTH_IMG}"
 
@@ -62,6 +64,10 @@ BUILD_OPERATORS="${BUILD_OPERATORS:-true}"
 PACK_IMAGES="${PACK_IMAGES:-true}"
 PULL_OAUTH2_PROXY="${PULL_OAUTH2_PROXY:-true}"
 OAUTH2_PROXY_IMG="${OAUTH2_PROXY_IMG:-quay.io/oauth2-proxy/oauth2-proxy:v7.7.1}"
+DASHBOARD_IMG="${DASHBOARD_IMG:-docker.io/kubernetesui/dashboard:v2.7.0}"
+NGINX_IMG="${NGINX_IMG:-docker.io/library/nginx:1.27-alpine}"
+SCRAPER_IMG="${SCRAPER_IMG:-docker.io/kubernetesui/metrics-scraper:v1.0.8}"
+DEX_IMG="${DEX_IMG:-ghcr.io/dexidp/dex:v2.41.1}"
 AUTH_MODE="${AUTH_MODE:-oidc}" # oidc | secret | token
 INSTALL_OIDC_CR="${INSTALL_OIDC_CR:-}"
 CONSOLE_SAMPLE="${CONSOLE_SAMPLE:-}"
@@ -132,7 +138,14 @@ addon_image_ref() {
     printf '%s\n' "${!env_key}"
     return
   fi
-  printf '%s\n' "${img_name}:${VERSION}"
+  printf 'localhost/%s:%s\n' "${img_name}" "${VERSION}"
+}
+
+# Ensure control-plane NoSchedule tolerations on a Deployment (CP-only / SNO labs).
+ensure_cp_tolerations() {
+  local ns="$1" deploy="$2"
+  kubectl -n "$ns" patch deploy "$deploy" --type=strategic -p '{"spec":{"template":{"spec":{"tolerations":[{"key":"node-role.kubernetes.io/control-plane","operator":"Exists","effect":"NoSchedule"},{"key":"node-role.kubernetes.io/master","operator":"Exists","effect":"NoSchedule"}]}}}}' >/dev/null 2>&1 || \
+    warn "could not patch CP tolerations on ${ns}/${deploy}"
 }
 
 load_addon_registry "$ADDON_REGISTRY"
@@ -140,9 +153,30 @@ load_addon_registry "$ADDON_REGISTRY"
 command -v kubectl >/dev/null || die "kubectl is required"
 command -v go >/dev/null || die "go is required (to build operators)"
 command -v python3 >/dev/null || die "python3 is required (to pack operator images)"
-command -v ctr >/dev/null || die "ctr (containerd) is required to import operator images"
+have_podman=false
+have_ctr=false
+command -v podman >/dev/null 2>&1 && have_podman=true
+command -v ctr >/dev/null 2>&1 && have_ctr=true
+$have_podman || $have_ctr || die "need podman (CRI-O/FCOS) or ctr (containerd) to import operator images"
 kubectl cluster-info >/dev/null 2>&1 || die "kubectl cannot reach the cluster (check kubeconfig)"
 
+import_image_tar() {
+  local tar="$1"
+  if $have_podman; then
+    podman load -i "$tar"
+    return
+  fi
+  ctr -n k8s.io images import "$tar"
+}
+
+pull_image_ref() {
+  local ref="$1"
+  if $have_podman; then
+    podman pull "$ref"
+    return
+  fi
+  ctr -n k8s.io images pull "$ref"
+}
 NODE_IP="$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>/dev/null || true)"
 
 log "kubeops operators install (v${VERSION})"
@@ -166,7 +200,19 @@ fi
 
 if [[ "$PULL_OAUTH2_PROXY" == "true" && "$AUTH_MODE" == "oidc" ]]; then
   log "Ensuring oauth2-proxy image ${OAUTH2_PROXY_IMG}"
-  ctr -n k8s.io images pull "$OAUTH2_PROXY_IMG" >/dev/null || warn "could not pull ${OAUTH2_PROXY_IMG}; ensure it exists on nodes"
+  pull_image_ref "$OAUTH2_PROXY_IMG" >/dev/null || warn "could not pull ${OAUTH2_PROXY_IMG}; ensure it exists on nodes"
+fi
+
+# Prefer fully-qualified pulls so CRI-O/podman never hit interactive short-name prompts.
+if [[ "$LOAD_IMAGES" == "true" ]]; then
+  for ref in "$NGINX_IMG" "$DASHBOARD_IMG" "$SCRAPER_IMG"; do
+    log "Ensuring workload image ${ref}"
+    pull_image_ref "$ref" >/dev/null 2>&1 || warn "pull failed for ${ref}"
+  done
+  if [[ "$AUTH_MODE" == "oidc" ]]; then
+    log "Ensuring Dex image ${DEX_IMG}"
+    pull_image_ref "$DEX_IMG" >/dev/null 2>&1 || warn "pull failed for ${DEX_IMG}"
+  fi
 fi
 
 # --- 2) Build operator binaries (core + all addon controllers) ---
@@ -194,22 +240,22 @@ done
 
 # --- 3) Pack + import operator images ---
 if [[ "$PACK_IMAGES" == "true" ]]; then
-  log "Packing kubeops operator images into containerd"
+  log "Packing kubeops operator images (runtime: $( $have_podman && echo podman/cri-o || echo containerd ))"
   CONSOLE_TAR="$ROOT/artifacts/images/${CONSOLE_NAME}-${VERSION}-amd64.tar"
   AUTH_TAR="$ROOT/artifacts/images/${AUTH_NAME}-${VERSION}-amd64.tar"
   python3 "$ROOT/scripts/pack-static-image.py" \
     "$ROOT/operator/bin/${CONSOLE_NAME}" "$CONSOLE_IMG" "$CONSOLE_TAR" --entrypoint /manager
   python3 "$ROOT/scripts/pack-static-image.py" \
     "$ROOT/operator/bin/${AUTH_NAME}" "$AUTH_IMG" "$AUTH_TAR" --entrypoint /manager
-  ctr -n k8s.io images import "$CONSOLE_TAR"
-  ctr -n k8s.io images import "$AUTH_TAR"
+  import_image_tar "$CONSOLE_TAR"
+  import_image_tar "$AUTH_TAR"
   for ((i = 0; i < ${#ADDON_IDS[@]}; i++)); do
     img_name="${ADDON_IMAGES[$i]}"
     img_ref="$(addon_image_ref "$img_name")"
     tar="$ROOT/artifacts/images/${img_name}-${VERSION}-amd64.tar"
     python3 "$ROOT/scripts/pack-static-image.py" \
       "$ROOT/operator/bin/${img_name}" "$img_ref" "$tar" --entrypoint /manager
-    ctr -n k8s.io images import "$tar"
+    import_image_tar "$tar"
   done
 fi
 
@@ -251,11 +297,14 @@ log "Applying ${CONSOLE_NAME} + ${AUTH_NAME} Deployments"
 kubectl apply -f "$ROOT/operator/config/manager/operators.yaml"
 kubectl -n "$CONSOLE_NS" set image "deploy/${CONSOLE_NAME}" manager="${CONSOLE_IMG}" >/dev/null
 kubectl -n "$AUTH_NS" set image "deploy/${AUTH_NAME}" manager="${AUTH_IMG}" >/dev/null
+ensure_cp_tolerations "$CONSOLE_NS" "$CONSOLE_NAME"
+ensure_cp_tolerations "$AUTH_NS" "$AUTH_NAME"
 for ((i = 0; i < ${#ADDON_IDS[@]}; i++)); do
   deploy="${ADDON_DEPLOYS[$i]}"
   img_ref="$(addon_image_ref "${ADDON_IMAGES[$i]}")"
   ns="${ADDON_NAMESPACES[$i]}"
   kubectl -n "$ns" set image "deploy/${deploy}" manager="${img_ref}" >/dev/null
+  ensure_cp_tolerations "$ns" "$deploy"
 done
 
 log "Waiting for kubeops operator pods"

@@ -9,6 +9,9 @@ import (
 
 	dashboardv1alpha1 "github.com/Deepak-Das01/kubeops-platform/operator/api/v1alpha1"
 	"github.com/Deepak-Das01/kubeops-platform/operator/internal/assets"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/endpoint"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/images"
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/placement"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -59,18 +62,25 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		if err := r.applyYAML(ctx, nil, ms, ""); err != nil {
 			return fmt.Errorf("metrics-server: %w", err)
 		}
+		if err := r.ensureMetricsServerPlacement(ctx); err != nil {
+			return fmt.Errorf("metrics-server placement: %w", err)
+		}
 	}
 
 	var extraIPs []net.IP
+	publicIPs := endpoint.AllPublicIPs(ctx, r.Client)
 	nodeIP := ""
-	nodes := &corev1.NodeList{}
-	if err := r.List(ctx, nodes); err == nil && len(nodes.Items) > 0 {
-		for _, a := range nodes.Items[0].Status.Addresses {
-			if a.Type == corev1.NodeInternalIP {
-				nodeIP = a.Address
-				if ip := net.ParseIP(a.Address); ip != nil {
-					extraIPs = append(extraIPs, ip)
-				}
+	if len(publicIPs) > 0 {
+		// Prefer first Ready node InternalIP for NodePort URLs (VIP often :6443 only).
+		nodesOnly := endpoint.NodeInternalIPs(ctx, r.Client)
+		if len(nodesOnly) > 0 {
+			nodeIP = nodesOnly[0]
+		} else {
+			nodeIP = publicIPs[0]
+		}
+		for _, addr := range publicIPs {
+			if ip := net.ParseIP(addr); ip != nil {
+				extraIPs = append(extraIPs, ip)
 			}
 		}
 	}
@@ -174,6 +184,9 @@ func (r *KubeDashboardReconciler) reconcileConsole(ctx context.Context, kd *dash
 		}
 	}
 
+	if err := r.ensureMetricsScraper(ctx, kd, labels); err != nil {
+		return err
+	}
 	if err := r.ensureConsoleDeployment(ctx, kd, labels, basicAuth, oidcAuth, nodeIP); err != nil {
 		return err
 	}
@@ -224,7 +237,7 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 		containers := []corev1.Container{
 			{
 				Name:            "proxy",
-				Image:           kd.Spec.Images.Proxy,
+				Image:           images.Qualify(kd.Spec.Images.Proxy),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Ports: []corev1.ContainerPort{
 					{Name: "http", ContainerPort: 8080},
@@ -236,7 +249,7 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 			},
 			{
 				Name:            "dashboard",
-				Image:           kd.Spec.Images.Dashboard,
+				Image:           images.Qualify(kd.Spec.Images.Dashboard),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Args: []string{
 					"--namespace=" + ns,
@@ -257,10 +270,19 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 			if nodeIP == "" {
 				nodeIP = "127.0.0.1"
 			}
-			whitelist := fmt.Sprintf("%s:30443,%s", nodeIP, nodeIP)
+			ips := endpoint.AllPublicIPs(ctx, r.Client)
+			if len(ips) == 0 {
+				ips = []string{nodeIP}
+			}
+			var cookieDomains []string
+			var whitelistParts []string
+			for _, ip := range ips {
+				cookieDomains = append(cookieDomains, ip)
+				whitelistParts = append(whitelistParts, ip+":30443", ip)
+			}
 			containers = append(containers, corev1.Container{
 				Name:            "oauth2-proxy",
-				Image:           "quay.io/oauth2-proxy/oauth2-proxy:v7.7.1",
+				Image:           images.Qualify("quay.io/oauth2-proxy/oauth2-proxy:v7.7.1"),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Args: []string{
 					"--http-address=0.0.0.0:4180",
@@ -277,8 +299,8 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 					{Name: "OAUTH2_PROXY_EMAIL_DOMAINS", Value: "*"},
 					{Name: "OAUTH2_PROXY_COOKIE_SECURE", Value: "true"},
 					{Name: "OAUTH2_PROXY_COOKIE_SAMESITE", Value: "lax"},
-					{Name: "OAUTH2_PROXY_COOKIE_DOMAINS", Value: nodeIP},
-					{Name: "OAUTH2_PROXY_WHITELIST_DOMAINS", Value: whitelist},
+					{Name: "OAUTH2_PROXY_COOKIE_DOMAINS", Value: strings.Join(cookieDomains, ",")},
+					{Name: "OAUTH2_PROXY_WHITELIST_DOMAINS", Value: strings.Join(whitelistParts, ",")},
 					{Name: "OAUTH2_PROXY_PROMPT", Value: "login"},
 					{Name: "OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER", Value: "false"},
 					{Name: "OAUTH2_PROXY_SET_AUTHORIZATION_HEADER", Value: "false"},
@@ -301,9 +323,70 @@ func (r *KubeDashboardReconciler) ensureConsoleDeployment(ctx context.Context, k
 		deploy.Spec.Template.Spec.Containers = containers
 		deploy.Spec.Template.Spec.Volumes = vols
 		deploy.Spec.Template.Spec.NodeSelector = map[string]string{"kubernetes.io/os": "linux"}
+		placement.EnsureControlPlaneTolerations(&deploy.Spec.Template.Spec)
 		return nil
 	})
 	return err
+}
+
+// ensureMetricsScraper keeps the scraper on a fully-qualified image + CP tolerations
+// so reconcile cannot leave short names that CRI-O rejects on FCOS.
+func (r *KubeDashboardReconciler) ensureMetricsScraper(ctx context.Context, kd *dashboardv1alpha1.KubeDashboard, labels map[string]string) error {
+	ns := kd.Spec.Namespace
+	deploy := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "dashboard-metrics-scraper", Namespace: ns}}
+	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, deploy, func() error {
+		replicas := int32(1)
+		sel := map[string]string{"k8s-app": "dashboard-metrics-scraper"}
+		deploy.Labels = map[string]string{"k8s-app": "dashboard-metrics-scraper"}
+		for k, v := range labels {
+			deploy.Labels[k] = v
+		}
+		deploy.Spec.Replicas = &replicas
+		deploy.Spec.Selector = &metav1.LabelSelector{MatchLabels: sel}
+		deploy.Spec.Template.ObjectMeta.Labels = sel
+		deploy.Spec.Template.Spec.ServiceAccountName = "kubernetes-dashboard"
+		deploy.Spec.Template.Spec.NodeSelector = map[string]string{"kubernetes.io/os": "linux"}
+		deploy.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+			SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+		}
+		deploy.Spec.Template.Spec.Containers = []corev1.Container{{
+			Name:            "dashboard-metrics-scraper",
+			Image:           images.Qualify(kd.Spec.Images.MetricsScraper),
+			ImagePullPolicy: corev1.PullIfNotPresent,
+			Ports:           []corev1.ContainerPort{{ContainerPort: 8000, Protocol: corev1.ProtocolTCP}},
+			LivenessProbe: &corev1.Probe{
+				ProbeHandler:        corev1.ProbeHandler{HTTPGet: &corev1.HTTPGetAction{Path: "/", Port: intstr.FromInt(8000)}},
+				InitialDelaySeconds: 30,
+				TimeoutSeconds:      30,
+			},
+			VolumeMounts: []corev1.VolumeMount{{Name: "tmp-volume", MountPath: "/tmp"}},
+			SecurityContext: &corev1.SecurityContext{
+				AllowPrivilegeEscalation: boolPtr(false),
+				ReadOnlyRootFilesystem:   boolPtr(true),
+				RunAsUser:                int64Ptr(1001),
+				RunAsGroup:               int64Ptr(2001),
+			},
+		}}
+		deploy.Spec.Template.Spec.Volumes = []corev1.Volume{{
+			Name: "tmp-volume", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
+		}}
+		placement.EnsureControlPlaneTolerations(&deploy.Spec.Template.Spec)
+		return nil
+	})
+	return err
+}
+
+func (r *KubeDashboardReconciler) ensureMetricsServerPlacement(ctx context.Context) error {
+	deploy := &appsv1.Deployment{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: "kube-system", Name: "metrics-server"}, deploy); err != nil {
+		return err
+	}
+	before := len(deploy.Spec.Template.Spec.Tolerations)
+	placement.EnsureControlPlaneTolerations(&deploy.Spec.Template.Spec)
+	if len(deploy.Spec.Template.Spec.Tolerations) == before {
+		return nil
+	}
+	return r.Update(ctx, deploy)
 }
 
 func (r *KubeDashboardReconciler) ensureConsoleService(ctx context.Context, kd *dashboardv1alpha1.KubeDashboard, labels map[string]string) error {

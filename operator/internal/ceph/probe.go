@@ -179,7 +179,7 @@ func (s *DiskProbeServer) probeNodeDisks(ctx context.Context, ns, nodeName strin
 			RestartPolicy: corev1.RestartPolicyNever,
 			Containers: []corev1.Container{{
 				Name:            "probe",
-				Image:           "busybox:1.36",
+				Image:           "docker.io/library/busybox:1.36",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"/bin/sh", "-c",

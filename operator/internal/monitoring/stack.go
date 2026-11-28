@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Deepak-Das01/kubeops-platform/operator/internal/placement"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -18,6 +19,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
+
+func withCPTolerations(d *appsv1.Deployment) *appsv1.Deployment {
+	placement.EnsureControlPlaneTolerations(&d.Spec.Template.Spec)
+	return d
+}
 
 const (
 	imgPrometheus   = "quay.io/prometheus/prometheus:v2.54.1"
@@ -363,7 +369,7 @@ func prometheusDeploy(opt stackOpts, usePVC bool, cfgHash string) *appsv1.Deploy
 	} else {
 		vols = append(vols, corev1.Volume{Name: "data", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}})
 	}
-	return &appsv1.Deployment{
+	return withCPTolerations(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "prometheus", Namespace: opt.Namespace, Labels: labels("prometheus")},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32ptr(1),
@@ -403,7 +409,7 @@ func prometheusDeploy(opt stackOpts, usePVC bool, cfgHash string) *appsv1.Deploy
 				},
 			},
 		},
-	}
+	})
 }
 
 func int64ptr(v int64) *int64 { return &v }
@@ -439,7 +445,7 @@ func alertmanagerDeploy(opt stackOpts) *appsv1.Deployment {
 			},
 		},
 	}
-	return d
+	return withCPTolerations(d)
 }
 
 func grafanaDeploy(opt stackOpts, usePVC bool, dashHash string) *appsv1.Deployment {
@@ -515,11 +521,11 @@ func grafanaDeploy(opt stackOpts, usePVC bool, dashHash string) *appsv1.Deployme
 			},
 		},
 	}
-	return d
+	return withCPTolerations(d)
 }
 
 func ksmDeploy(opt stackOpts) *appsv1.Deployment {
-	return &appsv1.Deployment{
+	return withCPTolerations(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{Name: "kube-state-metrics", Namespace: opt.Namespace, Labels: labels("kube-state-metrics")},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32ptr(1),
@@ -540,7 +546,7 @@ func ksmDeploy(opt stackOpts) *appsv1.Deployment {
 				},
 			},
 		},
-	}
+	})
 }
 
 func nodeExporterDS(opt stackOpts) *appsv1.DaemonSet {
